@@ -1,0 +1,73 @@
+/* 项目抽屉：非模态右侧检查面板，主列不因它开合而重排 */
+
+.drawer {
+  position: fixed;
+  top: var(--topbar-height);
+  right: 0;
+  bottom: 0;
+  /* 窄窗口下按比例收窄，不给它把主列挤没的机会 */
+  width: clamp(320px, 40vw, 460px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--card);
+  border-left: 1px solid var(--border);
+  /* 比对话框（20）低：对话框出现时必须盖住抽屉 */
+  z-index: 10;
+  box-shadow: -12px 0 32px color-mix(in srgb, var(--foreground) 8%, transparent);
+}
+
+.drawer__head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--border);
+  min-width: 0;
+}
+
+.drawer__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drawer__close {
+  margin-left: auto;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  justify-content: center;
+}
+
+/* 路径单独占一行：项目路径很长，和标题挤一行会两头都看不全 */
+.drawer__path {
+  flex: 0 0 auto;
+  order: 3;
+  width: 100%;
+  padding: 0 16px 10px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drawer__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}

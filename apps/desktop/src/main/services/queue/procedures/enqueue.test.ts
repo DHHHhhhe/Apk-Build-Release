@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { NO_BUILDABLE_VARIANT_REASON } from '@shared/lib/variants'
 
 let workspace: string
 let dbModule: typeof import('../../../db/client')
@@ -95,7 +96,7 @@ describe('入队校验', () => {
     await scheduler.waitForIdle(3000)
   })
 
-  it('只勾了 debug 变体时不入队：出包不带 debug', async () => {
+  it('勾选里只有非 release 变体时不入队：出包只带 release', async () => {
     const schema = await import('../../../db/schema')
     dbModule.db
       .insert(schema.projects)
@@ -116,7 +117,7 @@ describe('入队校验', () => {
 
     const result = enqueue.enqueueProjects({ projectIds: ['project-debug-only'] })
     expect(result.success).toBe(false)
-    expect(result.error).toContain('勾选的只有 debug 变体')
+    expect(result.error).toContain(NO_BUILDABLE_VARIANT_REASON)
   })
 
   it('勾了 release 时才入队，且只带 release 变体', async () => {

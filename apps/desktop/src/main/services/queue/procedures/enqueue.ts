@@ -1,5 +1,5 @@
 import { logger as baseLogger } from '../../logger'
-import { ONLY_DEBUG_SELECTED_REASON, resolveBuildableVariants } from '@shared/lib/variants'
+import { NO_BUILDABLE_VARIANT_REASON, resolveBuildableVariants } from '@shared/lib/variants'
 import { findProjectRow, listVariants, parseJsonArray } from '../../project/lib/mapper'
 import { enqueueInputSchema } from '../types'
 import type { QueueItem, QueueMutationResult } from '../types'
@@ -39,18 +39,15 @@ export function enqueueProjects(input: unknown): QueueMutationResult {
 
     const variants = listVariants(project.id)
     const selected = parseJsonArray(project.selectedVariants)
-    // 出包不带 debug：界面按同一条规则决定列表显示什么，两边共用这一份实现与同一句拒绝原因
-    const { buildable, hiddenSelected } = resolveBuildableVariants({
-      variants,
-      selected,
-      includeDebug: false
-    })
-    if (buildable.length === 0 && hiddenSelected.length === 0) {
+    // 出包只带 release：界面按同一条规则决定列表显示什么，两边共用这一份实现
+    const { buildable } = resolveBuildableVariants({ variants, selected })
+    if (selected.length === 0) {
       skipped.push(`${project.name}：没有勾选变体`)
       continue
     }
     if (buildable.length === 0) {
-      skipped.push(`${project.name}：${ONLY_DEBUG_SELECTED_REASON}`)
+      // 勾了却出不了包：只勾了非 release 变体（旧版本的勾选），或勾的变体已从项目里消失
+      skipped.push(`${project.name}：${NO_BUILDABLE_VARIANT_REASON}`)
       continue
     }
 

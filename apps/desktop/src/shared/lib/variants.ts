@@ -12,6 +12,8 @@ export function isReleaseBuildType(buildType: string): boolean {
  * 打包工具默认只关心发布变体：
  * debug 包由 SDK 调试密钥签名，按 Android 官方说法「不能发布到应用商店」，
  * 属于开发自测产物，不该混在批量出包的列表里。
+ *
+ * 这是本工具的规则本身，界面上不再解释它、也不提供绕开的入口。
  */
 export function filterVariantsForPackaging<T extends { buildType: string }>(variants: T[]): T[] {
   const release = variants.filter((variant) => isReleaseBuildType(variant.buildType))
@@ -19,21 +21,18 @@ export function filterVariantsForPackaging<T extends { buildType: string }>(vari
   return release.length > 0 ? release : variants
 }
 
-/** 勾选里只有 debug 变体时的拒绝原因：主进程与界面共用同一句，避免两边文案漂移 */
-export const ONLY_DEBUG_SELECTED_REASON = '勾选的只有 debug 变体，出包不带 debug'
+/**
+ * 勾了变体、但一个都出不了包时的说明（例如旧版本留下的 debug 勾选）。
+ * 主进程跳过该项目时用它，措辞与界面上的提示保持一致。
+ */
+export const NO_BUILDABLE_VARIANT_REASON = '没有可出包的 release 变体'
 
 export interface BuildableVariantsInput<T extends { name: string; buildType: string }> {
   variants: T[]
   selected: string[]
-  /** 是否把 debug 变体也算进可构建范围（界面上的「显示 debug 变体」开关；主进程恒为 false） */
-  includeDebug: boolean
-}
-
-export interface BuildableVariantsResult {
+}export interface BuildableVariantsResult {
   /** 真的会被构建的变体名，保持勾选顺序 */
   buildable: string[]
-  /** 勾了但被出包规则挡下的（当前规则下就是 debug） */
-  hiddenSelected: string[]
   /** 勾了但项目里已经没有这个变体了（变体被改名或删掉） */
   unknownSelected: string[]
 }
@@ -48,19 +47,14 @@ export function resolveBuildableVariants<T extends { name: string; buildType: st
   input: BuildableVariantsInput<T>
 ): BuildableVariantsResult {
   const known = new Set(input.variants.map((variant) => variant.name))
-  const visible = new Set(
-    (input.includeDebug ? input.variants : filterVariantsForPackaging(input.variants)).map(
-      (variant) => variant.name
-    )
-  )
+  const visible = new Set(filterVariantsForPackaging(input.variants).map((variant) => variant.name))
 
-  // 先按「项目里还存不存在」筛一遍，再区分「被出包规则挡下」与「不存在」，
-  // 否则改名留下的旧勾选会被当成 debug 变体报错，提示词就骗人了
+  // 先按「项目里还存不存在」筛一遍：改名或删变体留下的旧勾选要归到 unknown，
+  // 不能和「被出包规则挡下」混成同一类，否则提示词就骗人了
   const knownSelected = input.selected.filter((name) => known.has(name))
 
   return {
     buildable: knownSelected.filter((name) => visible.has(name)),
-    hiddenSelected: knownSelected.filter((name) => !visible.has(name)),
     unknownSelected: input.selected.filter((name) => !known.has(name))
   }
 }

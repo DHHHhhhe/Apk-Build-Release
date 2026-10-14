@@ -1,5 +1,3 @@
-import { ONLY_DEBUG_SELECTED_REASON } from '@shared/lib/variants'
-
 /**
  * 「构建勾选项」这个动作能不能点、不能点时为什么不能点。
  *
@@ -22,8 +20,6 @@ export interface BuildGuardInput {
   pendingProjectCount: number
   /** 勾选里因已在队列中而被跳过的项目数 */
   queuedProjectCount: number
-  /** 勾了但被出包规则挡下的（debug） */
-  hiddenSelectedCount: number
   /** 勾了但项目里已经没有这个变体的 */
   unknownSelectedCount: number
 }
@@ -34,10 +30,6 @@ export function buildBlockedReason(input: BuildGuardInput): string | null {
     return '正在保存勾选…'
   }
   if (input.buildableVariantCount === 0) {
-    if (input.hiddenSelectedCount > 0) {
-      // 与主进程入队时的拒绝原因共用同一句，避免两处文案各说各话
-      return ONLY_DEBUG_SELECTED_REASON
-    }
     if (input.unknownSelectedCount > 0) {
       return '勾选的变体已不在项目里，先刷新变体'
     }

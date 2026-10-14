@@ -6,11 +6,11 @@ import { ConfirmDialog } from './components/ConfirmDialog'
 import { EnvCard } from './components/EnvCard'
 import { GuideCard } from './components/GuideCard'
 import { ProjectDetail } from './components/ProjectDetail'
+import { ProjectDrawer } from './components/ProjectDrawer'
 import { ProjectList } from './components/ProjectList'
 import { QueuePanel } from './components/QueuePanel'
 import { SettingsDialog } from './components/SettingsDialog'
 import { BuildCenter } from './components/BuildCenter'
-import { useShowDebugVariants } from './hooks/useShowDebugVariants'
 import { buildBlockedReason, projectsToEnqueue, queuedExclusionHint } from './lib/build-guard'
 import { resolveBuildableVariants } from '@shared/lib/variants'
 import type { Project } from '@shared/types/project'
@@ -40,30 +40,26 @@ export default function App(): React.JSX.Element {
     setVariants
   } = useProjects()
 
+  // 抽屉当前展示的项目。刻意不回退到「第一个项目」：没打开任何项目时，
+  // 主列就该只有全局内容，不该凭空出现一个项目的详情
   const selectedProject = useMemo(() => {
-    if (projects.length === 0) {
+    if (selectedProjectId === null) {
       return null
     }
-    return projects.find((project) => project.id === selectedProjectId) ?? projects[0] ?? null
+    return projects.find((project) => project.id === selectedProjectId) ?? null
   }, [projects, selectedProjectId])
 
   const queue = useQueue()
   const build = useBuild(selectedProject?.id ?? null)
   const env = useEnvProbe(selectedProject?.path ?? '')
   const sidebar = useSidebarWidth()
-  const debug = useShowDebugVariants()
 
   const selectedVariants = selectedProject?.selectedVariants ?? []
   // 与主进程同一条规则（shared/lib/variants）：列表里没显示的变体不参与构建
   const resolvedVariants = selectedProject
-    ? resolveBuildableVariants({
-        variants: selectedProject.variants,
-        selected: selectedVariants,
-        includeDebug: debug.showDebug
-      })
-    : { buildable: [], hiddenSelected: [], unknownSelected: [] }
+    ? resolveBuildableVariants({ variants: selectedProject.variants, selected: selectedVariants })
+    : { buildable: [], unknownSelected: [] }
   const buildableVariants = resolvedVariants.buildable
-  const hiddenSelectedCount = resolvedVariants.hiddenSelected.length
   const currentItem = queue.items.find(
     (item) =>
       item.projectId === selectedProject?.id && (item.state === 'running' || item.state === 'pending')
@@ -72,7 +68,8 @@ export default function App(): React.JSX.Element {
   // 环境缺失（比如 SDK 没找到）时不该让用户白等一次构建
   const envBlocking = env.result?.items.find((item) => item.state === 'error') ?? null
   const enqueueBlocked = blockedReason({
-    hasProject: Boolean(selectedProject),
+    drawerOpen: Boolean(selectedProject),
+    hasProjects: projects.length > 0,
     variantCount: buildableVariants.length,
     busy: busyProjectId !== null,
     alreadyQueued: Boolean(currentItem),
@@ -128,8 +125,7 @@ export default function App(): React.JSX.Element {
       project.id,
       resolveBuildableVariants({
         variants: project.variants,
-        selected: project.selectedVariants,
-        includeDebug: debug.showDebug
+        selected: project.selectedVariants
       })
     ])
   )
@@ -137,7 +133,6 @@ export default function App(): React.JSX.Element {
     buildableVariantCount: 0,
     pendingProjectCount: 0,
     queuedProjectCount: 0,
-    hiddenSelectedCount: 0,
     unknownSelectedCount: 0
   }
   for (const project of projects) {
@@ -146,7 +141,6 @@ export default function App(): React.JSX.Element {
       continue
     }
     crossProject.buildableVariantCount += resolved.buildable.length
-    crossProject.hiddenSelectedCount += resolved.hiddenSelected.length
     crossProject.unknownSelectedCount += resolved.unknownSelected.length
     if (resolved.buildable.length > 0) {
       if (queuedProjectIds.has(project.id)) {
@@ -185,7 +179,6 @@ export default function App(): React.JSX.Element {
           {selectedProject && buildableVariants.length > 0
             ? ` · 当前项目已选 ${buildableVariants.length} 个变体`
             : ''}
-          {hiddenSelectedCount > 0 ? ` · ${hiddenSelectedCount} 个 debug 变体不参与出包` : ''}
         </span>
         {enqueueBlocked ? <span className="app-topbar__hint">{enqueueBlocked}</span> : null}
         <button
@@ -268,11 +261,9 @@ export default function App(): React.JSX.Element {
             <GuideCard onAdd={handleAdd} dragging={drag.dragging} />
           ) : (
             <>
-              {/* 构建中心排在最前：它是主操作区（勾选 + 发起构建 + 看结果），
-                  放在项目详情与环境自检之下会让主流程需要先滚动一段 */}
+              {/* 主列只放全局内容：构建中心是主操作区，队列跟着它；随选中项目变化的东西全进右侧抽屉 */}
               <BuildCenter
                 projects={projects}
-                showDebug={debug.showDebug}
                 busyProjectId={busyProjectId}
                 queuedProjectIds={queuedProjectIds}
                 buildableVariantCount={crossProject.buildableVariantCount}
@@ -286,33 +277,6 @@ export default function App(): React.JSX.Element {
                 }}
                 onBuild={buildCheckedProjects}
               />
-
-              {selectedProject ? (
-                <>
-                  <ProjectDetail
-                    project={selectedProject}
-                    busyKind={busyProjectId === selectedProject.id ? busyKind : null}
-                    building={projectBuilding}
-                    queuedVariants={currentItem?.variants ?? null}
-                    showDebug={debug.showDebug}
-                    onToggleShowDebug={debug.toggle}
-                    onToggleVariant={handleToggleVariant}
-                    onSetVariants={(names) => {
-                      void setVariants(selectedProject.id, names)
-                    }}
-                    onRefreshVariants={(force) => {
-                      void refreshVariants(selectedProject.id, force)
-                    }}
-                  />
-                  <EnvCard
-                    result={env.result}
-                    loading={env.loading}
-                    error={env.error}
-                    projectPath={selectedProject.path}
-                    onRefresh={env.refresh}
-                  />
-                </>
-              ) : null}
 
               <QueuePanel
                 items={queue.items}
@@ -336,20 +300,48 @@ export default function App(): React.JSX.Element {
                   setSelectedProjectId(projectId)
                 }}
               />
-
-              {selectedProject ? (
-                <BuildPanel
-                  runs={build.runs}
-                  logs={build.logs}
-                  activeRunId={build.activeRunId}
-                  building={projectBuilding}
-                  hasMore={build.hasMore}
-                  onLoadMore={build.loadMore}
-                />
-              ) : null}
             </>
           )}
         </main>
+
+        {/* 项目级内容全部收在这里。非模态：抽屉开着的时候主列的勾选照旧能改 */}
+        {selectedProject ? (
+          <ProjectDrawer
+            project={selectedProject}
+            onClose={() => {
+              setSelectedProjectId(null)
+            }}
+          >
+            <ProjectDetail
+              project={selectedProject}
+              busyKind={busyProjectId === selectedProject.id ? busyKind : null}
+              building={projectBuilding}
+              queuedVariants={currentItem?.variants ?? null}
+              onToggleVariant={handleToggleVariant}
+              onSetVariants={(names) => {
+                void setVariants(selectedProject.id, names)
+              }}
+              onRefreshVariants={(force) => {
+                void refreshVariants(selectedProject.id, force)
+              }}
+            />
+            <EnvCard
+              result={env.result}
+              loading={env.loading}
+              error={env.error}
+              projectPath={selectedProject.path}
+              onRefresh={env.refresh}
+            />
+            <BuildPanel
+              runs={build.runs}
+              logs={build.logs}
+              activeRunId={build.activeRunId}
+              building={projectBuilding}
+              hasMore={build.hasMore}
+              onLoadMore={build.loadMore}
+            />
+          </ProjectDrawer>
+        ) : null}
       </div>
 
       <SettingsDialog
@@ -379,9 +371,11 @@ export default function App(): React.JSX.Element {
   )
 }
 
-/** 主按钮禁用时要说清原因，而不是让用户猜 */
+/** 单项目按钮禁用时要说清原因，而不是让用户猜 */
 function blockedReason(input: {
-  hasProject: boolean
+  /** 抽屉开着 = 有一个「当前项目」 */
+  drawerOpen: boolean
+  hasProjects: boolean
   variantCount: number
   busy: boolean
   alreadyQueued: boolean
@@ -390,8 +384,9 @@ function blockedReason(input: {
   if (input.busy) {
     return '正在处理上一个操作…'
   }
-  if (!input.hasProject) {
-    return '先添加一个项目'
+  if (!input.drawerOpen) {
+    // 有项目但没打开：这个按钮指的是「抽屉里那个项目」，没打开就没有对象
+    return input.hasProjects ? '先在左侧选一个项目' : '先添加一个项目'
   }
   if (input.envIssue) {
     return `构建环境有问题：${input.envIssue}`

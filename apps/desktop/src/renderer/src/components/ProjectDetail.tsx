@@ -19,8 +19,6 @@ export function ProjectDetail({
   busyKind,
   building,
   queuedVariants,
-  showDebug,
-  onToggleShowDebug,
   onToggleVariant,
   onSetVariants,
   onRefreshVariants
@@ -31,9 +29,6 @@ export function ProjectDetail({
   building: boolean
   /** 正在跑的那条队列项用的变体快照 */
   queuedVariants: string[] | null
-  /** 是否显示 debug 变体（状态在 App 层，因为构建时也要用同一条规则） */
-  showDebug: boolean
-  onToggleShowDebug: () => void
   onToggleVariant: (variantName: string) => void
   onSetVariants: (names: string[]) => void
   onRefreshVariants: (force: boolean) => void
@@ -42,11 +37,8 @@ export function ProjectDetail({
   const badge = sourceBadge(project)
   const busy = busyKind !== null
 
-  // 打包工具默认只列发布变体：debug 包用调试密钥签名、不能对外发布，混在列表里只是噪音。
-  // 但项目要是连 release 变体都没有，就把全部列出来，不能让用户面对一个空列表。
-  const releaseOnly = filterVariantsForPackaging(project.variants)
-  const visibleVariants = showDebug ? project.variants : releaseOnly
-  const hiddenDebugCount = project.variants.length - releaseOnly.length
+  // 只列发布变体；项目连 release 变体都没有时回退到全部，不能让用户面对空列表
+  const visibleVariants = filterVariantsForPackaging(project.variants)
   const mixedBuildTypes = new Set(visibleVariants.map((variant) => variant.buildType)).size > 1
 
   const buildTypes = Array.from(new Set(visibleVariants.map((variant) => variant.buildType)))
@@ -116,21 +108,6 @@ export function ProjectDetail({
           </p>
         ) : (
           <>
-            {hiddenDebugCount > 0 || showDebug ? (
-              <p className="project-detail__variant-note">
-                {showDebug
-                  ? '正在显示 debug 变体：debug 包用调试密钥签名，不能对外发布，正常出包不用勾它们。'
-                  : `已隐藏 ${hiddenDebugCount} 个 debug 变体（调试用，不对外发布）。release 变体通常没有配签名，工具只标注签名状态、不代签。`}
-                <button
-                  type="button"
-                  className="btn-ghost project-detail__variant-toggle"
-                  onClick={onToggleShowDebug}
-                >
-                  {showDebug ? '只看发布变体' : '显示 debug 变体'}
-                </button>
-              </p>
-            ) : null}
-
             <div className="variant-quick">
               <button
                 type="button"

@@ -7,12 +7,11 @@ type CenterView = 'plan' | 'done'
 
 interface BuildCenterProps {
   projects: Project[]
-  showDebug: boolean
   busyProjectId: string | null
   queuedProjectIds: Set<string>
   /** 会被构建的变体总数（按钮上的 N） */
   buildableVariantCount: number
-  /** 未勾选 / 只勾 debug / 正在保存 时给出的原因 */
+  /** 未勾选 / 正在保存 / 都在队列里 时给出的原因 */
   blockedReason: string | null
   /** 有项目因已在队列中而被跳过时的提示 */
   queuedHint: string | null
@@ -29,7 +28,6 @@ interface BuildCenterProps {
  */
 export function BuildCenter({
   projects,
-  showDebug,
   busyProjectId,
   queuedProjectIds,
   buildableVariantCount,
@@ -77,7 +75,6 @@ export function BuildCenter({
         {view === 'plan' ? (
           <BuildPicker
             projects={projects}
-            showDebug={showDebug}
             busyProjectId={busyProjectId}
             queuedProjectIds={queuedProjectIds}
             buildableVariantCount={buildableVariantCount}

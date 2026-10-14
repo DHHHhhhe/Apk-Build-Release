@@ -5,7 +5,6 @@ import type { Project, ProjectVariant } from '@shared/types/project'
 
 interface BuildPickerProps {
   projects: Project[]
-  showDebug: boolean
   busyProjectId: string | null
   /** 已在队列中的项目 id：这些项目本次会被跳过，但仍允许为下一批改勾选 */
   queuedProjectIds: Set<string>
@@ -18,20 +17,21 @@ interface BuildPickerProps {
   onBuild: () => void
 }
 
-/** 当前可见的变体：与项目详情、与主进程入队共用同一条出包规则 */
-function visibleVariantsOf(project: Project, showDebug: boolean): ProjectVariant[] {
-  return showDebug ? project.variants : filterVariantsForPackaging(project.variants)
+/**
+ * 当前参与出包的变体：与主进程入队共用同一条规则（只出 release；项目没有 release 时回退全部）。
+ * 界面不再提供绕开这条规则的入口。
+ */
+function visibleVariantsOf(project: Project): ProjectVariant[] {
+  return filterVariantsForPackaging(project.variants)
 }
 
 /**
  * 跨项目的勾选表：在一处看见并修改「这次要打哪些包」，然后一次入队。
  *
- * 快捷操作的作用范围有意只限于**当前可见的变体** —— 看不见的勾选（隐藏起来的 debug）
- * 不会被「全选 / 清空 / 只选某类型」悄悄丢掉。
+ * 快捷操作的作用范围只限于可见变体：看不见的勾选不会被「全选 / 清空 / 只选某类型」悄悄丢掉。
  */
 export function BuildPicker({
   projects,
-  showDebug,
   busyProjectId,
   queuedProjectIds,
   buildableVariantCount,
@@ -61,14 +61,14 @@ export function BuildPicker({
     0
   )
   const visibleCount = projects.reduce(
-    (total, project) => total + visibleVariantsOf(project, showDebug).length,
+    (total, project) => total + visibleVariantsOf(project).length,
     0
   )
 
   /** 只加不减：全选不会把看不见的勾选抹掉 */
   const selectAllOf = (project: Project): void => {
     const merged = new Set(project.selectedVariants)
-    for (const variant of visibleVariantsOf(project, showDebug)) {
+    for (const variant of visibleVariantsOf(project)) {
       merged.add(variant.name)
     }
     onSetVariants(project.id, Array.from(merged))
@@ -89,9 +89,9 @@ export function BuildPicker({
   const onlyBuildTypeOf = (project: Project, buildType: string): void => {
     // 保留隐藏的勾选，只重排可见的那部分
     const hidden = project.selectedVariants.filter(
-      (name) => !visibleVariantsOf(project, showDebug).some((variant) => variant.name === name)
+      (name) => !visibleVariantsOf(project).some((variant) => variant.name === name)
     )
-    const picked = visibleVariantsOf(project, showDebug)
+    const picked = visibleVariantsOf(project)
       .filter((variant) => variant.buildType === buildType)
       .map((variant) => variant.name)
     onSetVariants(project.id, [...hidden, ...picked])
@@ -104,6 +104,9 @@ export function BuildPicker({
       return
     }
     if (event.key === 'Escape') {
+      // 焦点在勾选表里时，Esc 归勾选表（清空）；stopPropagation 挡住抽屉的同名快捷键，
+      // 否则一次 Esc 会既清空勾选又关掉抽屉
+      event.stopPropagation()
       clearAll()
     }
   }
@@ -133,8 +136,7 @@ export function BuildPicker({
 
       <ul className="build-picker__groups">
         {projects.map((project) => {
-          const visible = visibleVariantsOf(project, showDebug)
-          const hiddenCount = project.variants.length - visible.length
+          const visible = visibleVariantsOf(project)
           const selected = new Set(project.selectedVariants)
           const isCollapsed = collapsed.has(project.id)
           const queued = queuedProjectIds.has(project.id)
@@ -165,9 +167,6 @@ export function BuildPicker({
                 {queued ? <span className="badge badge--info">队列中</span> : null}
                 {project.variants.length === 0 ? (
                   <span className="badge badge--muted">无变体</span>
-                ) : null}
-                {hiddenCount > 0 ? (
-                  <span className="badge badge--muted tabular">已隐藏 {hiddenCount} 个 debug</span>
                 ) : null}
                 <span className="build-picker__group-actions">
                   <button

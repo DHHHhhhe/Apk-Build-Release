@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { ONLY_DEBUG_SELECTED_REASON } from '@shared/lib/variants'
 import { buildBlockedReason, projectsToEnqueue, queuedExclusionHint } from './build-guard'
 import type { BuildGuardInput } from './build-guard'
 
@@ -9,7 +8,6 @@ function input(patch: Partial<BuildGuardInput> = {}): BuildGuardInput {
     buildableVariantCount: 0,
     pendingProjectCount: 0,
     queuedProjectCount: 0,
-    hiddenSelectedCount: 0,
     unknownSelectedCount: 0,
     ...patch
   }
@@ -26,11 +24,7 @@ describe('buildBlockedReason', () => {
     expect(buildBlockedReason(input())).toBe('先勾选至少一个发布变体')
   })
 
-  it('只勾了 debug 时，文案与主进程入队拒绝的理由完全一致', () => {
-    expect(buildBlockedReason(input({ hiddenSelectedCount: 2 }))).toBe(ONLY_DEBUG_SELECTED_REASON)
-  })
-
-  it('勾的变体已被改名或删掉时，提示去刷新变体，不误报成 debug', () => {
+  it('勾的变体已被改名或删掉时，提示去刷新变体', () => {
     expect(buildBlockedReason(input({ unknownSelectedCount: 1 }))).toBe(
       '勾选的变体已不在项目里，先刷新变体'
     )
@@ -61,7 +55,7 @@ describe('buildBlockedReason', () => {
   })
 
   it('保存中优先于其他原因：避免用户以为是自己没勾', () => {
-    expect(buildBlockedReason(input({ pendingWrites: 2, hiddenSelectedCount: 1 }))).toBe(
+    expect(buildBlockedReason(input({ pendingWrites: 2, unknownSelectedCount: 1 }))).toBe(
       '正在保存勾选…'
     )
   })

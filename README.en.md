@@ -67,7 +67,7 @@ Adding only reads configuration files, so it finishes in milliseconds and never 
 
 Tick them in **Build Center · To build**. It lists the buildable variants of *every* project at once, so there is no need to open each project; per-project select-all, clear and select-one-build-type are there too.
 
-The list shows **release** variants. To build a debug APK, click **Show debug variants**.
+The tool builds **release** variants only; those are the variants the list shows.
 
 **Step 4: queue it**
 
@@ -77,7 +77,7 @@ When the run finishes, switch to **Build Center · Built** to see what the batch
 
 ## The window
 
-The sidebar lists your projects; the main column holds the build center, queue, project details, build environment and build history.
+The sidebar lists your projects. The main column holds **global** content only: the build center and the queue. To see one project's variant list, environment check or build history, click it in the sidebar and a drawer opens on the right.
 
 ![Main window](docs/images/main.png)
 
@@ -90,17 +90,15 @@ The Build Center has two views: **To build** (cross-project selection and the bu
 | Build Center · To build | Cross-project selection table: buildable variants grouped by project, with a running "selected X / buildable Y" count; a project with no variants gets a reason plus a "Resolve with Gradle" entry point |
 | Build Center · Built | Results summary: metric row plus artifacts grouped by project (file name, size, signature status, finish time) |
 | Queue | One entry per project, expanded per variant, with each variant's status and duration; supports cancel, retry and clear |
-| Project details | Variant selection for one project, where the variant list came from, and any parsing limitations |
-| Build environment | Checks Android SDK, JDK and the Gradle wrapper, and blocks before queueing when something is missing so you do not wait for a build that cannot succeed |
-| Build history | Past builds and artifacts for one project, with log viewing, retry and open-log-file |
+| Project drawer | Opened by clicking a project in the sidebar: variant selection, where the variant list came from and any parsing limitations, environment check, and that project's build history. It is non-modal — the main column stays usable while it is open — and `Esc` closes it |
 
-## Variants: release only by default
+The environment check and build history live in the drawer because both are fetched per project (one probe, one query). Putting them in the global area would mean probing every project the moment the window opens.
 
-Android's own documentation on debug builds is clear: debug APKs are signed with the SDK debug key and **cannot be published to an app store**. They are a development artifact, so they do not belong in a packaging list. Accordingly:
+## Variants: release only
 
-- Only `release` variants are listed by default; debug variants are hidden behind a toggle
-- The **same rule** governs builds: if your selection contains nothing but debug variants, the tool refuses to queue it and says why rather than quietly producing a debug APK
-- If a project has no `release` variant at all, every variant is listed — otherwise you would face an empty list
+The tool builds `release` variants only. If a project has no `release` variant at all, every variant is listed — otherwise you would face an empty list.
+
+The list and the queue use the **same rule**, so a variant you cannot see is never built behind your back.
 
 ## Where data lives
 
