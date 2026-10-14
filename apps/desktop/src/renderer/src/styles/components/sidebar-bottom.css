@@ -193,3 +193,36 @@
   max-width: 720px;
   width: 100%;
 }
+
+/* 版本号那一行右侧的两个控件（检查更新 + 设置图标） */
+.app-sidebar__row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.app-sidebar__icon-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 26px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition:
+    background var(--duration-micro),
+    color var(--duration-micro);
+}
+
+.app-sidebar__icon-action:hover {
+  background: var(--sidebar-accent);
+  color: var(--sidebar-accent-foreground);
+}
+
+.app-sidebar__icon-action:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}

@@ -16,6 +16,7 @@ import { AutoCheckUpdateToggle } from './components/AutoCheckUpdateToggle'
 import { UpdateCheckButton } from './components/UpdateCheckButton'
 import { ChangelogDialog } from './components/ChangelogDialog'
 import { UpdateNoticeToast } from './components/UpdateNoticeToast'
+import { UpdateBanner } from './components/UpdateBanner'
 import { buildBlockedReason, enqueueTargets, queuedExclusionHint } from './lib/build-guard'
 import { resolveBuildableVariants } from '@shared/lib/variants'
 import type { Project } from '@shared/types/project'
@@ -268,21 +269,6 @@ export default function App(): React.JSX.Element {
               <AutoCheckUpdateToggle />
             </div>
             <div className="app-sidebar__row">
-              <span className="app-sidebar__label">设置</span>
-              <button
-                type="button"
-                className="app-sidebar__action"
-                aria-label="设置"
-                title="设置"
-                onClick={() => {
-                  setSettingsOpen(true)
-                }}
-              >
-                <Settings size={14} aria-hidden="true" />
-                设置
-              </button>
-            </div>
-            <div className="app-sidebar__row">
               <button
                 type="button"
                 className="app-sidebar__version tabular"
@@ -293,7 +279,22 @@ export default function App(): React.JSX.Element {
               >
                 v{update.state?.currentVersion ?? '—'}
               </button>
-              <UpdateCheckButton />
+              <span className="app-sidebar__row-actions">
+                <UpdateCheckButton />
+                {/* 设置入口按导航规范放在导航区末尾（微软 / Material 的侧边导航都是这条），
+                    但不再单占一行带标签 —— 那样和上面的「主题」「自动检查更新」不成一路 */}
+                <button
+                  type="button"
+                  className="app-sidebar__icon-action"
+                  aria-label="设置"
+                  title="设置"
+                  onClick={() => {
+                    setSettingsOpen(true)
+                  }}
+                >
+                  <Settings size={15} aria-hidden="true" />
+                </button>
+              </span>
             </div>
           </div>
         </aside>
@@ -304,6 +305,11 @@ export default function App(): React.JSX.Element {
           onClose={() => {
             setChangelogOpen(false)
           }}
+        />
+
+        {/* 发现新版本时浮出，把「更新了什么」摆出来，下不下由用户点 */}
+        <UpdateBanner
+          queueBusy={queue.items.some((item) => item.state === 'running' || item.state === 'pending')}
         />
 
         {/* 更新完成后告知一次；点「看更新记录」直接打开上面那个对话框 */}

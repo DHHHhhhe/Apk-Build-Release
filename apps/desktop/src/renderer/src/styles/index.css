@@ -25,6 +25,7 @@
 @import './components/changelog.css';
 @import './components/sidebar-bottom.css';
 @import './components/toast.css';
+@import './components/update-banner.css';
 
 /* 5. 页面 */
 /* @import './pages/queue.css'; */
