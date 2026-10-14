@@ -79,6 +79,12 @@ jobs:
       - name: 单元测试
         run: pnpm test
 
+      # 更新记录（CHANGELOG.md）是界面「更新记录」的数据源，也是历史的唯一归档。
+      # 忘了同步的话，新版本不会出现在那里 —— 而这件事要等到有人点开才发现，所以在发版这一步拦住。
+      - name: 核对更新记录已同步
+        working-directory: apps/desktop
+        run: node scripts/sync-changelog.mjs --check
+
       - name: 构建主进程与界面
         run: pnpm build
 

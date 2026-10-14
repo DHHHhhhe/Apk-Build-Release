@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { FolderOpen, RefreshCw, Trash2, X } from 'lucide-react'
 import type { Settings } from '@shared/types/settings'
 import { useUpdate } from '../hooks/useUpdate'
+import { ChangelogList } from './ChangelogList'
 
 export function SettingsDialog({
   open,
@@ -191,6 +192,14 @@ export function SettingsDialog({
             ) : (
               <span className="dialog__hint">从 GitHub Releases 取新版本；便携版没有自动更新。</span>
             )}
+
+            {/* 更新记录读的是打进包里的 CHANGELOG，断网也能看 */}
+            <details className="dialog__changelog">
+              <summary>更新记录</summary>
+              <div className="dialog__changelog-body">
+                <ChangelogList />
+              </div>
+            </details>
           </div>
 
           {message ? (
