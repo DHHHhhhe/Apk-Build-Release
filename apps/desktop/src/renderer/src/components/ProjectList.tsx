@@ -57,7 +57,11 @@ export function ProjectList({
                   >
                     <span className="project-list__name">{project.name}</span>
                     <span className="project-list__meta">
-                      <span className="badge badge--muted tabular">{project.variants.length} 个变体</span>
+                      {/* 数与右侧实际能构建的变体对齐：这里以前数的是全部变体（含 debug），
+                          于是侧栏写「2 个变体」、点进去只有一个可构建的 */}
+                      <span className="badge badge--muted tabular">
+                        {filterVariantsForPackaging(project.variants).length} 个变体
+                      </span>
                       {project.selectedVariants.length > 0 ? (
                         <span className="badge badge--success tabular">
                           已选 {project.selectedVariants.length}
