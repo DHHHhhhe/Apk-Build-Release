@@ -2,6 +2,8 @@
 
 # APK批量打包
 
+**中文** ｜ [English](README.en.md)
+
 [![license](https://img.shields.io/github/license/DHHHhhhe/Apk-Build-Release)](LICENSE)
 ![platform](https://img.shields.io/badge/platform-Windows-0078d4)
 [![release](https://img.shields.io/github/v/release/DHHHhhhe/Apk-Build-Release)](https://github.com/DHHHhhhe/Apk-Build-Release/releases)

@@ -1,0 +1,136 @@
+# 打一个 v<版本> 标签就自动构建并发布到 Releases。
+#
+# 发一版的完整流程：
+#     1. 抬版本号（根 package.json 与 apps/desktop/package.json 两处一起改，必须比线上大）
+#     2. 把这一版要说的写进 apps/desktop/build/release-notes.md —— 它会成为 Release 正文
+#     3. git add -A && git commit -m "chore: 升到 0.2.0"
+#     4. git tag v0.2.0 && git push origin main --tags
+# 推完标签不用再做别的：Actions 跑完会在 Releases 里出现一个新版本。
+#
+# 想先出草稿、人工点 Publish 才对外：在仓库的
+# Settings → Secrets and variables → Actions → Variables 里加一个 EP_DRAFT=true，
+# 或者在 Actions 页面手动触发这个工作流时把 draft 勾上。
+#
+# 注意：本工作流会核对标签与 package.json 的版本号，对不上直接失败 ——
+# 打错标签后会发现 Release 里躺着上一个版本，比失败更难查。
+
+name: 发布新版本
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      draft:
+        description: 出成草稿 Release（不对外可见，要去网页点 Publish）
+        type: boolean
+        default: false
+
+# gh CLI 要用 GITHUB_TOKEN 建 Release、传附件
+permissions:
+  contents: write
+
+# 同一个标签重复触发时，掐掉上一次没跑完的
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: 取出代码
+        uses: actions/checkout@v4
+
+      - name: 装 pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.8.0
+
+      - name: 装 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: 装依赖
+        run: pnpm install --frozen-lockfile
+
+      # 标签与版本号对不上就早失败：Release 一旦建出来是 v0.2.0、里面装的是 0.1.0 的包，
+      # 后面只能删了重来，不如在这里拦住
+      - name: 核对版本号
+        shell: pwsh
+        run: |
+          $rootVersion = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $appVersion = (Get-Content apps/desktop/package.json -Raw | ConvertFrom-Json).version
+          if ($rootVersion -ne $appVersion) {
+            throw "两处版本号不一致：package.json=$rootVersion，apps/desktop/package.json=$appVersion"
+          }
+          if ('${{ github.ref_type }}' -eq 'tag' -and '${{ github.ref_name }}' -ne "v$rootVersion") {
+            throw "标签 ${{ github.ref_name }} 与 package.json 的版本号 $rootVersion 不一致，应该打 v$rootVersion"
+          }
+          Write-Host "版本号 $rootVersion 核对通过"
+
+      - name: 类型检查
+        run: pnpm typecheck
+
+      - name: 单元测试
+        run: pnpm test
+
+      - name: 构建主进程与界面
+        run: pnpm build
+
+      # 打包与上传分成两步，不交给 electron-builder 自己发布：
+      # 它内置的 GitHub 上传是并发的，会在同一个标签下建出两个 Release、把资产劈成两半；
+      # 失败还会被静默吞掉、job 照样绿。gh 是串行的，传完一个再传下一个。
+      - name: 打包（不发布）
+        working-directory: apps/desktop
+        run: node scripts/run.mjs electron-builder --win --publish never
+
+      - name: 发布到 Releases
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $tag = "v$version"
+          $dir = "apps/desktop/release/$version"
+          $notes = "apps/desktop/build/release-notes.md"
+          $draft = '${{ inputs.draft || vars.EP_DRAFT || 'false' }}' -eq 'true'
+
+          # 用 gh release list 判断而不是 gh release view：后者在 Release 不存在时返回非零，
+          # 新一点的 runner 会把非零退出当成错误直接中断这一步
+          $existing = gh release list --repo $env:GITHUB_REPOSITORY --limit 100 --json tagName --jq '.[].tagName'
+          if ($existing -contains $tag) {
+            Write-Host "$tag 已存在，只补传资产"
+          } else {
+            $createArgs = @($tag, '--repo', $env:GITHUB_REPOSITORY, '--title', $version)
+            if (Test-Path $notes) {
+              $createArgs += @('--notes-file', $notes)
+            } else {
+              $createArgs += '--generate-notes'
+            }
+            if ($draft) { $createArgs += '--draft' }
+            gh release create @createArgs
+            Write-Host "已创建 Release $tag"
+          }
+
+          # 逐个上传：gh 会等每个文件传完再传下一个。--clobber 让重跑同一个标签时覆盖旧资产
+          $assets = @(
+            "$dir/apk-batch-build-$version-setup.exe",
+            "$dir/apk-batch-build-$version-setup.exe.blockmap",
+            "$dir/apk-batch-build-$version-portable.exe"
+          )
+          foreach ($asset in $assets) {
+            if (-not (Test-Path $asset)) {
+              throw "缺产物：$asset"
+            }
+            gh release upload $tag --repo $env:GITHUB_REPOSITORY --clobber $asset
+            Write-Host "已上传 $asset"
+          }
+
+      - name: 提示
+        run: |
+          Write-Host "已发布。安装包与便携版都在 Releases 里，README 的下载链接指向这一页。"
