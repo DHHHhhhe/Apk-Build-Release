@@ -34,6 +34,7 @@ If you ship several Android apps, each with its own flavours and build types, op
 | Capability | Details |
 | --- | --- |
 | Batch builds across projects | Register several local projects, build them through a queue with a concurrency limit; one failure does not stop the rest |
+| Cross-project selection | The Build Center lists every project's buildable variants in one place — tick what you want and queue it in one go; projects already queued are skipped with a note |
 | Variant list comes from the project | Parses `settings.gradle` and each module's `build.gradle` statically (milliseconds), falling back to a real Gradle run when the static result is unreliable. Nothing is hard-coded to debug/release |
 | One place for the output | Reads the `output-metadata.json` AGP writes to pick up `applicationId` / `versionCode` / `versionName`, then copies each APK into a per-project subfolder |
 | Summary of results | A single panel answering "what did this batch produce": projects, variants, passes and failures, total build time, total artifact size, and each APK's path and signature status |
@@ -64,25 +65,33 @@ Adding only reads configuration files, so it finishes in milliseconds and never 
 
 **Step 3: pick variants**
 
-The list shows the project's **release** variants. To build a debug APK, click **Show debug variants** above the list.
+Tick them in **Build Center · To build**. It lists the buildable variants of *every* project at once, so there is no need to open each project; per-project select-all, clear and select-one-build-type are there too.
+
+The list shows **release** variants. To build a debug APK, click **Show debug variants**.
 
 **Step 4: queue it**
 
-Click **Add to queue and build** in the top-right, or **Queue all** to submit every project at once.
+Click **Build checked (N)** — the button inside the panel and the one in the top bar are the same action. Projects already in the queue are skipped and the count is reported next to the button.
 
-When the run finishes, open **Results summary** to see what the batch produced, then use **Open output folder** or **Copy paths**.
+When the run finishes, switch to **Build Center · Built** to see what the batch produced, then use **Open output folder** or **Copy paths**.
 
 ## The window
 
-The sidebar lists your projects; the main column holds build environment, queue, results summary, and build history.
+The sidebar lists your projects; the main column holds the build center, queue, project details, build environment and build history.
+
+![Main window](docs/images/main.png)
+
+The Build Center has two views: **To build** (cross-project selection and the build action) and **Built** (a summary of this batch's artifacts).
 
 ![Results summary](docs/images/summary.png)
 
 | Section | Purpose |
 | --- | --- |
-| Build environment | Checks Android SDK, JDK and the Gradle wrapper, and blocks before queueing when something is missing so you do not wait for a build that cannot succeed |
+| Build Center · To build | Cross-project selection table: buildable variants grouped by project, with a running "selected X / buildable Y" count; a project with no variants gets a reason plus a "Resolve with Gradle" entry point |
+| Build Center · Built | Results summary: metric row plus artifacts grouped by project (file name, size, signature status, finish time) |
 | Queue | One entry per project, expanded per variant, with each variant's status and duration; supports cancel, retry and clear |
-| Results summary | Cross-project artifact overview: metric row plus artifacts grouped by project (file name, size, signature status, finish time) |
+| Project details | Variant selection for one project, where the variant list came from, and any parsing limitations |
+| Build environment | Checks Android SDK, JDK and the Gradle wrapper, and blocks before queueing when something is missing so you do not wait for a build that cannot succeed |
 | Build history | Past builds and artifacts for one project, with log viewing, retry and open-log-file |
 
 ## Variants: release only by default

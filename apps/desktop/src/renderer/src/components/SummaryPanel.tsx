@@ -63,10 +63,9 @@ export function SummaryPanel(): React.JSX.Element {
   }
 
   return (
-    <section className="card-shell">
-      <div className="card-core card-core--pad summary">
-        <header className="summary__head">
-          <h2 className="summary__title">结果汇总</h2>
+    <div className="summary">
+      <header className="summary__head">
+        <span className="summary__scope-label">看的范围</span>
           <div className="summary__scope" role="group" aria-label="汇总范围">
             <button
               type="button"
@@ -235,7 +234,6 @@ export function SummaryPanel(): React.JSX.Element {
             ) : null}
           </div>
         ))}
-      </div>
-    </section>
+    </div>
   )
 }

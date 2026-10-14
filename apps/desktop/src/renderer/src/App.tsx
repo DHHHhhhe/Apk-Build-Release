@@ -9,9 +9,10 @@ import { ProjectDetail } from './components/ProjectDetail'
 import { ProjectList } from './components/ProjectList'
 import { QueuePanel } from './components/QueuePanel'
 import { SettingsDialog } from './components/SettingsDialog'
-import { SummaryPanel } from './components/SummaryPanel'
+import { BuildCenter } from './components/BuildCenter'
 import { useShowDebugVariants } from './hooks/useShowDebugVariants'
-import { filterVariantsForPackaging } from '@shared/lib/variants'
+import { buildBlockedReason, projectsToEnqueue, queuedExclusionHint } from './lib/build-guard'
+import { resolveBuildableVariants } from '@shared/lib/variants'
 import type { Project } from '@shared/types/project'
 import { useBuild } from './hooks/useBuild'
 import { useDragAndDrop } from './hooks/useDragAndDrop'
@@ -32,6 +33,7 @@ export default function App(): React.JSX.Element {
     error,
     busyProjectId,
     busyKind,
+    pendingWrites,
     addProject,
     removeProject,
     refreshVariants,
@@ -52,9 +54,16 @@ export default function App(): React.JSX.Element {
   const debug = useShowDebugVariants()
 
   const selectedVariants = selectedProject?.selectedVariants ?? []
-  // 与主进程同一条规则：列表里没显示的变体不参与构建
-  const buildableVariants = selectedProject ? buildableNamesOf(selectedProject, debug.showDebug) : []
-  const hiddenSelectedCount = selectedVariants.length - buildableVariants.length
+  // 与主进程同一条规则（shared/lib/variants）：列表里没显示的变体不参与构建
+  const resolvedVariants = selectedProject
+    ? resolveBuildableVariants({
+        variants: selectedProject.variants,
+        selected: selectedVariants,
+        includeDebug: debug.showDebug
+      })
+    : { buildable: [], hiddenSelected: [], unknownSelected: [] }
+  const buildableVariants = resolvedVariants.buildable
+  const hiddenSelectedCount = resolvedVariants.hiddenSelected.length
   const currentItem = queue.items.find(
     (item) =>
       item.projectId === selectedProject?.id && (item.state === 'running' || item.state === 'pending')
@@ -106,14 +115,59 @@ export default function App(): React.JSX.Element {
 
   const removableProject = projects.find((project) => project.id === pendingRemove) ?? null
   const removableRecordCount = queue.items.filter((item) => item.projectId === pendingRemove).length
-  const projectsReadyToQueue = projects.filter(
-    (project) =>
-      buildableNamesOf(project, debug.showDebug).length > 0 &&
-      !queue.items.some(
-        (item) =>
-          item.projectId === project.id && (item.state === 'running' || item.state === 'pending')
-      )
+
+  // 跨项目的构建判断基准。注意单位：变体数用于按钮上的 N，项目数用于「都被队列占了」的判断，
+  // 两者混着比会在某些巧合下得出看似正确的结果。
+  const queuedProjectIds = new Set(
+    queue.items
+      .filter((item) => item.state === 'running' || item.state === 'pending')
+      .map((item) => item.projectId)
   )
+  const projectResolutions = new Map(
+    projects.map((project) => [
+      project.id,
+      resolveBuildableVariants({
+        variants: project.variants,
+        selected: project.selectedVariants,
+        includeDebug: debug.showDebug
+      })
+    ])
+  )
+  const crossProject = {
+    buildableVariantCount: 0,
+    pendingProjectCount: 0,
+    queuedProjectCount: 0,
+    hiddenSelectedCount: 0,
+    unknownSelectedCount: 0
+  }
+  for (const project of projects) {
+    const resolved = projectResolutions.get(project.id)
+    if (!resolved) {
+      continue
+    }
+    crossProject.buildableVariantCount += resolved.buildable.length
+    crossProject.hiddenSelectedCount += resolved.hiddenSelected.length
+    crossProject.unknownSelectedCount += resolved.unknownSelected.length
+    if (resolved.buildable.length > 0) {
+      if (queuedProjectIds.has(project.id)) {
+        crossProject.queuedProjectCount += 1
+      } else {
+        crossProject.pendingProjectCount += 1
+      }
+    }
+  }
+  // 顶栏按钮与表内按钮共用同一份判断：同一个动作的两个位置，禁用条件必须字字相同
+  const buildGuard = { pendingWrites, ...crossProject }
+  const crossBlocked = buildBlockedReason(buildGuard)
+  const crossHint = queuedExclusionHint(buildGuard)
+
+  /** 入队勾选的项目：排除已在队列里的，避免点了没反应 */
+  const buildCheckedProjects = (): void => {
+    const ids = projectsToEnqueue(projects, projectResolutions, queuedProjectIds)
+    if (ids.length > 0) {
+      void queue.enqueue(ids)
+    }
+  }
 
   return (
     <div
@@ -129,21 +183,19 @@ export default function App(): React.JSX.Element {
         <span className="app-topbar__status">
           {loading ? '读取项目…' : `${projects.length} 个项目`}
           {selectedProject && buildableVariants.length > 0
-            ? ` · 已选 ${buildableVariants.length} 个变体`
+            ? ` · 当前项目已选 ${buildableVariants.length} 个变体`
             : ''}
           {hiddenSelectedCount > 0 ? ` · ${hiddenSelectedCount} 个 debug 变体不参与出包` : ''}
         </span>
         {enqueueBlocked ? <span className="app-topbar__hint">{enqueueBlocked}</span> : null}
         <button
           type="button"
-          className="btn-ghost"
-          disabled={projectsReadyToQueue.length === 0}
-          title="把已勾选变体的项目全部加入队列"
-          onClick={() => {
-            void queue.enqueue(projectsReadyToQueue.map((project) => project.id))
-          }}
+          className="btn-outline"
+          disabled={crossBlocked !== null}
+          title={crossBlocked ?? '把勾选的变体加入队列并构建'}
+          onClick={buildCheckedProjects}
         >
-          全部入队（{projectsReadyToQueue.length}）
+          构建勾选项（{crossProject.buildableVariantCount}）
         </button>
         <button
           type="button"
@@ -157,7 +209,7 @@ export default function App(): React.JSX.Element {
         </button>
         <button
           type="button"
-          className="btn-primary"
+          className="btn-outline"
           disabled={Boolean(enqueueBlocked) || !selectedProject}
           title={enqueueBlocked ?? undefined}
           onClick={() => {
@@ -183,9 +235,7 @@ export default function App(): React.JSX.Element {
             projects={projects}
             selectedId={selectedProject?.id ?? null}
             busyProjectId={busyProjectId}
-            queuedProjectIds={queue.items
-              .filter((item) => item.state === 'running' || item.state === 'pending')
-              .map((item) => item.projectId)}
+            queuedProjectIds={Array.from(queuedProjectIds)}
             onSelect={setSelectedProjectId}
             onAdd={handleAdd}
             onRemove={setPendingRemove}
@@ -218,6 +268,25 @@ export default function App(): React.JSX.Element {
             <GuideCard onAdd={handleAdd} dragging={drag.dragging} />
           ) : (
             <>
+              {/* 构建中心排在最前：它是主操作区（勾选 + 发起构建 + 看结果），
+                  放在项目详情与环境自检之下会让主流程需要先滚动一段 */}
+              <BuildCenter
+                projects={projects}
+                showDebug={debug.showDebug}
+                busyProjectId={busyProjectId}
+                queuedProjectIds={queuedProjectIds}
+                buildableVariantCount={crossProject.buildableVariantCount}
+                blockedReason={crossBlocked}
+                queuedHint={crossHint}
+                onSetVariants={(projectId, names) => {
+                  void setVariants(projectId, names)
+                }}
+                onRefreshVariants={(projectId) => {
+                  void refreshVariants(projectId, true)
+                }}
+                onBuild={buildCheckedProjects}
+              />
+
               {selectedProject ? (
                 <>
                   <ProjectDetail
@@ -268,8 +337,6 @@ export default function App(): React.JSX.Element {
                 }}
               />
 
-              <SummaryPanel />
-
               {selectedProject ? (
                 <BuildPanel
                   runs={build.runs}
@@ -310,14 +377,6 @@ export default function App(): React.JSX.Element {
       />
     </div>
   )
-}
-
-/** 这个项目实际会参与构建的变体：勾选的 ∩ 列表里显示的 */
-function buildableNamesOf(project: Project, showDebug: boolean): string[] {
-  const visible = (showDebug ? project.variants : filterVariantsForPackaging(project.variants)).map(
-    (variant) => variant.name
-  )
-  return project.selectedVariants.filter((name) => visible.includes(name))
 }
 
 /** 主按钮禁用时要说清原因，而不是让用户猜 */

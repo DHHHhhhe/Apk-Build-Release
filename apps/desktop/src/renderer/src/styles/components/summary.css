@@ -25,6 +25,12 @@
   margin-right: auto;
 }
 
+/* 「看的范围」这行小标签替代了原来的面板标题 —— 视图名由外层的构建中心给 */
+.summary__scope-label {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
 .summary__scope-btn {
   height: 28px;
   font-size: 12px;

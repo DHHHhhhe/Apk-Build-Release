@@ -1,5 +1,5 @@
 import { logger as baseLogger } from '../../logger'
-import { filterVariantsForPackaging } from '@shared/lib/variants'
+import { ONLY_DEBUG_SELECTED_REASON, resolveBuildableVariants } from '@shared/lib/variants'
 import { findProjectRow, listVariants, parseJsonArray } from '../../project/lib/mapper'
 import { enqueueInputSchema } from '../types'
 import type { QueueItem, QueueMutationResult } from '../types'
@@ -38,24 +38,24 @@ export function enqueueProjects(input: unknown): QueueMutationResult {
     }
 
     const variants = listVariants(project.id)
-    const known = new Set(variants.map((variant) => variant.name))
-    const selected = parseJsonArray(project.selectedVariants).filter((name) => known.has(name))
-    if (selected.length === 0) {
+    const selected = parseJsonArray(project.selectedVariants)
+    // 出包不带 debug：界面按同一条规则决定列表显示什么，两边共用这一份实现与同一句拒绝原因
+    const { buildable, hiddenSelected } = resolveBuildableVariants({
+      variants,
+      selected,
+      includeDebug: false
+    })
+    if (buildable.length === 0 && hiddenSelected.length === 0) {
       skipped.push(`${project.name}：没有勾选变体`)
       continue
     }
-
-    // 出包不带 debug：debug 包用调试密钥签名、不能对外发布。
-    // 界面按同一条规则决定列表显示什么，两边必须一致 —— 列表里没有的就不会被构建。
-    const visible = new Set(filterVariantsForPackaging(variants).map((variant) => variant.name))
-    const targets = selected.filter((name) => visible.has(name))
-    if (targets.length === 0) {
-      skipped.push(`${project.name}：勾选的只有 debug 变体，出包不带 debug`)
+    if (buildable.length === 0) {
+      skipped.push(`${project.name}：${ONLY_DEBUG_SELECTED_REASON}`)
       continue
     }
 
-    created.push(enqueueItem(project.id, targets))
-    logger.info('项目已入队', { projectId: project.id, variants: targets.join(',') })
+    created.push(enqueueItem(project.id, buildable))
+    logger.info('项目已入队', { projectId: project.id, variants: buildable.join(',') })
   }
 
   if (created.length === 0) {

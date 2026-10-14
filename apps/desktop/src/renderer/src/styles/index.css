@@ -20,6 +20,7 @@
 @import './components/dialog.css';
 @import './components/guide.css';
 @import './components/summary.css';
+@import './components/build-picker.css';
 
 /* 5. 页面 */
 /* @import './pages/queue.css'; */
