@@ -175,6 +175,11 @@ async function ensureUpdater(): Promise<AutoUpdater | null> {
     })
 
     autoUpdater.on('error', (error) => {
+      // 失败必须留日志：这条是「查不到更新」唯一的线索，界面上的文案会随版本变，日志不会
+      logger.warn('检查更新失败', {
+        error: error instanceof Error ? error.message : String(error),
+        message: describeFailure(error)
+      })
       patch({ phase: 'error', percent: 0, message: describeFailure(error) })
     })
 
