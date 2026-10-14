@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ChevronDown, ChevronRight, TerminalSquare } from 'lucide-react'
 import { filterVariantsForPackaging } from '@shared/lib/variants'
 import type { Project, ProjectVariant } from '@shared/types/project'
+import { variantBadgeVisibility } from '../lib/variant-badges'
 
 interface BuildPickerProps {
   projects: Project[]
@@ -141,6 +142,7 @@ export function BuildPicker({
           const isCollapsed = collapsed.has(project.id)
           const queued = queuedProjectIds.has(project.id)
           const buildTypes = Array.from(new Set(visible.map((variant) => variant.buildType)))
+          const badgeVisibility = variantBadgeVisibility(visible)
 
           return (
             <li key={project.id} className="summary__group build-picker__group">
@@ -189,19 +191,22 @@ export function BuildPicker({
                   >
                     清空
                   </button>
-                  {buildTypes.map((buildType) => (
-                    <button
-                      key={buildType}
-                      type="button"
-                      className="btn-ghost"
-                      disabled={busyProjectId !== null}
-                      onClick={() => {
-                        onlyBuildTypeOf(project, buildType)
-                      }}
-                    >
-                      只选 {buildType}
-                    </button>
-                  ))}
+                  {/* 只有一种 buildType 时这个按钮是恒等操作（「只选 release」= 全选），不显示 */}
+                  {buildTypes.length > 1
+                    ? buildTypes.map((buildType) => (
+                        <button
+                          key={buildType}
+                          type="button"
+                          className="btn-ghost"
+                          disabled={busyProjectId !== null}
+                          onClick={() => {
+                            onlyBuildTypeOf(project, buildType)
+                          }}
+                        >
+                          只选 {buildType}
+                        </button>
+                      ))
+                    : null}
                 </span>
               </div>
 
@@ -241,10 +246,12 @@ export function BuildPicker({
                         />
                         <span className="build-picker__variant tabular">{variant.name}</span>
                       </label>
-                      {variant.flavor ? (
+                      {badgeVisibility.flavor && variant.flavor ? (
                         <span className="badge badge--muted">{variant.flavor}</span>
                       ) : null}
-                      <span className="badge badge--muted">{variant.buildType}</span>
+                      {badgeVisibility.buildType ? (
+                        <span className="badge badge--muted">{variant.buildType}</span>
+                      ) : null}
                     </li>
                   ))}
                 </ul>

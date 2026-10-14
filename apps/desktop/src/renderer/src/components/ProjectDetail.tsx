@@ -2,6 +2,7 @@ import { RefreshCw, TerminalSquare } from 'lucide-react'
 import { filterVariantsForPackaging } from '@shared/lib/variants'
 import type { Project } from '@shared/types/project'
 import type { ProjectBusyKind } from '../hooks/useProjects'
+import { variantBadgeVisibility } from '../lib/variant-badges'
 
 /** 变体来源徽章：静态解析是正常默认路径，不该用警告色；只有真的缺项才提示 */
 function sourceBadge(project: Project): { className: string; label: string } {
@@ -40,6 +41,7 @@ export function ProjectDetail({
   // 只列发布变体；项目连 release 变体都没有时回退到全部，不能让用户面对空列表
   const visibleVariants = filterVariantsForPackaging(project.variants)
   const mixedBuildTypes = new Set(visibleVariants.map((variant) => variant.buildType)).size > 1
+  const badgeVisibility = variantBadgeVisibility(visibleVariants)
 
   const buildTypes = Array.from(new Set(visibleVariants.map((variant) => variant.buildType)))
   const allVisibleSelected = visibleVariants.every((variant) => selected.has(variant.name))
@@ -136,22 +138,25 @@ export function ProjectDetail({
               >
                 清空
               </button>
-              {buildTypes.map((buildType) => (
-                <button
-                  key={buildType}
-                  type="button"
-                  className="btn-ghost"
-                  disabled={busy}
-                  onClick={() => {
-                    // 同样只重排可见的那部分，保留看不见的勾选
-                    const visibleNames = new Set(visibleVariants.map((variant) => variant.name))
-                    const kept = project.selectedVariants.filter((name) => !visibleNames.has(name))
-                    onSetVariants([...kept, ...namesOfBuildType(buildType)])
-                  }}
-                >
-                  只选 {buildType}
-                </button>
-              ))}
+              {/* 只选某类型：列表里只有一种 buildType 时这个按钮是恒等操作（比如「只选 release」= 全选），不显示 */}
+              {mixedBuildTypes
+                ? buildTypes.map((buildType) => (
+                    <button
+                      key={buildType}
+                      type="button"
+                      className="btn-ghost"
+                      disabled={busy}
+                      onClick={() => {
+                        // 同样只重排可见的那部分，保留看不见的勾选
+                        const visibleNames = new Set(visibleVariants.map((variant) => variant.name))
+                        const kept = project.selectedVariants.filter((name) => !visibleNames.has(name))
+                        onSetVariants([...kept, ...namesOfBuildType(buildType)])
+                      }}
+                    >
+                      只选 {buildType}
+                    </button>
+                  ))
+                : null}
             </div>
 
             <ul className="variant-list">
@@ -169,8 +174,12 @@ export function ProjectDetail({
                     <span className="variant-list__name tabular">{variant.name}</span>
                   </label>
                   <span className="variant-list__parts">
-                    {variant.flavor ? <span className="badge badge--muted">{variant.flavor}</span> : null}
-                    <span className="badge badge--muted">{variant.buildType}</span>
+                    {badgeVisibility.flavor && variant.flavor ? (
+                      <span className="badge badge--muted">{variant.flavor}</span>
+                    ) : null}
+                    {badgeVisibility.buildType ? (
+                      <span className="badge badge--muted">{variant.buildType}</span>
+                    ) : null}
                     {/* 列表里只有 release 时不必逐行重复，说明放在列表上方一次 */}
                     {mixedBuildTypes && variant.buildType === 'release' ? (
                       <span
