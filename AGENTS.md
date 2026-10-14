@@ -61,9 +61,28 @@ pnpm package          # 重建 release/ 下的安装包与便携版
 
 ### 学到的界面教训：改完界面要用真渲染看一眼
 
-类型检查、单测、构建全绿也不代表界面是对的。本次新增「构建中心」时，这三样全绿，但截图一看：**主操作区排在首屏之外**，要往下滚一屏才看得到。
+类型检查、单测、构建全绿也不代表界面是对的。已经栽过两次，都是只有截图才看得出来的问题：
 
-验证办法（不必开 Electron）：mock 掉 `window.api`、加载 `out/renderer` 的真实产物，在浏览器里跑真组件 —— 见 `implement.md` 里记的做法。
+- 「构建中心」那一版：**主操作区排在首屏之外**，要往下滚一屏才看得到
+- 「抽屉」那一版：抽屉样式**没被导入**（edit 失败后没重试），结果是抽屉在挤窄主列而不是盖住它
+
+两种验证方式，按可用来选：
+
+| 方式 | 怎么用 | 适用 |
+| --- | --- | --- |
+| 浏览器面板 | mock 掉 `window.api`、加载 `out/renderer` 的真实产物，在浏览器里开核对页 | 有浏览器工具时首选 |
+| **Electron 无头探针** | 见下 | 浏览器面板不可用时（实测连续几轮都不可用） |
+
+无头探针的做法：写一个临时脚本，用 Electron 自己开一个 `show: false` 的 `BrowserWindow` 加载那个核对页，`executeJavaScript` 量几何（`getBoundingClientRect`、`elementFromPoint` 判断有没有被盖住），再 `capturePage()` 存 PNG。跑法走仓库的包装：
+
+```powershell
+cd apps/desktop
+node scripts/run.mjs electron ../../.trellis/.render-check/probe.cjs
+```
+
+`run.mjs` 会清掉 `ELECTRON_RUN_AS_NODE` 并用真 node 启动 Electron，所以 `require('electron')` 拿到的是真模块、`app` 可用。它和真机跑的是同一个 Chromium，量出来的数值可信。
+
+**判定"没被盖住"要用 `elementFromPoint`，不要只看坐标**：元素位置对不代表点得到（上面就出现过位置没问题、但被覆盖层截走点击的情况）。
 
 ### 提交前脱敏：真实业务标识一律用中性值
 
