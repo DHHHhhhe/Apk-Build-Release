@@ -76,8 +76,12 @@
 }
 
 /*
- * 深色令牌（D11）：第一期只做浅色，这一段照抄保留但不接线 ——
- * 不挂 .dark 类、不做切换、不跟随 prefers-color-scheme。第二期接上切换即可。
+ * 深色令牌（D11）。已经接线：渲染层按 `prefers-color-scheme` 挂 `.dark` 类
+ * （见 `renderer/src/lib/theme.ts`），而那个媒体查询由主进程的 `nativeTheme.themeSource`
+ * 决定 —— 用户在左下角选的三档（跟随系统 / 浅色 / 深色）都如实反映在它上面。
+ *
+ * 窗口首帧的底色由主进程另给（`main/theme.ts` 里的 BACKGROUND_DARK），改了这里的
+ * `--background` 要同步改那边，否则启动瞬间会闪一帧不一致的颜色。
  */
 .dark {
   --background: #0c0c0e;
