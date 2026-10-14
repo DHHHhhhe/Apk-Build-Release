@@ -20,8 +20,7 @@ export type UpdatePhase =
   /** 检查或下载失败 */
   | 'error'
 
-export interface UpdateState {
-  phase: UpdatePhase
+export interface UpdateState {  phase: UpdatePhase
   /** 当前运行的版本 */
   currentVersion: string
   /** 新版本号；没有可用更新时为空串 */
@@ -43,4 +42,17 @@ export interface UpdateState {
    * 本地得先看得见这个入口才能自测。
    */
   canUpdate: boolean
+}
+
+/**
+ * 「这次启动是刚更新上来的」。
+ *
+ * 只有启动时能取到、**取一次就没了**：静默安装那几十秒应用是关着的，用户重开时
+ * 需要知道「刚才那下成了」，但同一版反复启动不该每次都说一遍。
+ */
+export interface LaunchNotice {
+  /** 上一版版本号。从还不认识版本记录的旧版升上来时没有这一项 */
+  from?: string
+  /** 现在的版本 */
+  to: string
 }

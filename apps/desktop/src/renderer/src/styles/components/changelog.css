@@ -84,14 +84,32 @@
   font-size: 11px;
 }
 
-.changelog__older > summary {
-  cursor: pointer;
+/* ── 翻页：版本数会一直涨，一次全渲染既滚不完也定位不到当前版本 ── */
+.changelog__pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.changelog__pager-info,
+.changelog__pager-page {
   font-size: 12px;
   color: var(--muted-foreground);
 }
 
-.changelog__older .changelog__release {
-  margin-top: 12px;
+.changelog__pager-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.changelog__pager-actions .btn-ghost {
+  height: 28px;
+  padding: 0 8px;
+  font-size: 12px;
 }
 
 /* 设置对话框里的更新记录：别让它把对话框撑太长，自己滚 */

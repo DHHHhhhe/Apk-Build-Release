@@ -1,0 +1,112 @@
+/*
+ * 「已更新到 vX」通知条。
+ *
+ * 放右下角：左下角已经被主题与更新入口占了，而这类提示不该盖住任何可点控件
+ * —— 它是纯告知，用户可以不理会。
+ */
+
+.toast {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 30;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: 320px;
+  padding: 12px 12px 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: var(--shadow-float);
+  animation: toast-in var(--duration-base) ease;
+}
+
+/* 关了动效的用户不该看到它滑进来 */
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.toast__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  border-radius: 9999px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+
+.toast__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.toast__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.toast__hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.toast__link {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 12px;
+  font-family: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.toast__link:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.toast__close {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.toast__close:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.toast__close:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}

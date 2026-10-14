@@ -77,6 +77,7 @@ const api: AppApi = {
     }
   },
   update: {
+    takeLaunchNotice: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE.TAKE_LAUNCH_NOTICE),
     getState: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE.GET_STATE),
     check: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE.CHECK),
     download: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE.DOWNLOAD),

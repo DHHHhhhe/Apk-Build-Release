@@ -16,7 +16,7 @@ import type {
   QueueStateEvent
 } from './queue'
 import type { BasicResult, SettingsResult, ThemeChoice } from './settings'
-import type { UpdateState } from './update'
+import type { LaunchNotice, UpdateState } from './update'
 
 export interface PickDirectoryResult {
   success: boolean
@@ -77,6 +77,8 @@ export interface AppApi {
     pathFor: (file: File) => string
   }
   update: {
+    /** 这次启动是不是刚更新上来的；取一次就没了，没有则返回 null */
+    takeLaunchNotice: () => Promise<LaunchNotice | null>
     /** 主进程是更新状态的唯一真值，这里读的是它当前那份快照 */
     getState: () => Promise<UpdateState>
     /** 手动检查一次：与自动检查的区别是「没有新版本 / 失败」也会说出来 */

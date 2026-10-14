@@ -42,6 +42,7 @@ export const IPC_CHANNELS = {
     CLEAR_LOGS: 'settings:clearLogs'
   },
   UPDATE: {
+    TAKE_LAUNCH_NOTICE: 'update:takeLaunchNotice',
     GET_STATE: 'update:getState',
     CHECK: 'update:check',
     DOWNLOAD: 'update:download',

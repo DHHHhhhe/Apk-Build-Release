@@ -60,7 +60,7 @@ export function ChangelogDialog({
         </header>
         <div className="dialog__body">
           <p className="dialog__hint">当前版本 {currentVersion}。这份记录打进了包里，断网也能看。</p>
-          <ChangelogList />
+          <ChangelogList currentVersion={currentVersion} />
         </div>
       </div>
     </div>

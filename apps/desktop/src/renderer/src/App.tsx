@@ -15,6 +15,7 @@ import { ThemeToggle } from './components/ThemeToggle'
 import { AutoCheckUpdateToggle } from './components/AutoCheckUpdateToggle'
 import { UpdateCheckButton } from './components/UpdateCheckButton'
 import { ChangelogDialog } from './components/ChangelogDialog'
+import { UpdateNoticeToast } from './components/UpdateNoticeToast'
 import { buildBlockedReason, enqueueTargets, queuedExclusionHint } from './lib/build-guard'
 import { resolveBuildableVariants } from '@shared/lib/variants'
 import type { Project } from '@shared/types/project'
@@ -302,6 +303,13 @@ export default function App(): React.JSX.Element {
           currentVersion={update.state?.currentVersion ?? ''}
           onClose={() => {
             setChangelogOpen(false)
+          }}
+        />
+
+        {/* 更新完成后告知一次；点「看更新记录」直接打开上面那个对话框 */}
+        <UpdateNoticeToast
+          onOpenChangelog={() => {
+            setChangelogOpen(true)
           }}
         />
 

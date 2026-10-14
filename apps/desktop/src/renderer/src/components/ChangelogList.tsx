@@ -1,8 +1,11 @@
-import { useMemo } from 'react'
-import { Info, Moon, Plus, Sparkles, Wrench } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
+import { ChevronLeft, ChevronRight, Info, Moon, Plus, Sparkles, Wrench } from 'lucide-react'
 import { CHANGELOG_MARKDOWN } from '../lib/changelog-source'
 import { parseChangelog } from '../lib/changelog'
 import type { ChangelogRelease } from '../lib/changelog'
+
+/** 一页几个版本。版本数会一直涨，一次全渲染既滚不完、也定位不到当前版本 */
+const PAGE_SIZE = 5
 
 /**
  * 分类的语义色与图标。
@@ -72,30 +75,86 @@ function Release(props: { release: ChangelogRelease; highlight: boolean }): Reac
   )
 }
 
-/**
- * 更新记录列表（放在设置里的一个折叠块中，默认收起，保持对话框紧凑）。
- *
- * 打开之后：最新一版摊开、旧版本折在「更早的版本」里 —— 这份文件只会越来越长，
- * 而点进来的人通常只想看这次改了什么。
- */
-export function ChangelogList(): React.JSX.Element {
-  const releases = useMemo(() => parseChangelog(CHANGELOG_MARKDOWN), [])
-  const [latest, ...older] = releases
+function pageOfVersion(releases: ChangelogRelease[], version: string | undefined): number {
+  if (!version) {
+    return 0
+  }
+  const index = releases.findIndex((release) => release.version === version)
+  return index < 0 ? 0 : Math.floor(index / PAGE_SIZE)
+}
 
-  if (!latest) {
+/**
+ * 更新记录（分页）。
+ *
+ * 打开时自动定位到**当前运行的版本**那一页：想知道「这版改了什么」时，用户要找的就是它。
+ */
+export function ChangelogList({ currentVersion }: { currentVersion?: string }): React.JSX.Element {
+  const releases = useMemo(() => parseChangelog(CHANGELOG_MARKDOWN), [])
+  const [page, setPage] = useState(() => pageOfVersion(releases, currentVersion))
+  const topRef = useRef<HTMLDivElement | null>(null)
+
+  if (releases.length === 0) {
     return <p className="app-muted">更新记录为空。</p>
+  }
+
+  const pageCount = Math.max(1, Math.ceil(releases.length / PAGE_SIZE))
+  const current = Math.min(Math.max(page, 0), pageCount - 1)
+  const from = current * PAGE_SIZE
+  const visible = releases.slice(from, from + PAGE_SIZE)
+
+  const go = (delta: number): void => {
+    setPage(Math.min(Math.max(current + delta, 0), pageCount - 1))
+    // 翻页后回到列表顶部，不停在新一页的中间
+    topRef.current?.scrollIntoView({ block: 'nearest' })
   }
 
   return (
     <div className="changelog">
-      <Release release={latest} highlight />
-      {older.length > 0 ? (
-        <details className="changelog__older">
-          <summary>更早的版本（{older.length}）</summary>
-          {older.map((release) => (
-            <Release key={release.version} release={release} highlight={false} />
-          ))}
-        </details>
+      <div ref={topRef} />
+      {visible.map((release, index) => (
+        // 只有当前版本那一版给底色，翻页后跟着走
+        <Release
+          key={release.version}
+          release={release}
+          highlight={release.version === currentVersion || (index === 0 && from === 0 && !currentVersion)}
+        />
+      ))}
+
+      {pageCount > 1 ? (
+        <nav className="changelog__pager" aria-label="更新记录翻页">
+          <span className="changelog__pager-info tabular">
+            第 {from + 1}–{Math.min(from + PAGE_SIZE, releases.length)} 个 / 共 {releases.length} 个
+          </span>
+          <span className="changelog__pager-actions">
+            <button
+              type="button"
+              className="btn-ghost"
+              disabled={current === 0}
+              aria-label="上一页"
+              onClick={() => {
+                go(-1)
+              }}
+            >
+              <ChevronLeft size={14} aria-hidden="true" />
+              上一页
+            </button>
+            <span className="changelog__pager-page tabular">
+              {current + 1}/{pageCount}
+            </span>
+            <button
+              type="button"
+              className="btn-ghost"
+              disabled={current >= pageCount - 1}
+              aria-label="下一页"
+              onClick={() => {
+                go(1)
+              }}
+            >
+              下一页
+              <ChevronRight size={14} aria-hidden="true" />
+            </button>
+          </span>
+        </nav>
       ) : null}
     </div>
   )

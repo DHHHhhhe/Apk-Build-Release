@@ -32,6 +32,24 @@ export function setAutoCheckUpdate(enabled: boolean): void {
   upsertSetting(AUTO_CHECK_UPDATE_KEY, String(enabled))
 }
 
+export const LAST_RUN_VERSION_KEY = 'app.lastRunVersion'
+
+/** 上次运行的版本号；从没写过就返回 null（首次安装，或从还不认识这个字段的旧版升上来） */
+export function getLastRunVersion(): string | null {
+  const row = db.select().from(settings).where(eq(settings.key, LAST_RUN_VERSION_KEY)).get()
+  const value = row?.value.trim()
+  return value ? value : null
+}
+
+export function setLastRunVersion(version: string): void {
+  upsertSetting(LAST_RUN_VERSION_KEY, version)
+}
+
+/** 库里有没有任何一条设置 —— 用来区分「首次安装」与「从旧版升上来」 */
+export function hasStoredSettings(): boolean {
+  return db.select().from(settings).limit(1).all().length > 0
+}
+
 /** 统一输出目录：用户没设过就用「文档/APK批量打包」 */
 export function getOutputRoot(): string {
   const row = db.select().from(settings).where(eq(settings.key, OUTPUT_ROOT_KEY)).get()
