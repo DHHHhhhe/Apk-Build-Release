@@ -60,6 +60,8 @@ const api: AppApi = {
     setOutputRoot: (path: string) =>
       ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.SET_OUTPUT_ROOT, { path }),
     setTheme: (theme: string) => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.SET_THEME, { theme }),
+    setAutoCheckUpdate: (enabled: boolean) =>
+      ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.SET_AUTO_CHECK_UPDATE, { enabled }),
     pickOutputDir: () => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.PICK_OUTPUT_DIR),
     openPath: (path: string) => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.OPEN_PATH, { path }),
     clearLogs: () => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.CLEAR_LOGS)

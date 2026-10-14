@@ -2,6 +2,7 @@ import { app, BrowserWindow } from 'electron'
 import { IPC_CHANNELS } from '@shared/constants/channels'
 import type { UpdateState } from '@shared/types/update'
 import { logger as baseLogger } from '../logger'
+import { getAutoCheckUpdate } from '../build/lib/settings'
 
 const logger = baseLogger.scope('update')
 
@@ -328,6 +329,11 @@ export function initUpdater(): void {
     return
   }
   const timer = setTimeout(() => {
+    // 开关在定时器**触发时**读，而不是 initUpdater 时读：用户在这 15 秒里关掉它也该生效
+    if (!getAutoCheckUpdate()) {
+      logger.info('已关闭启动时自动检查更新，跳过这次')
+      return
+    }
     void checkForUpdates(false)
   }, STARTUP_CHECK_DELAY_MS)
   // 别让这个定时器把进程留在后台

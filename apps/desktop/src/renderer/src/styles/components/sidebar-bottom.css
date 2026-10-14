@@ -1,12 +1,141 @@
-/* 侧栏左下角：主题档位 + 设置入口（自动更新的入口也在这条上，见 update-entry.css） */
+/*
+ * 侧栏左下角：主题、自动检查更新、设置、版本与检查更新。
+ *
+ * 排布统一成「左列放信息、右列放能点的东西」—— 三行都是左边静态文字、右边可点控件。
+ * 反过来排（检查更新在左、版本号在右）会让左列上静下动、右列上动下静，可点性正好交叉，
+ * 扫一眼看不出规律，只能逐个 hover 去试。只有版本号是例外：它在左列但要可点（进更新记录），
+ * 所以刻意带下划线 —— 左列其余文字都是纯信息，可点的那个外观上必须有区别。
+ */
 
 .app-sidebar__bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--sidebar-border);
+}
+
+.app-sidebar__row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 10px 12px;
-  border-top: 1px solid var(--sidebar-border);
+  min-height: 26px;
+}
+
+.app-sidebar__label {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+/* 版本号兼作更新记录的入口 */
+.app-sidebar__version {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--muted-foreground);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: var(--border);
+  cursor: pointer;
+  transition: color var(--duration-micro);
+}
+
+.app-sidebar__version:hover {
+  color: var(--foreground);
+  text-decoration-color: currentColor;
+}
+
+/* ── 开关（自动检查更新）── */
+.switch {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 1px solid var(--sidebar-border);
+  border-radius: 9999px;
+  background: var(--sidebar-accent);
+  cursor: pointer;
+  transition: background var(--duration-micro);
+}
+
+.switch--on {
+  background: var(--foreground);
+  border-color: var(--foreground);
+}
+
+.switch__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  background: var(--sidebar);
+  transition: transform var(--duration-micro);
+}
+
+.switch--on .switch__thumb {
+  transform: translateX(14px);
+  background: var(--background);
+}
+
+.switch:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.switch:focus-visible,
+.app-sidebar__version:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* ── 左下角的文字按钮（设置、检查更新）── */
+.app-sidebar__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background var(--duration-micro),
+    color var(--duration-micro);
+}
+
+.app-sidebar__action:hover:not(:disabled) {
+  background: var(--sidebar-accent);
+  color: var(--sidebar-accent-foreground);
+}
+
+.app-sidebar__action:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.app-sidebar__action:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+/* 检查中时转一下，让人知道点到了 */
+.app-sidebar__action .spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ── 主题档位：三个小按钮并排 ── */
@@ -24,13 +153,15 @@
   align-items: center;
   justify-content: center;
   width: 26px;
-  height: 24px;
+  height: 22px;
   border: none;
   border-radius: calc(var(--radius-md) - 3px);
   background: transparent;
   color: var(--muted-foreground);
   cursor: pointer;
-  transition: background var(--duration-micro), color var(--duration-micro);
+  transition:
+    background var(--duration-micro),
+    color var(--duration-micro);
 }
 
 .theme-toggle__option:hover:not(:disabled) {
@@ -57,27 +188,14 @@
   outline-offset: 1px;
 }
 
-/* ── 左下角的文字按钮（设置等）── */
-.app-sidebar__action {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border: none;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--muted-foreground);
-  font-size: 12px;
-  cursor: pointer;
-  transition: background var(--duration-micro), color var(--duration-micro);
+/* ── 更新记录对话框：比设置宽，好放长条目 ── */
+.dialog--changelog {
+  max-width: 720px;
+  width: 100%;
 }
 
-.app-sidebar__action:hover {
-  background: var(--sidebar-accent);
-  color: var(--sidebar-accent-foreground);
-}
-
-.app-sidebar__action:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 1px;
+.dialog--changelog .dialog__body {
+  max-height: min(70vh, 640px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }

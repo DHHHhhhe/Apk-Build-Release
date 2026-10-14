@@ -45,6 +45,26 @@
   font-size: 12px;
   font-weight: 500;
   color: var(--muted-foreground);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 分类的语义色：一屏里扫读时能看出哪几类是这个版本的重点 */
+.changelog__section-title--add {
+  color: var(--success);
+}
+
+.changelog__section-title--improve {
+  color: var(--info);
+}
+
+.changelog__section-title--fix {
+  color: var(--warning);
+}
+
+.changelog__section-title--neutral {
+  color: var(--muted-foreground);
 }
 
 .changelog__items {

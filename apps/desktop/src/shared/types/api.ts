@@ -66,6 +66,8 @@ export interface AppApi {
     setOutputRoot: (path: string) => Promise<SettingsResult>
     /** 主题档位（跟随系统 / 浅色 / 深色）；真正生效的是主进程的 nativeTheme */
     setTheme: (theme: ThemeChoice) => Promise<SettingsResult>
+    /** 启动后是否自动检查更新；关掉不影响手动检查 */
+    setAutoCheckUpdate: (enabled: boolean) => Promise<SettingsResult>
     pickOutputDir: () => Promise<SettingsResult>
     openPath: (path: string) => Promise<BasicResult>
     clearLogs: () => Promise<BasicResult & { removed?: number; freedBytes?: number }>

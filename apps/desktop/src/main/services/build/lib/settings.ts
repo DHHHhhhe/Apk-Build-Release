@@ -20,6 +20,18 @@ export function setThemeChoice(choice: ThemeChoice): void {
   upsertSetting(THEME_KEY, choice)
 }
 
+export const AUTO_CHECK_UPDATE_KEY = 'update.autoCheck'
+
+/** 启动后是否自动查更新。默认开 —— 装了新版却一直不知道，比偶尔多查一次更麻烦 */
+export function getAutoCheckUpdate(): boolean {
+  const row = db.select().from(settings).where(eq(settings.key, AUTO_CHECK_UPDATE_KEY)).get()
+  return row?.value !== 'false'
+}
+
+export function setAutoCheckUpdate(enabled: boolean): void {
+  upsertSetting(AUTO_CHECK_UPDATE_KEY, String(enabled))
+}
+
 /** 统一输出目录：用户没设过就用「文档/APK批量打包」 */
 export function getOutputRoot(): string {
   const row = db.select().from(settings).where(eq(settings.key, OUTPUT_ROOT_KEY)).get()

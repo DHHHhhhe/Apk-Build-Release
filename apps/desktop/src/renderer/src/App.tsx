@@ -12,6 +12,9 @@ import { QueuePanel } from './components/QueuePanel'
 import { SettingsDialog } from './components/SettingsDialog'
 import { BuildCenter } from './components/BuildCenter'
 import { ThemeToggle } from './components/ThemeToggle'
+import { AutoCheckUpdateToggle } from './components/AutoCheckUpdateToggle'
+import { UpdateCheckButton } from './components/UpdateCheckButton'
+import { ChangelogDialog } from './components/ChangelogDialog'
 import { buildBlockedReason, enqueueTargets, queuedExclusionHint } from './lib/build-guard'
 import { resolveBuildableVariants } from '@shared/lib/variants'
 import type { Project } from '@shared/types/project'
@@ -28,6 +31,7 @@ import { resolveDrawerWidth, shouldAvoidDrawer } from './lib/layout'
 export default function App(): React.JSX.Element {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [changelogOpen, setChangelogOpen] = useState(false)
   const [pendingRemove, setPendingRemove] = useState<string | null>(null)
   const [addError, setAddError] = useState<string | null>(null)
 
@@ -252,23 +256,54 @@ export default function App(): React.JSX.Element {
             onAdd={handleAdd}
             onRemove={setPendingRemove}
           />
-          {/* 左下角：主题档位与设置入口（自动更新的入口同样在这条上） */}
+          {/* 左下角：主题、自动检查更新、设置、版本与检查更新（左列信息、右列控件） */}
           <div className="app-sidebar__bottom">
-            <ThemeToggle />
-            <button
-              type="button"
-              className="app-sidebar__action"
-              aria-label="设置"
-              title="设置"
-              onClick={() => {
-                setSettingsOpen(true)
-              }}
-            >
-              <Settings size={14} aria-hidden="true" />
-              设置
-            </button>
+            <div className="app-sidebar__row">
+              <span className="app-sidebar__label">主题</span>
+              <ThemeToggle />
+            </div>
+            <div className="app-sidebar__row">
+              <span className="app-sidebar__label">自动检查更新</span>
+              <AutoCheckUpdateToggle />
+            </div>
+            <div className="app-sidebar__row">
+              <span className="app-sidebar__label">设置</span>
+              <button
+                type="button"
+                className="app-sidebar__action"
+                aria-label="设置"
+                title="设置"
+                onClick={() => {
+                  setSettingsOpen(true)
+                }}
+              >
+                <Settings size={14} aria-hidden="true" />
+                设置
+              </button>
+            </div>
+            <div className="app-sidebar__row">
+              <button
+                type="button"
+                className="app-sidebar__version tabular"
+                title="查看更新记录"
+                onClick={() => {
+                  setChangelogOpen(true)
+                }}
+              >
+                v{update.state?.currentVersion ?? '—'}
+              </button>
+              <UpdateCheckButton />
+            </div>
           </div>
         </aside>
+
+        <ChangelogDialog
+          open={changelogOpen}
+          currentVersion={update.state?.currentVersion ?? ''}
+          onClose={() => {
+            setChangelogOpen(false)
+          }}
+        />
 
         <main className={avoidDrawer ? 'app-content app-content--avoid-drawer' : 'app-content'}>
           {error ? (

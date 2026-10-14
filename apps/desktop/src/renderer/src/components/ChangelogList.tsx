@@ -1,7 +1,27 @@
 import { useMemo } from 'react'
+import { Info, Moon, Plus, Sparkles, Wrench } from 'lucide-react'
 import { CHANGELOG_MARKDOWN } from '../lib/changelog-source'
 import { parseChangelog } from '../lib/changelog'
 import type { ChangelogRelease } from '../lib/changelog'
+
+/**
+ * 分类的语义色与图标。
+ *
+ * 一屏里扫读时，四个灰色小标题分不出哪几类是重点；加上颜色与图形之后，
+ * 「这版有没有修东西」一眼就能看出来。认不出的分类退回中性样式，内容照常显示、绝不丢。
+ */
+const SECTION_STYLES: Record<string, { tone: string; Icon: typeof Wrench }> = {
+  新增: { tone: 'add', Icon: Plus },
+  优化: { tone: 'improve', Icon: Sparkles },
+  变更: { tone: 'improve', Icon: Sparkles },
+  修复: { tone: 'fix', Icon: Wrench },
+  说明: { tone: 'note', Icon: Info },
+  已知: { tone: 'note', Icon: Moon }
+}
+
+function sectionStyle(title: string): { tone: string; Icon: typeof Wrench } {
+  return SECTION_STYLES[title] ?? { tone: 'neutral', Icon: Info }
+}
 
 /**
  * 把条目里的行内标记渲染出来。
@@ -31,17 +51,23 @@ function Release(props: { release: ChangelogRelease; highlight: boolean }): Reac
         <span className="tabular">{props.release.version}</span>
         <span className="changelog__date tabular">{props.release.date}</span>
       </h4>
-      {props.release.sections.map((section) => (
-        <div key={section.title} className="changelog__section">
-          <h5 className="changelog__section-title">{section.title}</h5>
-          <ul className="changelog__items">
-            {section.items.map((item, index) => (
-              // 条目内容作 key 就够：同一版里不会有两行一模一样的说明
-              <li key={`${index}-${item}`}>{renderInline(item)}</li>
-            ))}
-          </ul>
-        </div>
-      ))}
+      {props.release.sections.map((section) => {
+        const { tone, Icon } = sectionStyle(section.title)
+        return (
+          <div key={section.title} className="changelog__section">
+            <h5 className={`changelog__section-title changelog__section-title--${tone}`}>
+              <Icon size={12} aria-hidden="true" />
+              {section.title}
+            </h5>
+            <ul className="changelog__items">
+              {section.items.map((item, index) => (
+                // 条目内容作 key 就够：同一版里不会有两行一模一样的说明
+                <li key={`${index}-${item}`}>{renderInline(item)}</li>
+              ))}
+            </ul>
+          </div>
+        )
+      })}
     </section>
   )
 }

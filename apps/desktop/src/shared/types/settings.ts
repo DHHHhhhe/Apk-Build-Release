@@ -15,7 +15,9 @@ export const settingsSchema = z.object({
   /** 构建日志目录 */
   logDir: z.string(),
   /** 主题档位：跟随系统 / 浅色 / 深色 */
-  theme: themeChoiceSchema
+  theme: themeChoiceSchema,
+  /** 启动后是否自动检查更新；关掉后只有手动点「检查更新」才会查 */
+  autoCheckUpdate: z.boolean()
 })
 
 export const settingsResultSchema = z.object({
@@ -32,6 +34,10 @@ export const setThemeInputSchema = z.object({
   theme: themeChoiceSchema
 })
 
+export const setAutoCheckUpdateInputSchema = z.object({
+  enabled: z.boolean()
+})
+
 export const openPathInputSchema = z.object({
   path: z.string().min(1, '缺少路径')
 })
@@ -46,5 +52,6 @@ export type Settings = z.infer<typeof settingsSchema>
 export type SettingsResult = z.infer<typeof settingsResultSchema>
 export type SetOutputRootInput = z.infer<typeof setOutputRootInputSchema>
 export type SetThemeInput = z.infer<typeof setThemeInputSchema>
+export type SetAutoCheckUpdateInput = z.infer<typeof setAutoCheckUpdateInputSchema>
 export type OpenPathInput = z.infer<typeof openPathInputSchema>
 export type BasicResult = z.infer<typeof basicResultSchema>
