@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { QueueItem } from '@shared/types/queue'
+import type { EnqueueTarget, QueueItem } from '@shared/types/queue'
 
 export interface UseQueueResult {
   items: QueueItem[]
   concurrency: number
   loading: boolean
   error: string | null
-  enqueue: (projectIds: string[]) => Promise<void>
+  enqueue: (targets: EnqueueTarget[]) => Promise<void>
   setConcurrency: (limit: number) => Promise<void>
   cancel: (itemId: string) => Promise<void>
   cancelAll: () => Promise<void>
@@ -90,7 +90,7 @@ export function useQueue(): UseQueueResult {
   )
 
   const enqueue = useCallback(
-    (projectIds: string[]) => runMutation(() => window.api.queue.enqueue(projectIds)),
+    (targets: EnqueueTarget[]) => runMutation(() => window.api.queue.enqueue(targets)),
     [runMutation]
   )
 

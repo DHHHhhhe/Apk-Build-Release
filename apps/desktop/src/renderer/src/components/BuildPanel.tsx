@@ -112,7 +112,7 @@ export function BuildPanel({
     <section className="card-shell">
       <div className="card-core card-core--pad build-panel">
         <header className="build-panel__head">
-          <h2 className="build-panel__title">构建记录</h2>
+          <h3 className="build-panel__title">构建记录</h3>
           {building ? <span className="badge badge--info">构建中</span> : null}
           {activeRun ? (
             <span className={stateBadgeClass(activeRun.state)}>{STATE_LABEL[activeRun.state]}</span>

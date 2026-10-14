@@ -11,7 +11,7 @@ import { ProjectList } from './components/ProjectList'
 import { QueuePanel } from './components/QueuePanel'
 import { SettingsDialog } from './components/SettingsDialog'
 import { BuildCenter } from './components/BuildCenter'
-import { buildBlockedReason, projectsToEnqueue, queuedExclusionHint } from './lib/build-guard'
+import { buildBlockedReason, enqueueTargets, queuedExclusionHint } from './lib/build-guard'
 import { resolveBuildableVariants } from '@shared/lib/variants'
 import type { Project } from '@shared/types/project'
 import { useBuild } from './hooks/useBuild'
@@ -20,6 +20,9 @@ import { useEnvProbe } from './hooks/useEnvProbe'
 import { useProjects } from './hooks/useProjects'
 import { useQueue } from './hooks/useQueue'
 import { useSidebarWidth } from './hooks/useSidebarWidth'
+import { useUpdate } from './hooks/useUpdate'
+import { useWindowWidth } from './hooks/useWindowWidth'
+import { resolveDrawerWidth, shouldAvoidDrawer } from './lib/layout'
 
 export default function App(): React.JSX.Element {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
@@ -53,6 +56,13 @@ export default function App(): React.JSX.Element {
   const build = useBuild(selectedProject?.id ?? null)
   const env = useEnvProbe(selectedProject?.path ?? '')
   const sidebar = useSidebarWidth()
+  const windowWidth = useWindowWidth()
+  const update = useUpdate()
+
+  // 抽屉打开时：窗口够宽就让主列整列避让（右侧那排组内按钮不被盖住），
+  // 不够宽就宁可让抽屉盖住 —— 被挤窄的主列没法用
+  const avoidDrawer =
+    selectedProject !== null && shouldAvoidDrawer({ windowWidth, sidebarWidth: sidebar.width })
 
   const selectedVariants = selectedProject?.selectedVariants ?? []
   // 与主进程同一条规则（shared/lib/variants）：列表里没显示的变体不参与构建
@@ -155,18 +165,23 @@ export default function App(): React.JSX.Element {
   const crossBlocked = buildBlockedReason(buildGuard)
   const crossHint = queuedExclusionHint(buildGuard)
 
-  /** 入队勾选的项目：排除已在队列里的，避免点了没反应 */
+  /** 入队勾选的项目：排除已在队列里的，并把要打的变体一并带上 */
   const buildCheckedProjects = (): void => {
-    const ids = projectsToEnqueue(projects, projectResolutions, queuedProjectIds)
-    if (ids.length > 0) {
-      void queue.enqueue(ids)
+    const targets = enqueueTargets(projects, projectResolutions, queuedProjectIds)
+    if (targets.length > 0) {
+      void queue.enqueue(targets)
     }
   }
 
   return (
     <div
       className="app-shell"
-      style={{ '--sidebar-width': `${sidebar.width}px` } as React.CSSProperties}
+      style={
+        {
+          '--sidebar-width': `${sidebar.width}px`,
+          '--drawer-width': `${resolveDrawerWidth(windowWidth)}px`
+        } as React.CSSProperties
+      }
       onDragOver={drag.onDragOver}
       onDragLeave={drag.onDragLeave}
       onDrop={drag.onDrop}
@@ -190,6 +205,18 @@ export default function App(): React.JSX.Element {
         >
           构建勾选项（{crossProject.buildableVariantCount}）
         </button>
+        {update.state?.phase === 'available' || update.state?.phase === 'downloaded' ? (
+          <button
+            type="button"
+            className="btn-outline"
+            title={update.state.message}
+            onClick={() => {
+              setSettingsOpen(true)
+            }}
+          >
+            有新版本
+          </button>
+        ) : null}
         <button
           type="button"
           className="btn-ghost"
@@ -207,7 +234,8 @@ export default function App(): React.JSX.Element {
           title={enqueueBlocked ?? undefined}
           onClick={() => {
             if (selectedProject) {
-              void queue.enqueue([selectedProject.id])
+              // 带上抽屉里这个项目当前可构建的变体，主进程不再回读数据库
+              void queue.enqueue([{ projectId: selectedProject.id, variants: buildableVariants }])
             }
           }}
         >
@@ -235,7 +263,7 @@ export default function App(): React.JSX.Element {
           />
         </aside>
 
-        <main className="app-content">
+        <main className={avoidDrawer ? 'app-content app-content--avoid-drawer' : 'app-content'}>
           {error ? (
             <p className="app-error" role="status" aria-live="polite">
               {error}
@@ -346,6 +374,7 @@ export default function App(): React.JSX.Element {
 
       <SettingsDialog
         open={settingsOpen}
+        busy={queue.items.some((item) => item.state === 'running' || item.state === 'pending')}
         onClose={() => {
           setSettingsOpen(false)
         }}

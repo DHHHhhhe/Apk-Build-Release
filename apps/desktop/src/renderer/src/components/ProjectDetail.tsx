@@ -42,6 +42,7 @@ export function ProjectDetail({
   const mixedBuildTypes = new Set(visibleVariants.map((variant) => variant.buildType)).size > 1
 
   const buildTypes = Array.from(new Set(visibleVariants.map((variant) => variant.buildType)))
+  const allVisibleSelected = visibleVariants.every((variant) => selected.has(variant.name))
 
   const namesOfBuildType = (buildType: string): string[] =>
     visibleVariants.filter((variant) => variant.buildType === buildType).map((variant) => variant.name)
@@ -51,7 +52,7 @@ export function ProjectDetail({
       <div className="card-core card-core--pad project-detail">
         <header className="project-detail__head">
           <div>
-            <h2 className="project-detail__title">{project.name}</h2>
+            <h3 className="project-detail__title">{project.name}</h3>
             <p className="project-detail__path tabular">{project.path}</p>
           </div>
           <span className={badge.className}>{badge.label}</span>
@@ -100,7 +101,7 @@ export function ProjectDetail({
           </p>
         ) : null}
 
-        <h3 className="project-detail__section">选择要构建的变体</h3>
+        <h4 className="project-detail__section">选择要构建的变体</h4>
         {project.variants.length === 0 ? (
           <p className="project-detail__empty">
             没解析出变体。先用「刷新变体」读配置文件；如果项目是用变量动态生成 flavor 的，点「用 Gradle
@@ -112,9 +113,14 @@ export function ProjectDetail({
               <button
                 type="button"
                 className="btn-ghost"
-                disabled={busy || selected.size === visibleVariants.length}
+                disabled={busy || allVisibleSelected}
                 onClick={() => {
-                  onSetVariants(visibleVariants.map((variant) => variant.name))
+                  // 与构建中心一致：全选是**并集**，不会把看不见的勾选（旧的 debug 残留）抹掉
+                  const merged = new Set(project.selectedVariants)
+                  for (const variant of visibleVariants) {
+                    merged.add(variant.name)
+                  }
+                  onSetVariants(Array.from(merged))
                 }}
               >
                 全选
@@ -124,6 +130,7 @@ export function ProjectDetail({
                 className="btn-ghost"
                 disabled={busy || selected.size === 0}
                 onClick={() => {
+                  // 清空是名副其实的清空：连同看不见的残留一起清掉
                   onSetVariants([])
                 }}
               >
@@ -136,7 +143,10 @@ export function ProjectDetail({
                   className="btn-ghost"
                   disabled={busy}
                   onClick={() => {
-                    onSetVariants(namesOfBuildType(buildType))
+                    // 同样只重排可见的那部分，保留看不见的勾选
+                    const visibleNames = new Set(visibleVariants.map((variant) => variant.name))
+                    const kept = project.selectedVariants.filter((name) => !visibleNames.has(name))
+                    onSetVariants([...kept, ...namesOfBuildType(buildType)])
                   }}
                 >
                   只选 {buildType}

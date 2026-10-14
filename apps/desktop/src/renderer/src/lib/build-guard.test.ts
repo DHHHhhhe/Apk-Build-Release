@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildBlockedReason, projectsToEnqueue, queuedExclusionHint } from './build-guard'
+import { buildBlockedReason, enqueueTargets, queuedExclusionHint } from './build-guard'
 import type { BuildGuardInput } from './build-guard'
 
 function input(patch: Partial<BuildGuardInput> = {}): BuildGuardInput {
@@ -81,7 +81,7 @@ describe('queuedExclusionHint', () => {
   })
 })
 
-describe('projectsToEnqueue', () => {
+describe('enqueueTargets', () => {
   const projects = [{ id: 'p1' }, { id: 'p2' }, { id: 'p3' }]
   const resolutions = new Map([
     ['p1', { buildable: ['demoRelease'] }],
@@ -89,20 +89,25 @@ describe('projectsToEnqueue', () => {
     ['p3', { buildable: [] }]
   ])
 
-  it('排除没有可构建变体的项目', () => {
-    expect(projectsToEnqueue(projects, resolutions, new Set())).toEqual(['p1', 'p2'])
+  it('带上这次要打的变体，并排除没有可构建变体的项目', () => {
+    expect(enqueueTargets(projects, resolutions, new Set())).toEqual([
+      { projectId: 'p1', variants: ['demoRelease'] },
+      { projectId: 'p2', variants: ['paidRelease'] }
+    ])
   })
 
   it('排除已在队列中的项目 —— 点了不该没反应', () => {
-    expect(projectsToEnqueue(projects, resolutions, new Set(['p2']))).toEqual(['p1'])
+    expect(enqueueTargets(projects, resolutions, new Set(['p2']))).toEqual([
+      { projectId: 'p1', variants: ['demoRelease'] }
+    ])
   })
 
   it('全都不可入队时返回空数组', () => {
-    expect(projectsToEnqueue(projects, resolutions, new Set(['p1', 'p2']))).toEqual([])
-    expect(projectsToEnqueue([], resolutions, new Set())).toEqual([])
+    expect(enqueueTargets(projects, resolutions, new Set(['p1', 'p2']))).toEqual([])
+    expect(enqueueTargets([], resolutions, new Set())).toEqual([])
   })
 
   it('结果里没有该项目的解析时按不可入队处理，不抛异常', () => {
-    expect(projectsToEnqueue([{ id: 'missing' }], resolutions, new Set())).toEqual([])
+    expect(enqueueTargets([{ id: 'missing' }], resolutions, new Set())).toEqual([])
   })
 })

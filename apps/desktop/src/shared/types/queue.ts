@@ -40,8 +40,19 @@ export const queueItemSchema = z.object({
   runs: z.array(queueRunDetailSchema)
 })
 
+/**
+ * 一个入队目标：项目 + 这次要打的变体。
+ *
+ * 变体由界面显式给出，不再让主进程回读数据库里「最后保存的那份勾选」——
+ * 这样「界面显示什么就构建什么」是**结构上的保证**，不再依赖写入是否先落盘（时序）。
+ */
+export const enqueueTargetSchema = z.object({
+  projectId: z.string().min(1, '缺少项目 id'),
+  variants: z.array(z.string().min(1))
+})
+
 export const enqueueInputSchema = z.object({
-  projectIds: z.array(z.string().min(1)).min(1, '至少要选一个项目')
+  targets: z.array(enqueueTargetSchema).min(1, '至少要选一个项目')
 })
 
 export const setConcurrencyInputSchema = z.object({
@@ -54,7 +65,6 @@ export const setConcurrencyInputSchema = z.object({
 export const queueItemInputSchema = z.object({
   itemId: z.string().min(1, '缺少队列项 id')
 })
-
 export const clearQueueInputSchema = z.object({
   scope: z.enum(['finished', 'all'])
 })
@@ -79,6 +89,7 @@ export const queueStateEventSchema = z.object({
 export type QueueItemState = z.infer<typeof queueItemStateSchema>
 export type QueueRunDetail = z.infer<typeof queueRunDetailSchema>
 export type QueueItem = z.infer<typeof queueItemSchema>
+export type EnqueueTarget = z.infer<typeof enqueueTargetSchema>
 export type EnqueueInput = z.infer<typeof enqueueInputSchema>
 export type SetConcurrencyInput = z.infer<typeof setConcurrencyInputSchema>
 export type QueueItemInput = z.infer<typeof queueItemInputSchema>

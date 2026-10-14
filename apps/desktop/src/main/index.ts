@@ -4,6 +4,7 @@ import { ensureSchema } from './db/client'
 import { setupIpcHandlers } from './ipc'
 import { killAllRunning } from './services/queue/lib/cancel'
 import { recoverStale, tick } from './services/queue/lib/scheduler'
+import { initUpdater } from './services/update/updater'
 import { logger } from './services/logger'
 
 // 渲染进程只做界面，所有 IO 与进程操作留在主进程（design.md §2）
@@ -59,6 +60,8 @@ void app.whenReady().then(() => {
   }
 
   setupIpcHandlers()
+  // 更新检查延迟到启动之后，别和建窗口、读配置抢主线程
+  initUpdater()
   logger.info('主进程就绪')
   createWindow()
   tick()

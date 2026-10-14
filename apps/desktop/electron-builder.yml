@@ -56,3 +56,19 @@ nsis:
 portable:
   artifactName: apk-batch-build-${version}-portable.${ext}
   unpackDirName: apk-batch-build
+
+# 自动更新（electron-updater）从 GitHub Releases 取新版本。
+#
+# 下面 owner / repo 会被**原样写进安装包的 resources/app-update.yml**，客户端只认它：
+# 写错的话，装出去的应用查不到更新（提示「更新服务器上找不到这个版本的信息」），
+# 只能让用户重新下载安装包；而且改回来也救不了已经装过的那一批。
+# CI 会用 --config.publish.owner/repo 覆盖成当前仓库，所以 fork 出去也能正常发版。
+publish:
+  provider: github
+  owner: DHHHhhhe
+  repo: Apk-Build-Release
+
+# Release 正文的来源：客户端「发现新版本」时显示的更新内容就是它。
+# 路径相对本目录（apps/desktop）；文件缺失只是没有更新内容，不影响发版。
+releaseInfo:
+  releaseNotesFile: build/release-notes.md

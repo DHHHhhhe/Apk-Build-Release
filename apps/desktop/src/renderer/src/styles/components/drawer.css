@@ -1,12 +1,12 @@
-/* 项目抽屉：非模态右侧检查面板，主列不因它开合而重排 */
+/* 项目抽屉：非模态右侧检查面板 */
 
 .drawer {
   position: fixed;
   top: var(--topbar-height);
   right: 0;
   bottom: 0;
-  /* 窄窗口下按比例收窄，不给它把主列挤没的机会 */
-  width: clamp(320px, 40vw, 460px);
+  /* 宽度由 App 按布局常量给出（与「主列要不要避让」用的是同一个数），拿不到时退回 560 */
+  width: var(--drawer-width, 560px);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -15,6 +15,14 @@
   /* 比对话框（20）低：对话框出现时必须盖住抽屉 */
   z-index: 10;
   box-shadow: -12px 0 32px color-mix(in srgb, var(--foreground) 8%, transparent);
+}
+
+/*
+ * 窗口够宽时主列整列避让：用 margin 而不是 padding，内容列的滚动条因此也跟着让开，
+ * 不会藏在抽屉底下点不到。窗口不够宽时不加这个类，宁可让抽屉盖住 —— 被挤窄的主列没法用。
+ */
+.app-content--avoid-drawer {
+  margin-right: var(--drawer-width, 560px);
 }
 
 .drawer__head {

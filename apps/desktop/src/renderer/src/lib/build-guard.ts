@@ -1,3 +1,5 @@
+import type { EnqueueTarget } from '@shared/types/queue'
+
 /**
  * 「构建勾选项」这个动作能不能点、不能点时为什么不能点。
  *
@@ -50,18 +52,26 @@ export function queuedExclusionHint(input: BuildGuardInput): string | null {
 }
 
 /**
- * 真正要入队的项目 id：有可构建变体、且不在队列中。
+ * 真正要入队的目标：有可构建变体、且不在队列中，并带上这次要打的变体。
  *
- * 抽成纯函数有两个原因：一是这段判断按下按钮时才会执行，留在组件里测不到；
- * 二是顶栏按钮与表内按钮必须发出同一份 id 列表，两处共用才不会走散。
+ * 变体在这里就定下来随入队一起传出去，主进程不再回读数据库里的勾选 ——
+ * 「界面显示什么就构建什么」因此是**结构上的保证**，而不是「希望写入先落盘」的时序保证。
+ *
+ * 抽成纯函数还有两个原因：这段判断按下按钮时才会执行，留在组件里测不到；
+ * 顶栏按钮与表内按钮必须发出同一份目标，两处共用才不会走散。
  */
-export function projectsToEnqueue(
+export function enqueueTargets(
   projects: Array<{ id: string }>,
   resolutions: Map<string, { buildable: string[] }>,
   queuedProjectIds: Set<string>
-): string[] {
-  return projects
-    .filter((project) => (resolutions.get(project.id)?.buildable.length ?? 0) > 0)
-    .filter((project) => !queuedProjectIds.has(project.id))
-    .map((project) => project.id)
+): EnqueueTarget[] {
+  const targets: EnqueueTarget[] = []
+  for (const project of projects) {
+    const buildable = resolutions.get(project.id)?.buildable ?? []
+    if (buildable.length === 0 || queuedProjectIds.has(project.id)) {
+      continue
+    }
+    targets.push({ projectId: project.id, variants: buildable })
+  }
+  return targets
 }

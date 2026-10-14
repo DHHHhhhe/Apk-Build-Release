@@ -6,6 +6,7 @@ import { setupEnvHandlers } from './env.handler'
 import { setupProjectHandlers } from './project.handler'
 import { setupQueueHandlers } from './queue.handler'
 import { setupSettingsHandlers } from './settings.handler'
+import { setupUpdateHandlers } from './update.handler'
 
 /** 统一注册所有 IPC handler；新增 domain 时在这里挂上 */
 export function setupIpcHandlers(): void {
@@ -15,4 +16,5 @@ export function setupIpcHandlers(): void {
   setupQueueHandlers()
   setupBuildHandlers()
   setupSettingsHandlers()
+  setupUpdateHandlers()
 }

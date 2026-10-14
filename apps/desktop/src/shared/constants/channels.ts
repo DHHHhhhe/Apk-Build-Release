@@ -38,5 +38,13 @@ export const IPC_CHANNELS = {
     PICK_OUTPUT_DIR: 'settings:pickOutputDir',
     OPEN_PATH: 'settings:openPath',
     CLEAR_LOGS: 'settings:clearLogs'
+  },
+  UPDATE: {
+    GET_STATE: 'update:getState',
+    CHECK: 'update:check',
+    DOWNLOAD: 'update:download',
+    INSTALL: 'update:install',
+    /** 更新状态变化的事件推送 */
+    STATE: 'update:state'
   }
 } as const

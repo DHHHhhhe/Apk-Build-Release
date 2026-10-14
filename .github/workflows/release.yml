@@ -85,9 +85,13 @@ jobs:
       # 打包与上传分成两步，不交给 electron-builder 自己发布：
       # 它内置的 GitHub 上传是并发的，会在同一个标签下建出两个 Release、把资产劈成两半；
       # 失败还会被静默吞掉、job 照样绿。gh 是串行的，传完一个再传下一个。
-      - name: 打包（不发布）
+      #
+      # publish.owner / repo 必须显式传：这两个值会被写进安装包的 resources/app-update.yml，
+      # 客户端只认它。用当前仓库覆盖，fork 出去也能正常发版。
+      - name: 打包（不发布，但把更新地址写进安装包）
         working-directory: apps/desktop
-        run: node scripts/run.mjs electron-builder --win --publish never
+        run: |
+          node scripts/run.mjs electron-builder --win --publish never --config.publish.owner=${{ github.repository_owner }} --config.publish.repo=${{ github.event.repository.name }}
 
       - name: 发布到 Releases
         shell: pwsh
@@ -118,10 +122,14 @@ jobs:
           }
 
           # 逐个上传：gh 会等每个文件传完再传下一个。--clobber 让重跑同一个标签时覆盖旧资产
+          #
+          # latest.yml 是**自动更新必需的元数据**：客户端从 Releases 取它来判断有没有新版本、
+          # 以及新版本的安装包叫什么、文件大小与哈希是多少。漏了它，装了旧版的用户永远查不到更新。
           $assets = @(
             "$dir/apk-batch-build-$version-setup.exe",
             "$dir/apk-batch-build-$version-setup.exe.blockmap",
-            "$dir/apk-batch-build-$version-portable.exe"
+            "$dir/apk-batch-build-$version-portable.exe",
+            "$dir/latest.yml"
           )
           foreach ($asset in $assets) {
             if (-not (Test-Path $asset)) {

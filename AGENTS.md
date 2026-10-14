@@ -115,13 +115,31 @@ pnpm package          # 重建 release/ 下的安装包与便携版
 
 工具自己的数据在 `%APPDATA%\@abr\desktop`（不在产物目录，安全），但**统一输出目录绝不能设在仓库里** —— 否则打出来的 APK 会被一起提交或打进安装包。默认值在「文档/APK批量打包」，改设置时留意这一点。
 
-### 关于自动更新：填错地址比不填更糟
+### 自动更新：安装版有，便携版没有
 
-当前**没有**配置自动更新。要接的话在 `apps/desktop/electron-builder.yml` 里加 `publish: { provider: github, owner, repo }`，这两个值会被原样写进安装包的 `resources/app-update.yml`。
+已接入 `electron-updater`（安装版专用）：
 
-**写错的后果不是「查不到更新」这么简单**：装出去的包会把错地址固化下来，用户端只能重装，改回来也救不了已经装过的那一批。所以要么填真实的 `owner` / `repo`，要么先别开这个功能。
+| 位置 | 作用 |
+| --- | --- |
+| `apps/desktop/electron-builder.yml` 的 `publish` | `owner` / `repo` 会被**原样写进安装包的 `resources/app-update.yml`**，客户端只认它 |
+| `apps/desktop/src/main/services/update/updater.ts` | 检查、下载、安装；状态推给界面（`UpdateState`） |
+| 渲染层 | 顶栏「有新版本」提示 + 设置里的「版本与更新」区块 |
 
-发版前检查三件事：版本号比线上大、Release 资产齐全、`latest.yml` 能访问。
+**地址写错的后果不是「查不到更新」这么简单**：装出去的包会把错地址固化下来，用户端只能重装，改回来也救不了已经装过的那一批。所以 `electron-builder.yml` 里必须填真实值；CI 用 `--config.publish.owner/repo` 覆盖成当前仓库，fork 出去也能正常发版。
+
+三条容易漏的：
+
+1. **`latest.yml` 必须上传**到 Release —— 客户端靠它判断有没有新版本、以及包的哈希与大小。工作流的资产清单里已经有它，别删。
+2. **便携版没有自动更新**（`PORTABLE_EXECUTABLE_DIR` 存在即便携版）：它每次启动自解压到临时目录，装更新只会多出一份副本。
+3. **关机时不装更新**（`session-end` 守卫）：Windows 会在关机途中掐掉安装程序，留下「旧的卸了、新的没装上」的残局。
+
+发版前检查四件事：版本号比线上大、Release 资产齐全（exe ×3 + `latest.yml`）、`latest.yml` 里的 `version` 与新版本一致、`app-update.yml` 里的 `owner`/`repo` 是真实仓库。
+
+### 发布说明文件只写用户要看的内容
+
+`apps/desktop/build/release-notes.md` 同时是两个面向用户的地方的来源：GitHub Release 的正文，以及客户端「更新内容」那一块（经 `releaseInfo.releaseNotesFile` 写进 `latest.yml`）。
+
+所以**这份文件里只写用户要看的内容** —— 「怎么维护这个文件」这类内部说明写在这里，写进那个文件会被用户看到。
 
 ### 应用图标：母版只放一份
 

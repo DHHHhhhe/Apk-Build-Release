@@ -1,18 +1,23 @@
 import { useEffect, useState } from 'react'
-import { FolderOpen, Trash2, X } from 'lucide-react'
+import { FolderOpen, RefreshCw, Trash2, X } from 'lucide-react'
 import type { Settings } from '@shared/types/settings'
+import { useUpdate } from '../hooks/useUpdate'
 
 export function SettingsDialog({
   open,
-  onClose
+  onClose,
+  busy
 }: {
   open: boolean
   onClose: () => void
+  /** 队列里有正在跑或排队的项：这时不能重启装更新，会把构建掐掉 */
+  busy: boolean
 }): React.JSX.Element | null {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [draft, setDraft] = useState('')
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const update = useUpdate()
 
   useEffect(() => {
     if (!open) {
@@ -144,6 +149,48 @@ export function SettingsDialog({
                 清理日志
               </button>
             </div>
+          </div>
+
+          <div className="dialog__field">
+            <span className="dialog__label">版本与更新</span>
+            <div className="dialog__row">
+              <span className="dialog__value tabular">
+                {update.state ? `当前 ${update.state.currentVersion}` : '（读取中）'}
+                {update.state?.version ? ` → ${update.state.version}` : ''}
+              </span>
+              {update.state?.phase === 'available' ? (
+                <button type="button" className="btn-outline" onClick={() => void update.download()}>
+                  下载更新
+                </button>
+              ) : null}
+              {update.state?.phase === 'downloaded' ? (
+                <button
+                  type="button"
+                  className="btn-outline"
+                  disabled={busy}
+                  title={busy ? '有构建任务在跑，重启会把它掐掉' : undefined}
+                  onClick={() => void update.install()}
+                >
+                  重启并安装
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="btn-ghost"
+                disabled={update.state?.phase === 'checking' || update.state?.phase === 'downloading'}
+                onClick={() => void update.check()}
+              >
+                <RefreshCw size={14} aria-hidden="true" />
+                检查更新
+              </button>
+            </div>
+            {update.state?.phase === 'downloading' ? (
+              <span className="dialog__hint">正在下载 {update.state.percent}%</span>
+            ) : update.state?.message ? (
+              <span className="dialog__hint">{update.state.message}</span>
+            ) : (
+              <span className="dialog__hint">从 GitHub Releases 取新版本；便携版没有自动更新。</span>
+            )}
           </div>
 
           {message ? (

@@ -9,12 +9,14 @@ import type {
 import type { EnvProbeResult } from './env'
 import type { Project, ProjectListResult, ProjectResult } from './project'
 import type {
+  EnqueueTarget,
   QueueItem,
   QueueListResult,
   QueueMutationResult,
   QueueStateEvent
 } from './queue'
 import type { BasicResult, SettingsResult } from './settings'
+import type { UpdateState } from './update'
 
 export interface PickDirectoryResult {
   success: boolean
@@ -41,7 +43,7 @@ export interface AppApi {
   }
   queue: {
     list: () => Promise<QueueListResult>
-    enqueue: (projectIds: string[]) => Promise<QueueMutationResult>
+    enqueue: (targets: EnqueueTarget[]) => Promise<QueueMutationResult>
     setConcurrency: (limit: number) => Promise<QueueMutationResult>
     cancel: (itemId: string) => Promise<QueueMutationResult>
     cancelAll: () => Promise<QueueMutationResult>
@@ -70,6 +72,16 @@ export interface AppApi {
     /** 拖拽进来的 File 对象换成真实磁盘路径；拿不到返回空串 */
     pathFor: (file: File) => string
   }
+  update: {
+    /** 主进程是更新状态的唯一真值，这里读的是它当前那份快照 */
+    getState: () => Promise<UpdateState>
+    /** 手动检查一次：与自动检查的区别是「没有新版本 / 失败」也会说出来 */
+    check: () => Promise<UpdateState>
+    download: () => Promise<UpdateState>
+    /** 重启并安装（调用前界面要确认没有构建在跑） */
+    install: () => Promise<void>
+    onState: (handler: (event: UpdateState) => void) => Unsubscribe
+  }
 }
 
 export type {
@@ -87,5 +99,6 @@ export type {
   QueueMutationResult,
   QueueStateEvent,
   SettingsResult,
-  SummaryScope
+  SummaryScope,
+  UpdateState
 }

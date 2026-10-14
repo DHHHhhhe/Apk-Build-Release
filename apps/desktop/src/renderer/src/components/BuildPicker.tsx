@@ -118,7 +118,7 @@ export function BuildPicker({
   return (
     <div className="build-picker" onKeyDown={handleKeyDown}>
       <div className="build-picker__bar">
-        <span className="build-picker__count tabular">
+        <span className="build-picker__count tabular" role="status" aria-live="polite">
           已选 {selectedCount} / 可构建 {buildableVariantCount}
         </span>
         <button

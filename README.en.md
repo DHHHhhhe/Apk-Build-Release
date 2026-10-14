@@ -43,6 +43,7 @@ If you ship several Android apps, each with its own flavours and build types, op
 | Live build log | Streams to the window, filterable to errors only, and the full log is written to disk with one-click open |
 | Cancel / retry / clear | Cancelling kills the entire Gradle process tree, leaving no orphan `java.exe` |
 | Desktop notification | Useful when a long build finishes while you are doing something else |
+| Auto-update (installer) | Checks GitHub Releases shortly after launch; a **New version** button appears in the top bar when one is found, with release notes, download and restart-to-install. The **portable build does not auto-update** |
 
 ## Getting started
 
@@ -54,6 +55,8 @@ Grab a build from [Releases](https://github.com/DHHHhhhe/Apk-Build-Release/relea
 | --- | --- | --- |
 | `apk-batch-build-<version>-setup.exe` | Regular use | Installer, you choose the install path; adds Start Menu and desktop shortcuts |
 | `apk-batch-build-<version>-portable.exe` | No install | Runs on double-click, extracts to `%TEMP%\apk-batch-build` on every launch |
+
+> The installed build updates itself from then on (there is a check shortly after launch); the **portable build does not**, so grab a new download for each version. An auto-updated release still triggers SmartScreen once — that is the cost of shipping unsigned, not a damaged file.
 
 > The first launch triggers a Windows SmartScreen warning (no code-signing certificate, publisher shows as "Unknown publisher"). Click **More info** → **Run anyway**; the file is not damaged.
 

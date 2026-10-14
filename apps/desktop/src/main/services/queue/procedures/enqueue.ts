@@ -1,6 +1,6 @@
 import { logger as baseLogger } from '../../logger'
 import { NO_BUILDABLE_VARIANT_REASON, resolveBuildableVariants } from '@shared/lib/variants'
-import { findProjectRow, listVariants, parseJsonArray } from '../../project/lib/mapper'
+import { findProjectRow, listVariants } from '../../project/lib/mapper'
 import { enqueueInputSchema } from '../types'
 import type { QueueItem, QueueMutationResult } from '../types'
 import { enqueueItem, listQueue } from '../lib/scheduler'
@@ -15,7 +15,7 @@ function hasActiveItem(projectId: string): boolean {
   )
 }
 
-/** 入队：用项目当前勾选的变体；没勾变体、已在队列里的项目会被跳过并说明原因 */
+/** 入队：用界面传进来的变体列表；没勾变体、已在队列里的项目会被跳过并说明原因 */
 export function enqueueProjects(input: unknown): QueueMutationResult {
   const parsed = enqueueInputSchema.safeParse(input)
   if (!parsed.success) {
@@ -25,10 +25,10 @@ export function enqueueProjects(input: unknown): QueueMutationResult {
   const created: QueueItem[] = []
   const skipped: string[] = []
 
-  for (const projectId of parsed.data.projectIds) {
-    const project = findProjectRow(projectId)
+  for (const target of parsed.data.targets) {
+    const project = findProjectRow(target.projectId)
     if (!project) {
-      skipped.push(`${projectId}：项目不存在`)
+      skipped.push(`${target.projectId}：项目不存在`)
       continue
     }
 
@@ -37,16 +37,16 @@ export function enqueueProjects(input: unknown): QueueMutationResult {
       continue
     }
 
+    // 变体由界面显式给出（所见即所建）。这里仍按项目里的真实变体再筛一遍：
+    // 界面可能停在旧数据上，而「出包只带 release」这条规则必须由主进程自己保证。
     const variants = listVariants(project.id)
-    const selected = parseJsonArray(project.selectedVariants)
-    // 出包只带 release：界面按同一条规则决定列表显示什么，两边共用这一份实现
-    const { buildable } = resolveBuildableVariants({ variants, selected })
-    if (selected.length === 0) {
+    const { buildable } = resolveBuildableVariants({ variants, selected: target.variants })
+    if (target.variants.length === 0) {
       skipped.push(`${project.name}：没有勾选变体`)
       continue
     }
     if (buildable.length === 0) {
-      // 勾了却出不了包：只勾了非 release 变体（旧版本的勾选），或勾的变体已从项目里消失
+      // 勾了却出不了包：只勾了非 release 变体，或勾的变体已从项目里消失
       skipped.push(`${project.name}：${NO_BUILDABLE_VARIANT_REASON}`)
       continue
     }

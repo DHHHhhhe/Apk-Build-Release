@@ -55,7 +55,7 @@ export function EnvCard({
     <section className="card-shell">
       <div className="card-core card-core--pad env-card">
         <header className="env-card__head">
-          <h2 className="env-card__title">构建环境</h2>
+          <h3 className="env-card__title">构建环境</h3>
           <span className={hasBlocking ? 'badge badge--destructive' : 'badge badge--success'}>
             {hasBlocking ? '有缺失项' : '可用'}
           </span>

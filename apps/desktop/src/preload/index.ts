@@ -2,7 +2,8 @@ import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { IPC_CHANNELS } from '@shared/constants/channels'
 import type { AppApi, Unsubscribe } from '@shared/types/api'
 import type { BuildLogEvent, BuildStateEvent, SummaryScope } from '@shared/types/build'
-import type { QueueStateEvent } from '@shared/types/queue'
+import type { EnqueueTarget, QueueStateEvent } from '@shared/types/queue'
+import type { UpdateState } from '@shared/types/update'
 
 /** 事件订阅统一在这里收口：返回取消订阅函数，避免渲染进程拿到裸 ipcRenderer */
 function subscribe<T>(channel: string, handler: (event: T) => void): Unsubscribe {
@@ -32,7 +33,7 @@ const api: AppApi = {
   },
   queue: {
     list: () => ipcRenderer.invoke(IPC_CHANNELS.QUEUE.LIST),
-    enqueue: (projectIds: string[]) => ipcRenderer.invoke(IPC_CHANNELS.QUEUE.ENQUEUE, { projectIds }),
+    enqueue: (targets: EnqueueTarget[]) => ipcRenderer.invoke(IPC_CHANNELS.QUEUE.ENQUEUE, { targets }),
     setConcurrency: (limit: number) =>
       ipcRenderer.invoke(IPC_CHANNELS.QUEUE.SET_CONCURRENCY, { limit }),
     cancel: (itemId: string) => ipcRenderer.invoke(IPC_CHANNELS.QUEUE.CANCEL, { itemId }),
@@ -71,6 +72,13 @@ const api: AppApi = {
         return ''
       }
     }
+  },
+  update: {
+    getState: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE.GET_STATE),
+    check: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE.CHECK),
+    download: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE.DOWNLOAD),
+    install: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE.INSTALL),
+    onState: (handler: (event: UpdateState) => void) => subscribe(IPC_CHANNELS.UPDATE.STATE, handler)
   }
 }
 
