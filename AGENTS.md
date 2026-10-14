@@ -22,6 +22,9 @@ Managed by Trellis. Edits outside this block are preserved; edits inside may be 
 
 ## 本项目约定
 
+> `.trellis/` **只留本地、不进仓库**（`.gitignore` 已排除）：它是开发过程记录，开源仓库只需要交付代码与文档。所以上面的 Trellis 说明只对本机的开发会话有效，clone 仓库的人看不到 `.trellis/`。
+> 随仓库分发的是 `.agents/skills/` 与 `.dsh/skills/` —— 那是跨平台的技能层，与开发过程记录不是一回事。
+
 ### 改完逻辑必须重新构建产物
 
 `package.json` 的 `main` 指向 `out/main/index.js`，也就是说**跑的是构建产物，不是源码**：
