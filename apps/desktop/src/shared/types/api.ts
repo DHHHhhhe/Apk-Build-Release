@@ -15,7 +15,7 @@ import type {
   QueueMutationResult,
   QueueStateEvent
 } from './queue'
-import type { BasicResult, SettingsResult } from './settings'
+import type { BasicResult, SettingsResult, ThemeChoice } from './settings'
 import type { UpdateState } from './update'
 
 export interface PickDirectoryResult {
@@ -64,6 +64,8 @@ export interface AppApi {
   settings: {
     get: () => Promise<SettingsResult>
     setOutputRoot: (path: string) => Promise<SettingsResult>
+    /** 主题档位（跟随系统 / 浅色 / 深色）；真正生效的是主进程的 nativeTheme */
+    setTheme: (theme: ThemeChoice) => Promise<SettingsResult>
     pickOutputDir: () => Promise<SettingsResult>
     openPath: (path: string) => Promise<BasicResult>
     clearLogs: () => Promise<BasicResult & { removed?: number; freedBytes?: number }>

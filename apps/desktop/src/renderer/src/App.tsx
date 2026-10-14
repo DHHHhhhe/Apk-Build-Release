@@ -11,6 +11,7 @@ import { ProjectList } from './components/ProjectList'
 import { QueuePanel } from './components/QueuePanel'
 import { SettingsDialog } from './components/SettingsDialog'
 import { BuildCenter } from './components/BuildCenter'
+import { ThemeToggle } from './components/ThemeToggle'
 import { buildBlockedReason, enqueueTargets, queuedExclusionHint } from './lib/build-guard'
 import { resolveBuildableVariants } from '@shared/lib/variants'
 import type { Project } from '@shared/types/project'
@@ -219,16 +220,6 @@ export default function App(): React.JSX.Element {
         ) : null}
         <button
           type="button"
-          className="btn-ghost"
-          aria-label="设置"
-          onClick={() => {
-            setSettingsOpen(true)
-          }}
-        >
-          <Settings size={16} aria-hidden="true" />
-        </button>
-        <button
-          type="button"
           className="btn-outline"
           disabled={Boolean(enqueueBlocked) || !selectedProject}
           title={enqueueBlocked ?? undefined}
@@ -261,6 +252,22 @@ export default function App(): React.JSX.Element {
             onAdd={handleAdd}
             onRemove={setPendingRemove}
           />
+          {/* 左下角：主题档位与设置入口（自动更新的入口同样在这条上） */}
+          <div className="app-sidebar__bottom">
+            <ThemeToggle />
+            <button
+              type="button"
+              className="app-sidebar__action"
+              aria-label="设置"
+              title="设置"
+              onClick={() => {
+                setSettingsOpen(true)
+              }}
+            >
+              <Settings size={14} aria-hidden="true" />
+              设置
+            </button>
+          </div>
         </aside>
 
         <main className={avoidDrawer ? 'app-content app-content--avoid-drawer' : 'app-content'}>

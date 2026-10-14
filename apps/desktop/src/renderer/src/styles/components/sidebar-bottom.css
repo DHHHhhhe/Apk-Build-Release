@@ -1,0 +1,83 @@
+/* 侧栏左下角：主题档位 + 设置入口（自动更新的入口也在这条上，见 update-entry.css） */
+
+.app-sidebar__bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--sidebar-border);
+}
+
+/* ── 主题档位：三个小按钮并排 ── */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--sidebar-border);
+  border-radius: var(--radius-md);
+}
+
+.theme-toggle__option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 24px;
+  border: none;
+  border-radius: calc(var(--radius-md) - 3px);
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: background var(--duration-micro), color var(--duration-micro);
+}
+
+.theme-toggle__option:hover:not(:disabled) {
+  background: var(--sidebar-accent);
+  color: var(--sidebar-accent-foreground);
+}
+
+/*
+ * 选中态用 sidebar-accent 而不是 card：深色下侧栏与卡片是同一个值（#161618），
+ * 拿 card 当底会和侧栏糊在一起，看不出选中的是哪一个。
+ */
+.theme-toggle__option--active {
+  background: var(--sidebar-accent);
+  color: var(--foreground);
+}
+
+.theme-toggle__option:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.theme-toggle__option:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+/* ── 左下角的文字按钮（设置等）── */
+.app-sidebar__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background var(--duration-micro), color var(--duration-micro);
+}
+
+.app-sidebar__action:hover {
+  background: var(--sidebar-accent);
+  color: var(--sidebar-accent-foreground);
+}
+
+.app-sidebar__action:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}

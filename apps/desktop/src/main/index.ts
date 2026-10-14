@@ -6,6 +6,7 @@ import { killAllRunning } from './services/queue/lib/cancel'
 import { recoverStale, tick } from './services/queue/lib/scheduler'
 import { initUpdater } from './services/update/updater'
 import { logger } from './services/logger'
+import { currentBackgroundColor, initTheme } from './theme'
 
 // 渲染进程只做界面，所有 IO 与进程操作留在主进程（design.md §2）
 function createWindow(): void {
@@ -16,7 +17,8 @@ function createWindow(): void {
     minHeight: 680,
     show: false,
     autoHideMenuBar: true,
-    backgroundColor: '#f2f2f4',
+    // 跟随主题的窗口底色：Chromium 在首帧之前画的就是它，深色下给白色会闪一下
+    backgroundColor: currentBackgroundColor(),
     // 打包后任务栏图标取自 exe 内嵌的图标（electron-builder 从 build/icon.png 生成）；
     // 开发期 exe 是 Electron 自己的，得显式指一份，否则任务栏显示 Electron 默认图标
     ...(app.isPackaged ? {} : { icon: join(__dirname, '../../build/icon.png') }),
@@ -60,6 +62,9 @@ void app.whenReady().then(() => {
   }
 
   setupIpcHandlers()
+  // 主题要在建窗口之前定下来：窗口底色与渲染层的 prefers-color-scheme 都取决于它，
+  // 晚一步就会先闪一帧浅色
+  initTheme()
   // 更新检查延迟到启动之后，别和建窗口、读配置抢主线程
   initUpdater()
   logger.info('主进程就绪')

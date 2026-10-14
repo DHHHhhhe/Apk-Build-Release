@@ -35,6 +35,7 @@ export const IPC_CHANNELS = {
   SETTINGS: {
     GET: 'settings:get',
     SET_OUTPUT_ROOT: 'settings:setOutputRoot',
+    SET_THEME: 'settings:setTheme',
     PICK_OUTPUT_DIR: 'settings:pickOutputDir',
     OPEN_PATH: 'settings:openPath',
     CLEAR_LOGS: 'settings:clearLogs'

@@ -88,8 +88,15 @@ body {
   flex-direction: column;
   min-height: 0;
   min-width: 0;
-  /* 不设 scrollbar-gutter：项目少的时候不需要滚动，留一条空轨道看着像多余的滚动条 */
+  /* 侧栏整体不滚：滚动交给项目列表，左下角那条（主题 / 设置 / 更新）才能钉在底部 */
   overflow-x: hidden;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+}
+
+/* 列表占满剩余高度并自己滚 —— 项目多的时候，底部那条不该被滚走 */
+.app-sidebar > .project-list {
+  flex: 1 1 auto;
   overflow-y: auto;
   overscroll-behavior: contain;
 }

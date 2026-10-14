@@ -3,8 +3,22 @@ import { join } from 'node:path'
 import { eq } from 'drizzle-orm'
 import { db } from '../../../db/client'
 import { settings } from '../../../db/schema'
+import { themeChoiceSchema } from '../../settings/types'
+import type { ThemeChoice } from '../../settings/types'
 
 export const OUTPUT_ROOT_KEY = 'output.root'
+export const THEME_KEY = 'theme'
+
+/** 主题档位：没设过、或者存量的值非法（被改坏、旧版本写的）都退回「跟随系统」 */
+export function getThemeChoice(): ThemeChoice {
+  const row = db.select().from(settings).where(eq(settings.key, THEME_KEY)).get()
+  const parsed = themeChoiceSchema.safeParse(row?.value)
+  return parsed.success ? parsed.data : 'system'
+}
+
+export function setThemeChoice(choice: ThemeChoice): void {
+  upsertSetting(THEME_KEY, choice)
+}
 
 /** 统一输出目录：用户没设过就用「文档/APK批量打包」 */
 export function getOutputRoot(): string {

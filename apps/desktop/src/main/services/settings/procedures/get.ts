@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { app } from 'electron'
 import { logger as baseLogger } from '../../logger'
-import { getOutputRoot } from '../../build/lib/settings'
+import { getOutputRoot, getThemeChoice } from '../../build/lib/settings'
 import type { SettingsResult } from '../types'
 
 const logger = baseLogger.scope('settings:get')
@@ -17,7 +17,8 @@ export function readSettings(): SettingsResult {
       success: true,
       settings: {
         outputRoot: getOutputRoot(),
-        logDir: getLogDir()
+        logDir: getLogDir(),
+        theme: getThemeChoice()
       }
     }
   } catch (error) {

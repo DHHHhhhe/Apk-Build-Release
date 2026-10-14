@@ -23,6 +23,7 @@
 @import './components/build-picker.css';
 @import './components/drawer.css';
 @import './components/changelog.css';
+@import './components/sidebar-bottom.css';
 
 /* 5. 页面 */
 /* @import './pages/queue.css'; */

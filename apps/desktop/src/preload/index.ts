@@ -59,6 +59,7 @@ const api: AppApi = {
     get: () => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.GET),
     setOutputRoot: (path: string) =>
       ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.SET_OUTPUT_ROOT, { path }),
+    setTheme: (theme: string) => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.SET_THEME, { theme }),
     pickOutputDir: () => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.PICK_OUTPUT_DIR),
     openPath: (path: string) => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.OPEN_PATH, { path }),
     clearLogs: () => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.CLEAR_LOGS)
