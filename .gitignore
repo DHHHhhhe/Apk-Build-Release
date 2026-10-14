@@ -1,0 +1,25 @@
+node_modules/
+out/
+dist/
+release/
+*.log
+*.db
+*.db-wal
+*.db-shm
+.DS_Store
+Thumbs.db
+.vite/
+*.tsbuildinfo
+
+# 本地环境与编辑器
+.env
+.env.*
+*.local
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*~
+
+# DSH 在本机装的工作流技能（本地工具状态，可从工具重新装）
+.dsh/

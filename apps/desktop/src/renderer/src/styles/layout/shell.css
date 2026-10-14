@@ -1,0 +1,161 @@
+/* 应用骨架：顶栏 48px + 可拖动侧栏 + 内容列吸收剩余宽度
+   注意：不用 100vh —— 桌面端窗口可缩放，用 height:100% 链式撑满 */
+html,
+body,
+#root {
+  height: 100%;
+}
+
+/* 滚动区域由应用自己持有：窗口级一旦可滚，就会和内容列的滚动条并排出现两条 */
+html,
+body {
+  overflow: hidden;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.app-topbar {
+  height: var(--topbar-height);
+  flex: 0 0 var(--topbar-height);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 20px;
+  background: var(--background);
+  border-bottom: 1px solid var(--border);
+  /* min-width:0 让子元素能收缩：否则文字一长就把顶栏撑宽，
+     横向溢出传导到窗口，产生第二条（横向）滚动条 */
+  min-width: 0;
+}
+
+.app-topbar__logo {
+  flex: 0 0 auto;
+  border-radius: 5px;
+  margin-right: -8px;
+}
+
+.app-topbar__title {
+  flex: 0 0 auto;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.app-topbar__status {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  margin-right: auto;
+  /* 可收缩 + 省略号：状态文字再长也只挤压自己这一格 */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 主按钮禁用时把原因摆在旁边 */
+.app-topbar__hint {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 顶栏按钮不参与收缩：否则窗口一窄，最右边的按钮会被挤出可视区 */
+.app-topbar > button {
+  flex: 0 0 auto;
+}
+
+.app-body {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
+
+.app-sidebar {
+  position: relative;
+  width: var(--sidebar-width);
+  flex: 0 0 var(--sidebar-width);
+  background: var(--sidebar);
+  color: var(--sidebar-foreground);
+  border-right: 1px solid var(--sidebar-border);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  /* 不设 scrollbar-gutter：项目少的时候不需要滚动，留一条空轨道看着像多余的滚动条 */
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* 拖动条贴在侧栏内右缘（overflow 会裁掉负偏移，所以不能放到外面） */
+.app-sidebar__resize {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 4px;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+  z-index: 2;
+}
+
+.app-sidebar__resize::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: transparent;
+  transition: background 120ms ease;
+}
+
+.app-sidebar__resize:hover::after,
+.app-sidebar__resize:focus-visible::after {
+  background: var(--ring);
+  opacity: 0.5;
+}
+
+body.is-resizing-sidebar {
+  cursor: col-resize;
+  user-select: none;
+}
+
+.app-sidebar__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 16px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  text-align: center;
+}
+
+.app-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 24px;
+  /* 只给纵向滚动：横向溢出由文字换行消化，否则内容列自己会多出一条横向滚动条 */
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.app-title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.6;
+  margin: 0 0 8px;
+}
+
+.app-muted {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  margin: 0;
+}

@@ -1,0 +1,58 @@
+# electron-builder 配置：`pnpm package` 用它把 out/ 打成 Windows 安装包
+# 入口是 package.json 的 main（./out/main/index.js），构建产物都在 out/ 下
+
+appId: com.abr.desktop
+productName: APK批量打包
+copyright: Copyright © 2026
+
+directories:
+  output: release/${version}
+  buildResources: build
+
+# 只打构建产物与运行期依赖；源码、配置、测试都不进包
+files:
+  - out/**
+  - package.json
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!vitest.config.mts'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - '!**/*.map'
+  - '!**/{.vscode,.git,test,tests}/**'
+
+# better-sqlite3 是原生模块，.node 不能留在 asar 里
+asarUnpack:
+  - '**/*.node'
+
+# better-sqlite3 13 自带 NAPI 预编译产物，不需要按 Electron 头文件重建；
+# 打开 npmRebuild 反而会去下 headers 并依赖本机编译链
+npmRebuild: false
+
+win:
+  # 母版是 build/icon.png（1024×1024），electron-builder 自己转成多尺寸 .ico 并嵌进 exe
+  icon: build/icon.png
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+  executableName: apk-batch-build
+  artifactName: apk-batch-build-${version}-setup.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  shortcutName: APK批量打包
+  uninstallDisplayName: APK批量打包 ${version}
+  artifactName: apk-batch-build-${version}-setup.${ext}
+
+# 便携版：免安装，但每次启动会把程序解压到临时目录。
+# unpackDirName 固定成同一个名字，否则每次启动的路径都不同，
+# Windows 防火墙会把每一份都当成新程序、反复弹权限框。
+portable:
+  artifactName: apk-batch-build-${version}-portable.${ext}
+  unpackDirName: apk-batch-build

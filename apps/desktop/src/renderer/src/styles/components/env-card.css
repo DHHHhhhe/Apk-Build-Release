@@ -1,0 +1,104 @@
+/* 环境自检卡片。状态徽章的样式在 badge.css（跨组件共用） */
+
+/* 探测范围：让用户知道这张卡在看哪个项目 */
+.env-card__scope {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.env-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.env-card__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.env-card__title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.env-card__refresh {
+  margin-left: auto;
+}
+
+.env-card__path {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.env-card__path-label {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.env-card__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.env-card__row {
+  background: var(--muted);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+}
+
+.env-card__row-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.env-card__label {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.env-card__value {
+  margin: 8px 0 0;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.env-card__detail {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.env-card__source {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.env-card__warnings {
+  margin: 0;
+  padding: 12px 16px;
+  list-style: none;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+  color: var(--warning);
+  font-size: 12px;
+}
+
+.env-card__error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--destructive);
+}

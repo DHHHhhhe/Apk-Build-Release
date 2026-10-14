@@ -1,0 +1,114 @@
+/*
+ * 令牌来源：根目录 DESIGN.md「中性单色桌面界面规范」v1.0 第 11 节，逐字复制。
+ * 该文件视为 DESIGN.md 的副本：改动只允许整段重新复制，不允许就地改值。
+ */
+:root {
+  /* ── 面与文字 ── */
+  --background: #f2f2f4; /* 画布 */
+  --foreground: #0a0a0b; /* 正文与标题 */
+  --card: #ffffff; /* 卡片内芯 */
+  --card-foreground: #0a0a0b;
+  --popover: #ffffff; /* 浮层 */
+  --popover-foreground: #0a0a0b;
+
+  /* ── 主操作 ── */
+  --primary: #0a0a0b;
+  --primary-foreground: #fafafa;
+
+  /* ── 次级面与次要文字 ── */
+  --secondary: #f4f4f6;
+  --secondary-foreground: #0a0a0b;
+  --muted: #f4f4f6;
+  --muted-foreground: #6b6b73;
+  --accent: #f4f4f6;
+  --accent-foreground: #0a0a0b;
+
+  /* ── 语义状态 ── */
+  --destructive: #b3261e;
+  --success: #2f6b3f;
+  --warning: #8a5a00;
+  --info: #1a5fb4;
+
+  /* ── 线 ── */
+  --border: oklch(0 0 0 / 6%); /* hairline，看得见但不框死 */
+  --input: oklch(0 0 0 / 8%);
+  --ring: #0a0a0b; /* 焦点环 */
+
+  /* ── 侧栏 ── */
+  --sidebar: #f7f7f9;
+  --sidebar-foreground: #0a0a0b;
+  --sidebar-accent: #ebebef;
+  --sidebar-accent-foreground: #0a0a0b;
+  --sidebar-border: oklch(0 0 0 / 6%);
+
+  /* ── 圆角 ── */
+  --radius: 1.25rem; /* 20px，按钮/输入框/卡片内芯用它 */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-xl: 28px; /* 对话框、卡片外壳 */
+
+  /* ── 间距基准 ── */
+  --space-unit: 4px;
+
+  /* ── 布局 ── */
+  --sidebar-width: 272px; /* 可拖动时改这个值，范围 200–420px */
+  --topbar-height: 48px;
+
+  /* ── 动效 ── */
+  --duration-micro: 150ms;
+  --duration-base: 200ms;
+
+  /* ── 阴影：极柔扩散，每层都很淡 ── */
+  --shadow-card:
+    0 1px 2px oklch(0 0 0 / 3%),
+    0 8px 24px -8px oklch(0 0 0 / 6%);
+  --shadow-float:
+    0 1px 2px oklch(0 0 0 / 4%),
+    0 8px 24px -4px oklch(0 0 0 / 6%),
+    0 24px 48px -12px oklch(0 0 0 / 5%);
+}
+
+/* ── 字体：必须显式带中文回退 ── */
+:root {
+  --font-sans:
+    'Geist Variable', 'Microsoft YaHei UI', 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC',
+    system-ui, sans-serif;
+}
+
+/*
+ * 深色令牌（D11）：第一期只做浅色，这一段照抄保留但不接线 ——
+ * 不挂 .dark 类、不做切换、不跟随 prefers-color-scheme。第二期接上切换即可。
+ */
+.dark {
+  --background: #0c0c0e;
+  --foreground: #fafafa;
+  --card: #161618;
+  --card-foreground: #fafafa;
+  --popover: #1c1c1f;
+  --popover-foreground: #fafafa;
+
+  --primary: #fafafa;
+  --primary-foreground: #0a0a0b;
+
+  --secondary: #1f1f22;
+  --secondary-foreground: #fafafa;
+  --muted: #1f1f22;
+  --muted-foreground: #8b8b93;
+  --accent: #1f1f22;
+  --accent-foreground: #fafafa;
+
+  --destructive: #e5766f;
+  --success: #7fbf92;
+  --warning: #d9a441;
+  --info: #7aa7e0;
+
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: #fafafa;
+
+  --sidebar: #161618;
+  --sidebar-foreground: #fafafa;
+  --sidebar-accent: #24242a;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: oklch(1 0 0 / 8%);
+}

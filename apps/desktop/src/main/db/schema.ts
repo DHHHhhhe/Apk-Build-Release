@@ -1,0 +1,116 @@
+import { sql } from 'drizzle-orm'
+import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+
+// 时间戳一律 timestamp_ms（.trellis/spec/backend/database.md + shared/timestamp.md）
+const nowMs = sql`(unixepoch() * 1000)`
+
+export const projects = sqliteTable(
+  'projects',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    path: text('path').notNull().unique(),
+    /** 应用了 com.android.application 的模块路径，例如 :app */
+    appModule: text('app_module'),
+    /** 用户勾选的变体名，JSON 数组 */
+    selectedVariants: text('selected_variants').notNull().default('[]'),
+    /** 变体列表是怎么来的：static / gradle */
+    variantsSource: text('variants_source', { enum: ['static', 'gradle'] }),
+    /** 相关构建文件的 mtime 签名，用于判断能否复用缓存 */
+    variantsSignature: text('variants_signature'),
+    /** 静态解析的已知限制提示，JSON 数组 */
+    variantsNotes: text('variants_notes').notNull().default('[]'),
+    variantsResolvedAt: integer('variants_resolved_at', { mode: 'timestamp_ms' }),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(nowMs),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .default(nowMs)
+      .$onUpdate(() => new Date())
+  },
+  (table) => [index('projects_path_idx').on(table.path)]
+)
+
+export const projectVariants = sqliteTable(
+  'project_variants',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    flavor: text('flavor'),
+    buildType: text('build_type').notNull(),
+    source: text('source', { enum: ['static', 'gradle'] }).notNull(),
+    resolvedAt: integer('resolved_at', { mode: 'timestamp_ms' }).notNull().default(nowMs)
+  },
+  (table) => [index('project_variants_project_idx').on(table.projectId)]
+)
+
+export const queueItems = sqliteTable(
+  'queue_items',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    state: text('state', { enum: ['pending', 'running', 'success', 'failed', 'canceled'] })
+      .notNull()
+      .default('pending'),
+    /** 入队时冻结的变体列表（JSON）；重试时沿用同一份，不受之后改选影响 */
+    variants: text('variants').notNull().default('[]'),
+    attempt: integer('attempt').notNull().default(1),
+    enqueuedAt: integer('enqueued_at', { mode: 'timestamp_ms' }).notNull().default(nowMs),
+    startedAt: integer('started_at', { mode: 'timestamp_ms' }),
+    finishedAt: integer('finished_at', { mode: 'timestamp_ms' }),
+    /** 失败或取消的原因，给用户看的一行 */
+    note: text('note')
+  },
+  (table) => [index('queue_items_state_idx').on(table.state)]
+)
+
+export const buildRuns = sqliteTable(
+  'build_runs',
+  {
+    id: text('id').primaryKey(),
+    queueItemId: text('queue_item_id')
+      .notNull()
+      .references(() => queueItems.id, { onDelete: 'cascade' }),
+    variant: text('variant').notNull(),
+    state: text('state', { enum: ['running', 'success', 'failed', 'canceled'] })
+      .notNull()
+      .default('running'),
+    exitCode: integer('exit_code'),
+    /** 日志落在 userData/logs/<runId>.log，库里只存路径 */
+    logPath: text('log_path'),
+    apkPath: text('apk_path'),
+    apkName: text('apk_name'),
+    applicationId: text('application_id'),
+    versionName: text('version_name'),
+    versionCode: integer('version_code'),
+    signed: integer('signed', { mode: 'boolean' }),
+    /** OOM / 缺 SDK / 环境错误 等分类，便于给出可读原因 */
+    failureKind: text('failure_kind', {
+      enum: ['oom', 'missing-sdk', 'missing-gradlew', 'java-version', 'timeout', 'gradle', 'unknown']
+    }),
+    /** 给用户看的一行失败原因 */
+    failureHint: text('failure_hint'),
+    startedAt: integer('started_at', { mode: 'timestamp_ms' }).notNull().default(nowMs),
+    finishedAt: integer('finished_at', { mode: 'timestamp_ms' })
+  },
+  (table) => [index('build_runs_item_idx').on(table.queueItemId)]
+)
+
+/** 键值配置：统一输出目录等（设置界面在后续阶段接入） */
+export const settings = sqliteTable('settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+    .notNull()
+    .default(nowMs)
+    .$onUpdate(() => new Date())
+})
+
+export type ProjectRow = typeof projects.$inferSelect
+export type ProjectVariantRow = typeof projectVariants.$inferSelect
+export type QueueItemRow = typeof queueItems.$inferSelect
+export type BuildRunRow = typeof buildRuns.$inferSelect

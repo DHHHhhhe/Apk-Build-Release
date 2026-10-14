@@ -1,0 +1,57 @@
+@import 'tailwindcss';
+
+/* 1. 设计令牌（DESIGN.md 第 11 节副本，见 tokens.css 头部说明） */
+@import './tokens.css';
+
+/* 2. 基础层 */
+@import './base.css';
+
+/* 3. 布局 */
+@import './layout/shell.css';
+
+/* 4. 组件 */
+@import './components/badge.css';
+@import './components/button.css';
+@import './components/input.css';
+@import './components/env-card.css';
+@import './components/project.css';
+@import './components/build.css';
+@import './components/queue.css';
+@import './components/dialog.css';
+@import './components/guide.css';
+@import './components/summary.css';
+
+/* 5. 页面 */
+/* @import './pages/queue.css'; */
+
+/*
+ * Tailwind v4 映射：必须用 @theme inline。
+ * 用 @theme（非 inline）会在构建期把值固化进工具类，.dark 切换就会失效。
+ * 阴影不映射成 shadow-* 工具类 —— 见 DESIGN.md 第 4 节与 base.css 的 .shadow-card / .shadow-float。
+ */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-popover: var(--popover);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 14px);
+  --radius-md: calc(var(--radius) - 10px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 8px);
+
+  --font-sans: var(--font-sans);
+}

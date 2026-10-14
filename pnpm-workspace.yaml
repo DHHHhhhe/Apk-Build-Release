@@ -1,0 +1,12 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+  - '!**/dist'
+  - '!**/out'
+
+# pnpm 10+ 默认拦下依赖的构建脚本；esbuild 与 electron-winstaller 需要放行。
+# better-sqlite3 13 走 NAPI 预编译产物、不需要现场编译，显式标 false 以说明这是有意为之。
+allowBuilds:
+  better-sqlite3: false
+  electron-winstaller: true
+  esbuild: true

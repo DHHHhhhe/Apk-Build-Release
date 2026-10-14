@@ -1,0 +1,72 @@
+/* 按钮：每屏只有一个 default（实心主操作），destructive 必须与它分开 */
+
+.btn-primary,
+.btn-outline,
+.btn-ghost,
+.btn-destructive {
+  height: 36px;
+  padding: 0 12px;
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition:
+    background var(--duration-micro) ease,
+    transform var(--duration-micro) ease;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border: 1px solid transparent;
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn-outline {
+  background: var(--background);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+}
+
+.btn-outline:hover:not(:disabled) {
+  background: var(--muted);
+}
+
+.btn-outline:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--foreground);
+  border: 1px solid transparent;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--muted);
+}
+
+.btn-destructive {
+  background: color-mix(in srgb, var(--destructive) 10%, transparent);
+  color: var(--destructive);
+  border: 1px solid transparent;
+}
+
+.btn-destructive:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--destructive) 16%, transparent);
+}
+
+.btn-primary:disabled,
+.btn-outline:disabled,
+.btn-ghost:disabled,
+.btn-destructive:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

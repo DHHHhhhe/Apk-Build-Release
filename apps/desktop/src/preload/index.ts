@@ -1,0 +1,77 @@
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
+import { IPC_CHANNELS } from '@shared/constants/channels'
+import type { AppApi, Unsubscribe } from '@shared/types/api'
+import type { BuildLogEvent, BuildStateEvent, SummaryScope } from '@shared/types/build'
+import type { QueueStateEvent } from '@shared/types/queue'
+
+/** 事件订阅统一在这里收口：返回取消订阅函数，避免渲染进程拿到裸 ipcRenderer */
+function subscribe<T>(channel: string, handler: (event: T) => void): Unsubscribe {
+  const listener = (_event: unknown, payload: T): void => {
+    handler(payload)
+  }
+  ipcRenderer.on(channel, listener)
+  return () => {
+    ipcRenderer.removeListener(channel, listener)
+  }
+}
+
+// 类型安全的桥：渲染进程只能通过 window.api 触达主进程（.trellis/spec/frontend/ipc-electron.md）
+const api: AppApi = {
+  env: {
+    probe: (projectPath?: string) => ipcRenderer.invoke(IPC_CHANNELS.ENV.PROBE, { projectPath })
+  },
+  project: {
+    list: () => ipcRenderer.invoke(IPC_CHANNELS.PROJECT.LIST),
+    add: (path: string) => ipcRenderer.invoke(IPC_CHANNELS.PROJECT.ADD, { path }),
+    remove: (projectId: string) => ipcRenderer.invoke(IPC_CHANNELS.PROJECT.REMOVE, { projectId }),
+    refreshVariants: (projectId: string, force?: boolean) =>
+      ipcRenderer.invoke(IPC_CHANNELS.PROJECT.REFRESH_VARIANTS, { projectId, force }),
+    setVariants: (projectId: string, variants: string[]) =>
+      ipcRenderer.invoke(IPC_CHANNELS.PROJECT.SET_VARIANTS, { projectId, variants }),
+    pickDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.PROJECT.PICK_DIRECTORY)
+  },
+  queue: {
+    list: () => ipcRenderer.invoke(IPC_CHANNELS.QUEUE.LIST),
+    enqueue: (projectIds: string[]) => ipcRenderer.invoke(IPC_CHANNELS.QUEUE.ENQUEUE, { projectIds }),
+    setConcurrency: (limit: number) =>
+      ipcRenderer.invoke(IPC_CHANNELS.QUEUE.SET_CONCURRENCY, { limit }),
+    cancel: (itemId: string) => ipcRenderer.invoke(IPC_CHANNELS.QUEUE.CANCEL, { itemId }),
+    cancelAll: () => ipcRenderer.invoke(IPC_CHANNELS.QUEUE.CANCEL_ALL),
+    retry: (itemId: string) => ipcRenderer.invoke(IPC_CHANNELS.QUEUE.RETRY, { itemId }),
+    clear: (scope: 'finished' | 'all') => ipcRenderer.invoke(IPC_CHANNELS.QUEUE.CLEAR, { scope }),
+    onState: (handler: (event: QueueStateEvent) => void) =>
+      subscribe(IPC_CHANNELS.QUEUE.STATE, handler)
+  },
+  build: {
+    listRuns: (projectId: string, limit?: number) =>
+      ipcRenderer.invoke(IPC_CHANNELS.BUILD.LIST_RUNS, { projectId, limit }),
+    summary: (scope: SummaryScope, projectId?: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.BUILD.SUMMARY, { scope, projectId }),
+    onLog: (handler: (event: BuildLogEvent) => void) => subscribe(IPC_CHANNELS.BUILD.LOG, handler),
+    onState: (handler: (event: BuildStateEvent) => void) =>
+      subscribe(IPC_CHANNELS.BUILD.STATE, handler)
+  },
+  app: {
+    copyText: (text: string) => ipcRenderer.invoke(IPC_CHANNELS.APP.COPY_TEXT, text)
+  },
+  settings: {
+    get: () => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.GET),
+    setOutputRoot: (path: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.SET_OUTPUT_ROOT, { path }),
+    pickOutputDir: () => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.PICK_OUTPUT_DIR),
+    openPath: (path: string) => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.OPEN_PATH, { path }),
+    clearLogs: () => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.CLEAR_LOGS)
+  },
+  files: {
+    // Electron 32 起 File 对象没有 path，只能在这里用 webUtils 换真实路径
+    pathFor: (file: File) => {
+      try {
+        return webUtils.getPathForFile(file)
+      } catch {
+        return ''
+      }
+    }
+  }
+}
+
+contextBridge.exposeInMainWorld('api', api)

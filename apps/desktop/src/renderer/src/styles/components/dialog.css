@@ -1,0 +1,129 @@
+/* 设置对话框：遮罩 + 单层卡片，主按钮仍在顶栏，这里只用 ghost 按钮 */
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--foreground) 32%, transparent);
+}
+
+.dialog {
+  width: 100%;
+  max-width: 560px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-float);
+  display: flex;
+  flex-direction: column;
+}
+
+.dialog__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dialog__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  margin-right: auto;
+}
+
+.dialog--narrow {
+  max-width: 420px;
+}
+
+.dialog__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+
+.dialog__icon--destructive {
+  background: color-mix(in srgb, var(--destructive) 10%, transparent);
+  color: var(--destructive);
+}
+
+.dialog__message-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.dialog__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+}
+
+.dialog__body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+}
+
+.dialog__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dialog__label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+
+.dialog__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dialog__row .input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dialog__value {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  word-break: break-all;
+}
+
+.dialog__hint {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.dialog__message,
+.dialog__error {
+  margin: 0;
+  font-size: 12px;
+}
+
+.dialog__message {
+  color: var(--success);
+}
+
+.dialog__error {
+  color: var(--destructive);
+}

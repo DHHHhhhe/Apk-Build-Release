@@ -1,0 +1,22 @@
+/* 输入框：高 36px、圆角 20px、底色用画布色（不是纯白）、边框 --input（DESIGN.md §6） */
+.input {
+  height: 36px;
+  width: 100%;
+  padding: 0 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--input);
+  background: var(--background);
+  color: var(--foreground);
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.input::placeholder {
+  color: var(--muted-foreground);
+}
+
+/* 聚焦时边框变近黑，不加外发光 */
+.input:focus {
+  outline: none;
+  border-color: var(--ring);
+}

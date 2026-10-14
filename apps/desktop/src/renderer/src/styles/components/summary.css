@@ -1,0 +1,178 @@
+/* 结果汇总：跨项目的产物总览 */
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.summary__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.summary__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.summary__scope {
+  display: flex;
+  gap: 4px;
+  margin-right: auto;
+}
+
+.summary__scope-btn {
+  height: 28px;
+  font-size: 12px;
+  padding: 0 10px;
+}
+
+.summary__metrics {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+}
+
+.summary__metrics li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.summary__metric-value {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.summary__metric-value--ok {
+  color: var(--success);
+}
+
+.summary__metric-value--bad {
+  color: var(--destructive);
+}
+
+.summary__metric-label {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.summary__notice {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+  color: var(--warning);
+  font-size: 12px;
+}
+
+.summary__empty {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.summary__group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  background: var(--muted);
+}
+
+.summary__group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+
+.summary__group-name {
+  flex: 0 0 auto;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.summary__group-path {
+  /* flex 子项默认 min-width:auto，不给 0 的话省略号不生效、会把整行撑宽 */
+  min-width: 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summary__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.summary__row {
+  /* 文字列一律 minmax(0,…)：网格项默认 min-width:auto，
+     写死最小值会让长变体名把整行撑宽，进而挤出横向滚动条 */
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) auto minmax(0, 2fr) 88px auto minmax(0, 1.2fr);
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  min-width: 0;
+}
+
+.summary__row > * {
+  min-width: 0;
+}
+
+.summary__row-variant {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summary__row-file {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summary__row-size,
+.summary__row-time {
+  color: var(--muted-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summary__failures {
+  margin: 0;
+  padding: 8px 12px;
+  list-style: none;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--destructive) 10%, transparent);
+  color: var(--destructive);
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* 窗口窄的时候把网格折成两列，别把文件名挤没 */
+@media (max-width: 1180px) {
+  .summary__row {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.6fr);
+    row-gap: 4px;
+  }
+}

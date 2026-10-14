@@ -1,0 +1,39 @@
+/* 状态徽章：跨组件共用的基础件。
+   状态一律「浅底 + 同色深字」，不铺满（DESIGN.md §1 状态色用法） */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.badge--success {
+  background: color-mix(in srgb, var(--success) 10%, transparent);
+  color: var(--success);
+}
+
+.badge--warning {
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+  color: var(--warning);
+}
+
+.badge--destructive {
+  background: color-mix(in srgb, var(--destructive) 10%, transparent);
+  color: var(--destructive);
+}
+
+.badge--info {
+  background: color-mix(in srgb, var(--info) 10%, transparent);
+  color: var(--info);
+}
+
+.badge--muted {
+  background: var(--muted);
+  color: var(--muted-foreground);
+}

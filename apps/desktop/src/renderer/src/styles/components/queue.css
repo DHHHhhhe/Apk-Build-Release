@@ -1,0 +1,152 @@
+/* 队列面板 */
+
+.queue-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.queue-panel__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.queue-panel__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.queue-panel__concurrency {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.queue-panel__select {
+  height: 32px;
+  width: auto;
+  padding: 0 8px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+}
+
+.queue-panel__empty {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.queue-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.queue-list__item {
+  background: var(--muted);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.queue-list__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.queue-list__project {
+  font-size: 14px;
+  font-weight: 500;
+  margin-right: auto;
+}
+
+.queue-list__duration {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.queue-list__variants {
+  margin: 0;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+/* 每个变体一行：变体名 + 状态 + 自己的构建耗时 */
+.run-detail {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.run-detail__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.run-detail__variant {
+  min-width: 0;
+  word-break: break-all;
+}
+
+.run-detail__time {
+  margin-left: auto;
+  color: var(--muted-foreground);
+}
+
+/* 还没轮到的变体：灰一点，但必须在列表里，否则看不出还剩几个 */
+.run-detail__item--todo .run-detail__variant {
+  color: var(--muted-foreground);
+}
+
+/* 失败原因直接显示在队列项上 */
+.queue-list__hint {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--destructive) 10%, transparent);
+  color: var(--destructive);
+  font-size: 12px;
+}
+
+.queue-list__path {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  word-break: break-all;
+}
+
+.queue-list__more,
+.queue-list__finished {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.queue-list__note {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+  color: var(--warning);
+  font-size: 12px;
+}
