@@ -135,6 +135,7 @@ async function ensureUpdater(): Promise<AutoUpdater | null> {
     })
 
     autoUpdater.on('update-available', (info) => {
+      logger.info('发现新版本', { current: app.getVersion(), next: info.version })
       patch({
         phase: 'available',
         version: info.version,
@@ -145,7 +146,9 @@ async function ensureUpdater(): Promise<AutoUpdater | null> {
     })
 
     autoUpdater.on('update-not-available', () => {
-      // 自动检查没发现新版本是常态，什么都不说；手动点才需要一句回话
+      // 自动检查没发现新版本是常态，界面上什么都不说；但日志要留下一条 ——
+      // 「查不到更新」的求助只有靠这行才能区分「确实没新版本」和「地址不对但没报错」
+      logger.info('已是最新版本', { current: app.getVersion() })
       patch({
         phase: state.manual ? 'up-to-date' : 'idle',
         version: '',
