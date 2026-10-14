@@ -101,6 +101,11 @@
   min-width: 0;
 }
 
+/* 按钮不该被输入框挤小：挤到按钮里的字会折成两行，看起来像坏了 */
+.dialog__row button {
+  flex: 0 0 auto;
+}
+
 .dialog__value {
   flex: 1 1 auto;
   min-width: 0;
