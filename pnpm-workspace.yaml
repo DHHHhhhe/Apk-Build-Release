@@ -10,3 +10,27 @@ allowBuilds:
   better-sqlite3: false
   electron-winstaller: true
   esbuild: true
+
+# 供应链防护：新发布的版本要满 24 小时才允许装上（pnpm 11 起的默认值，这里显式写死）。
+#
+# 为什么显式写：lockfile 会被逐个复核，但「本机能不能装上」取决于本机生效配置 ——
+# 这台开发机上 `pnpm config list` 显示 minimumReleaseAge 被压成 0（本地策略是关的），
+# 于是本地装得欢、lockfile 里写进未满 24 小时的条目，等到干净环境（CI）才报
+# ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION。写进仓库是为了让规则有据可查；
+# 但真正兜底的是 CI —— 本地不会报，别指望它。
+#
+# 撞上这条时怎么办（三选一，别硬等）：
+#   1. 换一个满 24 小时的版本：pnpm view <包> time --json 看发布时间
+#   2. 确实要马上用，就显式列进 minimumReleaseAgeExclude，并写清为什么
+#   3. 本地想自己先校验一遍：pnpm install --config.minimumReleaseAge=1440
+minimumReleaseAge: 1440
+
+# 必须同时打开严格模式，否则上面那条只是"可选建议"：解析时会悄悄退回不满足条件的新版本。
+# 打开后（在策略真正生效的机器上）本地就会当场失败，问题在提交前暴露。
+minimumReleaseAgeStrict: true
+
+# 目前只有这一个依赖是按合规版本精确锁定的（其余用 ^ 范围）。
+# 不用 ^：本机策略是关的，`pnpm install` 会顺着范围升到未满 24 小时的新版本、
+# 改写 lockfile，然后 CI 红。精确锁定 + 需要时显式抬版本更稳。
+# 下次抬它之前先看一眼发布时间是否满 24 小时。
+minimumReleaseAgeExclude: []
