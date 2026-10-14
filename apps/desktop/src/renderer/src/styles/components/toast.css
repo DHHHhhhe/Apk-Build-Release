@@ -5,12 +5,21 @@
  * —— 它是纯告知，用户可以不理会。
  */
 
-.toast {
+/* 统一放在右下角的叠放容器里，自己不定位 —— 两个通知条 + 更新提示条可能同时出现 */
+.toast-stack {
   position: fixed;
   right: 16px;
-  /* 右上：右下角留给更新提示条，两者可能同时出现 */
-  top: calc(var(--topbar-height) + 12px);
-  z-index: 30;
+  bottom: 16px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 384px;
+  max-width: calc(100vw - 32px);
+}
+
+.toast {
+  width: 100%;
   display: flex;
   align-items: flex-start;
   gap: 10px;

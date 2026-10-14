@@ -1,6 +1,6 @@
 {
   "name": "apk-build-release",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "private": true,
   "description": "安卓项目批量打包工具（变体选择 + 队列）",
   "packageManager": "pnpm@11.8.0",

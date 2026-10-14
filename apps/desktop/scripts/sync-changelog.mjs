@@ -19,26 +19,23 @@ const changelogPath = join(repoRoot, 'CHANGELOG.md')
 const version = JSON.parse(readFileSync(join(appDir, 'package.json'), 'utf8')).version
 const checkOnly = process.argv.includes('--check')
 
-/** 从发布说明里取「### 本版内容」那一段（到下一个三级标题为止） */
-function extractCurrentSection(notes) {
-  const lines = notes.split(/\r?\n/)
-  const start = lines.findIndex((line) => /^###\s*本版内容\s*$/.test(line))
-  if (start === -1) {
-    throw new Error('发布说明里没有「### 本版内容」这一节，先在 build/release-notes.md 里补上')
+/**
+ * 取发布说明的正文。
+ *
+ * **这份文件整份就是 Release 正文的原文**：CI 拿它当 Release 正文，electron-builder 经
+ * `releaseInfo.releaseNotesFile` 把它写进 `latest.yml` 当客户端的「更新内容」。
+ * 所以里面不能有外层标题 —— 加了「# 发布说明」「### 本版内容」这类壳，用户那边就会先看到这两行
+ * （曾经真的漏出去过四版，见 CHANGELOG 0.5.4）。
+ */
+function readNotes(file) {
+  const body = readFileSync(file, 'utf8').trim()
+  if (body === '') {
+    throw new Error('发布说明是空的，没什么可同步的')
   }
-  const body = []
-  for (let i = start + 1; i < lines.length; i += 1) {
-    if (/^###\s/.test(lines[i])) {
-      break
-    }
-    body.push(lines[i])
+  if (/^#\s*发布说明/m.test(body)) {
+    throw new Error('发布说明里不要写「# 发布说明」这类外层标题 —— 这份文件整份就是正文')
   }
-  // 说明里的四级标题（#### 分类）在 CHANGELOG 里要降一级：版本是二级标题，分类就得是三级
-  const shifted = body.map((line) => line.replace(/^####\s/, '### ')).join('\n').trim()
-  if (shifted === '') {
-    throw new Error('「本版内容」是空的，没什么可同步的')
-  }
-  return shifted
+  return body
 }
 
 function today() {
@@ -60,7 +57,7 @@ if (checkOnly) {
   process.exit(1)
 }
 
-const section = `## ${version} - ${today()}\n\n${extractCurrentSection(readFileSync(notesPath, 'utf8'))}\n`
+const section = `## ${version} - ${today()}\n\n${readNotes(notesPath)}\n`
 
 // 插到第一个版本小节之前（也就是头部说明之后），保证「最新版本在最前」
 const firstVersion = changelog.search(/^## /m)

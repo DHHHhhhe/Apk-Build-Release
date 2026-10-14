@@ -194,7 +194,7 @@ pnpm build                     # 界面改动必做 —— 跑的是产物，不
 
 `apps/desktop/build/release-notes.md` 是三个面向用户的地方的共同来源：GitHub Release 正文、客户端「更新内容」（经 `latest.yml` 的 `releaseInfo.releaseNotesFile`）、以及 CHANGELOG（由 `pnpm changelog` 追加）。
 
-所以这份文件**只有一节「### 本版内容」**，里面按 `#### 新增 / #### 修复 / #### 变更 / #### 说明` 分类、每条一句话讲清「改了什么、为什么」：
+所以这份文件里**不写外层标题**（`sync-changelog.mjs` 会直接拒绝带壳的文件），按 `### 新增 / ### 修复 / ### 变更 / ### 说明` 分类、每条一句话讲清「改了什么、为什么」：
 
 - **不要**再写安装步骤、运行要求、已知限制 —— 它们不随版本变，家在 `README.md`；每版重复一遍只会把改动内容淹掉（参考库的 Release 正文就是这么做的）
 - **不要**写「怎么维护这个文件」这类内部说明，它会出现在 Release 正文与客户端更新面板里
@@ -226,7 +226,7 @@ pnpm build                     # 界面改动必做 —— 跑的是产物，不
 **发版流程**（照着走，别跳步）：
 
 1. 抬版本号：根 `package.json` 与 `apps/desktop/package.json` **两处一起改**（产物名与数据库文件名都取它）
-2. 改 `apps/desktop/build/release-notes.md` 的「本版内容」，分类用 `#### 新增` / `#### 修复` / `#### 变更` / `#### 说明`
+2. 改 `apps/desktop/build/release-notes.md`（**整份文件就是 Release 正文原文**，不要写「# 发布说明」「### 本版内容」这类外壳），分类用 `### 新增` / `### 修复` / `### 变更` / `### 说明`
 3. `cd apps/desktop && pnpm changelog` 把本版并进根 `CHANGELOG.md`（幂等，重复跑无害；**漏跑 CI 会失败**）
 4. `pnpm typecheck && pnpm test && pnpm build`；改了打包相关内容再 `pnpm package` 本机核对
 5. 提交 → `git tag v<版本>` → 推标签，等 CI

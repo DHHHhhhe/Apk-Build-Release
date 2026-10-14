@@ -17,6 +17,7 @@ import { UpdateCheckButton } from './components/UpdateCheckButton'
 import { ChangelogDialog } from './components/ChangelogDialog'
 import { UpdateNoticeToast } from './components/UpdateNoticeToast'
 import { UpdateBanner } from './components/UpdateBanner'
+import { UpdateResultToast } from './components/UpdateResultToast'
 import { buildBlockedReason, enqueueTargets, queuedExclusionHint } from './lib/build-guard'
 import { resolveBuildableVariants } from '@shared/lib/variants'
 import type { Project } from '@shared/types/project'
@@ -307,17 +308,18 @@ export default function App(): React.JSX.Element {
           }}
         />
 
-        {/* 发现新版本时浮出，把「更新了什么」摆出来，下不下由用户点 */}
-        <UpdateBanner
-          queueBusy={queue.items.some((item) => item.state === 'running' || item.state === 'pending')}
-        />
-
-        {/* 更新完成后告知一次；点「看更新记录」直接打开上面那个对话框 */}
-        <UpdateNoticeToast
-          onOpenChangelog={() => {
-            setChangelogOpen(true)
-          }}
-        />
+        {/* 右下角叠放：更新提示条、手动检查的结果、更新完成告知 —— 三者可能同时出现，叠起来才不互相压住 */}
+        <div className="toast-stack">
+          <UpdateBanner
+            queueBusy={queue.items.some((item) => item.state === 'running' || item.state === 'pending')}
+          />
+          <UpdateResultToast />
+          <UpdateNoticeToast
+            onOpenChangelog={() => {
+              setChangelogOpen(true)
+            }}
+          />
+        </div>
 
         <main className={avoidDrawer ? 'app-content app-content--avoid-drawer' : 'app-content'}>
           {error ? (
