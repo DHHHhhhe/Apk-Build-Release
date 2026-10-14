@@ -28,6 +28,16 @@ const SECTION_HEADING = /^###\s+(.+?)\s*$/
 /** `- 一条内容`（允许缩进的子条目） */
 const ITEM = /^\s*-\s+(.+?)\s*$/
 
+/**
+ * 去掉条目里的行内标记。
+ *
+ * 正文不该露出 markdown 标记 —— 强调由排版承担（标题、缩进、圆点），
+ * 而不是把 `**` 与反引号原样显示给用户。
+ */
+function stripInline(text: string): string {
+  return text.replace(/\*\*(.+?)\*\*/g, '$1').replace(/`([^`]+)`/g, '$1').trim()
+}
+
 export function parseChangelog(markdown: string): ChangelogRelease[] {
   const releases: ChangelogRelease[] = []
   let current: ChangelogRelease | null = null
@@ -68,8 +78,13 @@ export function parseChangelog(markdown: string): ChangelogRelease[] {
     }
 
     const text = ITEM.exec(line)?.[1]
-    if (text && currentSection) {
-      currentSection.items.push(text)
+    if (text) {
+      // 没有小标题的条目（版本小节直接以条目开头）也留着，归到一个「无标题」分类里
+      if (!currentSection) {
+        currentSection = { title: '', items: [] }
+        current.sections.push(currentSection)
+      }
+      currentSection.items.push(stripInline(text))
     }
   }
 

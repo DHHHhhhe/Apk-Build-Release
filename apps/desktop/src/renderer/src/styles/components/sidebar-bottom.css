@@ -193,9 +193,3 @@
   max-width: 720px;
   width: 100%;
 }
-
-.dialog--changelog .dialog__body {
-  max-height: min(70vh, 640px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}

@@ -1,101 +1,111 @@
-/* 更新记录：最新一版摊开，旧版本折在里面 */
+/*
+ * 更新记录（对话框内）。
+ *
+ * 结构照「渠道工具」那一版：每版之间一条分隔线，版本标题带 `v` 前缀与日期，
+ * 当前运行的那版右侧挂一个「当前版本」小标签，分类用带色小标签，条目是自绘圆点 + 纯文本。
+ * 正文里不出现 markdown 标记（解析时就去掉），强调由排版承担。
+ */
 
-.changelog {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.changelog__scroll {
+  /* 52vh：窗口最小能缩到 680px 高，再高一点标题栏与翻页条会被挤出可视区 */
+  max-height: 52vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* 给滚动条留位置，免得它贴着卡片边缘 */
+  margin: 0 -4px;
+  padding: 0 4px;
 }
 
 .changelog__release {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
 }
 
-/* 最新一版给点底色，一眼能分出「这次改了什么」 */
-.changelog__release--latest {
-  padding: 10px 12px;
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--foreground) 3%, transparent);
+.changelog__release:first-child {
+  padding-top: 0;
+}
+
+.changelog__release:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.changelog__release-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .changelog__version {
   margin: 0;
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
   font-size: 14px;
   font-weight: 600;
 }
 
 .changelog__date {
   font-size: 12px;
-  font-weight: 400;
   color: var(--muted-foreground);
+}
+
+/* 推到最右：一眼看出「你现在跑的是这一版」 */
+.changelog__current {
+  margin-left: auto;
 }
 
 .changelog__section {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 12px;
 }
 
-.changelog__section-title {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--muted-foreground);
+.changelog__tag {
   display: inline-flex;
   align-items: center;
   gap: 4px;
 }
 
-/* 分类的语义色：一屏里扫读时能看出哪几类是这个版本的重点 */
-.changelog__section-title--add {
-  color: var(--success);
-}
-
-.changelog__section-title--improve {
-  color: var(--info);
-}
-
-.changelog__section-title--fix {
-  color: var(--warning);
-}
-
-.changelog__section-title--neutral {
-  color: var(--muted-foreground);
-}
-
 .changelog__items {
   margin: 0;
-  padding-left: 18px;
+  padding: 0;
+  list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 12px;
+  gap: 6px;
+}
+
+.changelog__items li {
+  display: flex;
+  gap: 8px;
+  font-size: 14px;
   line-height: 1.7;
 }
 
-.changelog__items code {
-  padding: 1px 4px;
-  border-radius: 4px;
-  background: var(--muted);
-  font-size: 11px;
+/* 自绘圆点：原生 list-style 的位置在不同字体下对不齐 */
+.changelog__dot {
+  flex: 0 0 auto;
+  width: 4px;
+  height: 4px;
+  margin-top: 9px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--muted-foreground) 40%, transparent);
+}
+
+.changelog__text {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* ── 翻页：版本数会一直涨，一次全渲染既滚不完也定位不到当前版本 ── */
 .changelog__pager {
-  display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
 }
 
 .changelog__pager-info,
 .changelog__pager-page {
+  margin: 0;
   font-size: 12px;
   color: var(--muted-foreground);
 }
@@ -103,26 +113,11 @@
 .changelog__pager-actions {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
 }
 
-.changelog__pager-actions .btn-ghost {
+.changelog__pager-actions .btn-outline {
   height: 28px;
-  padding: 0 8px;
+  padding: 0 10px;
   font-size: 12px;
-}
-
-/* 设置对话框里的更新记录：别让它把对话框撑太长，自己滚 */
-.dialog__changelog > summary {
-  cursor: pointer;
-  font-size: 12px;
-  color: var(--muted-foreground);
-}
-
-.dialog__changelog-body {
-  max-height: 240px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  margin-top: 8px;
-  padding-right: 4px;
 }

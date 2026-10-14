@@ -424,7 +424,6 @@ export default function App(): React.JSX.Element {
 
       <SettingsDialog
         open={settingsOpen}
-        busy={queue.items.some((item) => item.state === 'running' || item.state === 'pending')}
         onClose={() => {
           setSettingsOpen(false)
         }}
