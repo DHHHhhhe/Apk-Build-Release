@@ -223,18 +223,34 @@ export function QueuePanel({
                     </span>
 
                     {item.state === 'running' || item.state === 'pending' ? (
-                      <button
-                        type="button"
-                        className="btn-ghost"
-                        disabled={isCanceling}
-                        onClick={() => {
-                          markCanceling(item.id)
-                          onCancel(item.id)
-                        }}
-                      >
-                        <X size={14} aria-hidden="true" />
-                        {isCanceling ? '取消中…' : '取消'}
-                      </button>
+                      <>
+                        {/*
+                         * 查看详情走一个显式入口，而不是把整行做成可点：这一行里已经有取消、查看日志、
+                         * 重新构建，整行可点会让辅助技术分不清点的是什么（嵌套交互式控件）
+                         */}
+                        <button
+                          type="button"
+                          className="btn-ghost"
+                          onClick={() => {
+                            onShowLog(item.projectId)
+                          }}
+                        >
+                          <FolderOpen size={14} aria-hidden="true" />
+                          查看详情
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-ghost"
+                          disabled={isCanceling}
+                          onClick={() => {
+                            markCanceling(item.id)
+                            onCancel(item.id)
+                          }}
+                        >
+                          <X size={14} aria-hidden="true" />
+                          {isCanceling ? '取消中…' : '取消'}
+                        </button>
+                      </>
                     ) : (
                       <>
                         <button

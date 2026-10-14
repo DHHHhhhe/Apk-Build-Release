@@ -76,6 +76,9 @@ export async function executeQueueItem(itemId: string): Promise<QueueItemState> 
       const logPath = join(app.getPath('userData'), 'logs', `${runRow.id}.log`)
       updateBuildRun(runRow.id, { logPath })
       broadcastRunState(project.id, variant, runRow.id, 'running')
+      // 队列列表只订阅 QUEUE.STATE：这里不广播一次，队列项就会停在入队那一刻的快照
+      // （runs 是空的），三个变体一起构建时界面上全都显示「待构建」
+      broadcastItem(itemId)
 
       const result = await runGradleTask({
         projectPath: project.path,
@@ -150,6 +153,8 @@ export async function executeQueueItem(itemId: string): Promise<QueueItemState> 
         failureHint: hint,
         finishedAt: new Date()
       })
+      // 跑完也要广播：队列项那行要显示这个变体的最终状态与耗时
+      broadcastItem(itemId)
 
       if (updated) {
         broadcast(IPC_CHANNELS.BUILD.STATE, {
