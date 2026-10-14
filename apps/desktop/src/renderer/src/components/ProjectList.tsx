@@ -1,4 +1,5 @@
 import { FolderPlus, Trash2 } from 'lucide-react'
+import { filterVariantsForPackaging } from '@shared/lib/variants'
 import type { Project } from '@shared/types/project'
 
 export function ProjectList({

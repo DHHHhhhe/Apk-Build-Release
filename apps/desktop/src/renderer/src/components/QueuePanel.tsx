@@ -56,9 +56,15 @@ function runDurationText(run: QueueRunDetail, now: number): string {
   return '未开始'
 }
 
-function formatItemDuration(item: QueueItem): string {
+/**
+ * 这一项从入队到现在（或到结束）的总耗时。
+ *
+ * `now` 由外面的 1 秒心跳给 —— 以前这里直接用 `Date.now()`，于是只有队列数据刷新时数字才跳一下，
+ * 看起来就是「跳段」：同一个文件里单个变体的耗时走了心跳，总耗时却没走。
+ */
+function formatItemDuration(item: QueueItem, now: number): string {
   const start = item.startedAt ?? item.enqueuedAt
-  const end = item.finishedAt ?? Date.now()
+  const end = item.finishedAt ?? now
   return formatDurationMs(Math.max(0, end - start))
 }
 
@@ -212,8 +218,8 @@ export function QueuePanel({
                     ) : null}
                     <span className="queue-list__duration tabular">
                       {item.state === 'running'
-                        ? `已用 ${formatItemDuration(item)}`
-                        : formatItemDuration(item)}
+                        ? `已用 ${formatItemDuration(item, now)}`
+                        : formatItemDuration(item, now)}
                     </span>
 
                     {item.state === 'running' || item.state === 'pending' ? (
@@ -261,7 +267,13 @@ export function QueuePanel({
                         <li key={run.variant} className="run-detail__item">
                           <span className="run-detail__variant tabular">{run.variant}</span>
                           <span className={stateBadgeClass(run.state)}>{RUN_STATE_LABEL[run.state]}</span>
-                          <span className="run-detail__time tabular">{runDurationText(run, now)}</span>
+                          {/* 三段计时分开给：这一项的总耗时在最上面那行，这里是这个变体的排队与构建 */}
+                          <span className="run-detail__time tabular">
+                            {run.startedAt !== null
+                              ? `排队 ${formatDurationMs(Math.max(0, run.startedAt - item.enqueuedAt))} · `
+                              : ''}
+                            {runDurationText(run, now)}
+                          </span>
                         </li>
                       ))}
                       {notStarted.map((variant) => (
