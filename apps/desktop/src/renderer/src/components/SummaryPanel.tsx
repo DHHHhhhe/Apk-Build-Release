@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Check, Copy, FolderOpen, RefreshCw } from 'lucide-react'
 import type { SummaryArtifact, SummaryScope } from '@shared/types/build'
@@ -205,11 +206,11 @@ export function SummaryPanel(): React.JSX.Element {
                   </span>
                   <span className="summary__row-signed">
                     {artifact.signed === true ? (
-                      <span className="badge badge--success">已签名</span>
+                      <Badge variant="success">已签名</Badge>
                     ) : artifact.signed === false ? (
-                      <span className="badge badge--warning">未签名</span>
+                      <Badge variant="warning">未签名</Badge>
                     ) : (
-                      <span className="badge badge--muted">未验证</span>
+                      <Badge variant="muted">未验证</Badge>
                     )}
                   </span>
                   <span className="summary__row-time tabular">
@@ -235,3 +236,4 @@ export function SummaryPanel(): React.JSX.Element {
     </div>
   )
 }
+

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { ArrowDown, FolderOpen, FileText, Search } from 'lucide-react'
 import type { BuildRun } from '@shared/types/build'
@@ -114,7 +115,7 @@ export function BuildPanel({
       <div className="card-core card-core--pad build-panel">
         <header className="build-panel__head">
           <h3 className="build-panel__title">构建记录</h3>
-          {building ? <span className="badge badge--info">构建中</span> : null}
+          {building ? <Badge variant="info">构建中</Badge> : null}
           {activeRun ? (
             <span className={stateBadgeClass(activeRun.state)}>{STATE_LABEL[activeRun.state]}</span>
           ) : null}
@@ -163,11 +164,11 @@ export function BuildPanel({
                     </Button>
                     {run.apkName}
                     {run.signed === false ? (
-                      <span className="badge badge--warning">未签名，不可直接安装</span>
+                      <Badge variant="warning">未签名，不可直接安装</Badge>
                     ) : run.signed === true ? (
-                      <span className="badge badge--success">已签名</span>
+                      <Badge variant="success">已签名</Badge>
                     ) : (
-                      <span className="badge badge--muted">签名未验证</span>
+                      <Badge variant="muted">签名未验证</Badge>
                     )}
                   </p>
                 ) : null}

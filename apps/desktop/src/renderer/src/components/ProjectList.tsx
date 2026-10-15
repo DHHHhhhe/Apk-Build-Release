@@ -1,4 +1,5 @@
 import { FolderPlus, Trash2 } from 'lucide-react'
+import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { filterVariantsForPackaging } from '@shared/lib/variants'
 import type { Project } from '@shared/types/project'
@@ -99,15 +100,15 @@ export function ProjectList({
                     <span className="project-list__meta">
                       {/* 数与右侧实际能构建的变体对齐：这里以前数的是全部变体（含 debug），
                           于是侧栏写「2 个变体」、点进去只有一个可构建的 */}
-                      <span className="badge badge--muted tabular">
+                      <Badge variant="muted" className="tabular">
                         {filterVariantsForPackaging(project.variants).length} 个变体
-                      </span>
+                      </Badge>
                       {project.selectedVariants.length > 0 ? (
-                        <span className="badge badge--success tabular">
+                        <Badge variant="success" className="tabular">
                           已选 {project.selectedVariants.length}
-                        </span>
+                        </Badge>
                       ) : null}
-                      {inQueue ? <span className="badge badge--info">队列中</span> : null}
+                      {inQueue ? <Badge variant="info">队列中</Badge> : null}
                     </span>
                   </button>
 

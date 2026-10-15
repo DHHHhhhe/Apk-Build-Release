@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { X, RotateCcw, Trash2, FileText, FolderOpen } from 'lucide-react'
 import { QUEUE_CONCURRENCY, QUEUE_LIST_LIMIT } from '@shared/constants/queue'
@@ -141,8 +142,8 @@ export function QueuePanel({
 
         <header className="queue-panel__head">
           <h2 className="queue-panel__title">队列</h2>
-          <span className="badge badge--info tabular">构建中 {running.length}</span>
-          <span className="badge badge--muted tabular">排队 {pending.length}</span>
+          <Badge variant="info" className="tabular">构建中 {running.length}</Badge>
+          <Badge variant="muted" className="tabular">排队 {pending.length}</Badge>
           <label className="queue-panel__concurrency">
             并发上限
             <select
@@ -212,7 +213,7 @@ export function QueuePanel({
                       {isCanceling ? '取消中…' : STATE_LABEL[item.state]}
                     </span>
                     {item.attempt > 1 ? (
-                      <span className="badge badge--muted tabular">第 {item.attempt} 次</span>
+                      <Badge variant="muted" className="tabular">第 {item.attempt} 次</Badge>
                     ) : null}
                     <span className="queue-list__duration tabular">
                       {item.state === 'running'
@@ -289,7 +290,7 @@ export function QueuePanel({
                       {notStarted.map((variant) => (
                         <li key={variant} className="run-detail__item run-detail__item--todo">
                           <span className="run-detail__variant tabular">{variant}</span>
-                          <span className="badge badge--muted">未开始</span>
+                          <Badge variant="muted">未开始</Badge>
                           <span className="run-detail__time tabular">—</span>
                         </li>
                       ))}

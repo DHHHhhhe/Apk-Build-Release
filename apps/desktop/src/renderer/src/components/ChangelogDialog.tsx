@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Info, Sparkles, TrendingUp, Wrench, X } from 'lucide-react'
-import { Badge } from './ui/badge'
 import { PROJECT_REPO_URL } from '@shared/constants/links'
 import { CHANGELOG_MARKDOWN } from '../lib/changelog-source'
 import { parseChangelog } from '../lib/changelog'
@@ -187,7 +187,7 @@ export function ChangelogDialog({
                               {section.title}
                             </span>
                           ) : (
-                            <span className="badge badge--muted changelog__tag">{section.title}</span>
+                            <Badge variant="muted" className="changelog__tag">{section.title}</Badge>
                           )
                         ) : null}
                         <ul className="changelog__items">
@@ -231,3 +231,4 @@ export function ChangelogDialog({
     </div>
   )
 }
+

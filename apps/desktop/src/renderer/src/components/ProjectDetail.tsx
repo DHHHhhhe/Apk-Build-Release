@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { RefreshCw, TerminalSquare } from 'lucide-react'
 import { filterVariantsForPackaging } from '@shared/lib/variants'
@@ -210,10 +211,10 @@ export function ProjectDetail({
                   </label>
                   <span className="variant-list__parts">
                     {badgeVisibility.flavor && variant.flavor ? (
-                      <span className="badge badge--muted">{variant.flavor}</span>
+                      <Badge variant="muted">{variant.flavor}</Badge>
                     ) : null}
                     {badgeVisibility.buildType ? (
-                      <span className="badge badge--muted">{variant.buildType}</span>
+                      <Badge variant="muted">{variant.buildType}</Badge>
                     ) : null}
                     {/* 列表里只有 release 时不必逐行重复，说明放在列表上方一次 */}
                     {mixedBuildTypes && variant.buildType === 'release' ? (

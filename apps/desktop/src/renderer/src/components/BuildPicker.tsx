@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { ChevronDown, ChevronRight, TerminalSquare } from 'lucide-react'
 import { filterVariantsForPackaging } from '@shared/lib/variants'
@@ -166,9 +167,9 @@ export function BuildPicker({
                 <span className="summary__group-path tabular" title={project.path}>
                   {project.path}
                 </span>
-                {queued ? <span className="badge badge--info">队列中</span> : null}
+                {queued ? <Badge variant="info">队列中</Badge> : null}
                 {project.variants.length === 0 ? (
-                  <span className="badge badge--muted">无变体</span>
+                  <Badge variant="muted">无变体</Badge>
                 ) : null}
                 <span className="build-picker__group-actions">
                   <Button
@@ -244,10 +245,10 @@ export function BuildPicker({
                         <span className="build-picker__variant tabular">{variant.name}</span>
                       </label>
                       {badgeVisibility.flavor && variant.flavor ? (
-                        <span className="badge badge--muted">{variant.flavor}</span>
+                        <Badge variant="muted">{variant.flavor}</Badge>
                       ) : null}
                       {badgeVisibility.buildType ? (
-                        <span className="badge badge--muted">{variant.buildType}</span>
+                        <Badge variant="muted">{variant.buildType}</Badge>
                       ) : null}
                     </li>
                   ))}
