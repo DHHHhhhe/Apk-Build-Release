@@ -210,13 +210,13 @@ export async function checkForUpdates(manual: boolean): Promise<UpdateState> {
 
   patch({ manual })
 
-  // 只发安装版，安装包装上去是有意义的
+  // 开发模式没有安装目录，也没有更新源，与其让检查失败不如直接说明
   if (!app.isPackaged) {
     patch({
       phase: 'error',
       version: '',
       percent: 0,
-      message: '这个版本是便携版，没有自动更新；要自动更新请用安装包版本。'
+      message: '开发模式下不检查更新；装成安装版之后才有。'
     })
     return state
   }
