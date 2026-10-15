@@ -210,7 +210,7 @@ export async function checkForUpdates(manual: boolean): Promise<UpdateState> {
 
   patch({ manual })
 
-  // 便携版没有安装目录，把安装包装上去只会多出一份莫名其妙的副本
+  // 只发安装版，安装包装上去是有意义的
   if (!app.isPackaged) {
     patch({
       phase: 'error',
