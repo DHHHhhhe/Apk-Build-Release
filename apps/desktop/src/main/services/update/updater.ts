@@ -21,16 +21,6 @@ const STARTUP_CHECK_DELAY_MS = 15_000
 let updater: AutoUpdater | null = null
 let loaded = false
 
-/**
- * 便携版没有安装目录，装更新只会多出一份副本，所以它一律没有自动更新。
- *
- * 判据用 electron-builder 给便携版设的环境变量（`PORTABLE_EXECUTABLE_DIR`）——
- * 那是官方文档里判断「当前跑的是不是便携版」的方式。导出是为了能单测：
- * 便携版永远查不到更新，这是用户可见行为，值得有测试守着。
- */
-export function isPortableBuild(): boolean {
-  return Boolean(process.env.PORTABLE_EXECUTABLE_DIR)
-}
 
 function createInitialState(): UpdateState {
   return {
@@ -41,8 +31,9 @@ function createInitialState(): UpdateState {
     message: '',
     releaseNotes: '',
     manual: false,
-    // 开发态为 true：先让入口可见，点下去会明确说「这个形态没有自动更新」
-    canUpdate: !app.isPackaged || !isPortableBuild()
+    // 恒为 true：现在只发安装版，没有装不了更新的形态。
+    // 开发态也保持可见 —— 点下去会明确说「这个形态没有自动更新」，比藏起来好排查
+    canUpdate: true
   }
 }
 
@@ -220,7 +211,7 @@ export async function checkForUpdates(manual: boolean): Promise<UpdateState> {
   patch({ manual })
 
   // 便携版没有安装目录，把安装包装上去只会多出一份莫名其妙的副本
-  if (!app.isPackaged || isPortableBuild()) {
+  if (!app.isPackaged) {
     patch({
       phase: 'error',
       version: '',
@@ -325,7 +316,7 @@ export function initUpdater(): void {
   // 关机守卫跟「是不是安装版」无关，先挂上
   installSessionEndGuard()
 
-  if (!app.isPackaged || isPortableBuild()) {
+  if (!app.isPackaged) {
     return
   }
   const timer = setTimeout(() => {
