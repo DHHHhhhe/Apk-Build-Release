@@ -18,6 +18,7 @@ import { ChangelogDialog } from './components/ChangelogDialog'
 import { UpdateNoticeToast } from './components/UpdateNoticeToast'
 import { UpdateBanner } from './components/UpdateBanner'
 import { UpdateResultToast } from './components/UpdateResultToast'
+import { Toaster } from 'sonner'
 import { buildBlockedReason, enqueueTargets, queuedExclusionHint } from './lib/build-guard'
 import { resolveBuildableVariants } from '@shared/lib/variants'
 import type { Project } from '@shared/types/project'
@@ -326,6 +327,9 @@ export default function App(): React.JSX.Element {
           />
         </div>
 
+        {/* 与参考实现同一套配置：右下角、richColors、带关闭按钮；theme=system 跟随系统深浅色 */}
+        <Toaster position="bottom-right" richColors closeButton theme="system" />
+        
         <main className={avoidDrawer ? 'app-content app-content--avoid-drawer' : 'app-content'}>
           {error ? (
             <p className="app-error" role="status" aria-live="polite">
