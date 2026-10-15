@@ -27,7 +27,7 @@ import { useDragAndDrop } from './hooks/useDragAndDrop'
 import { useEnvProbe } from './hooks/useEnvProbe'
 import { useProjects } from './hooks/useProjects'
 import { useQueue } from './hooks/useQueue'
-import { useSidebarWidth } from './hooks/useSidebarWidth'
+import { SIDEBAR_MAX, SIDEBAR_MIN, useSidebarWidth } from './hooks/useSidebarWidth'
 import { useUpdate } from './hooks/useUpdate'
 import { useWindowWidth } from './hooks/useWindowWidth'
 import { resolveDrawerWidth, shouldAvoidDrawer } from './lib/layout'
@@ -248,7 +248,13 @@ export default function App(): React.JSX.Element {
             role="separator"
             aria-orientation="vertical"
             aria-label="调整侧栏宽度"
+            aria-valuenow={sidebar.width}
+            aria-valuemin={SIDEBAR_MIN}
+            aria-valuemax={SIDEBAR_MAX}
+            tabIndex={0}
+            title="拖动调整宽度，方向键也能调"
             onPointerDown={sidebar.onResizeStart}
+            onKeyDown={sidebar.onResizeKeyDown}
           />
           <ProjectList
             projects={projects}

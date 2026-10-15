@@ -26,6 +26,8 @@ export interface UseSidebarWidthResult {
   width: number
   resizing: boolean
   onResizeStart: (event: React.PointerEvent<HTMLDivElement>) => void
+  /** 键盘调宽：拖拽不能是唯一手段（WCAG 2.5.7），与抽屉把手用同一套键位 */
+  onResizeKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void
 }
 
 /** 侧栏宽度可拖动，松手落 localStorage；重开窗口保持（DESIGN.md 第 4 节） */
@@ -83,5 +85,15 @@ export function useSidebarWidth(): UseSidebarWidthResult {
     }
   }, [resizing])
 
-  return { width, resizing, onResizeStart }
+  const onResizeKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>): void => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') {
+      return
+    }
+    event.preventDefault()
+    // 左箭头把侧栏推宽（把手在右边），与抽屉那把手的语义一致
+    const step = event.key === 'ArrowLeft' ? 16 : -16
+    setWidth((current) => clampSidebarWidth(current + step))
+  }, [])
+
+  return { width, resizing, onResizeStart, onResizeKeyDown }
 }
