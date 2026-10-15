@@ -132,3 +132,25 @@
 .dialog__error {
   color: var(--destructive);
 }
+
+/* 标题旁边的小图标入口（如「更新记录」跳开源库）：命中区按 24px 给，图标与标题同高 */
+.dialog__title-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  color: var(--muted-foreground);
+  text-decoration: none;
+}
+
+.dialog__title-link:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.dialog__title-link:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
