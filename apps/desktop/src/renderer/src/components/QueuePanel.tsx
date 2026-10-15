@@ -6,6 +6,7 @@ import { QUEUE_CONCURRENCY, QUEUE_LIST_LIMIT } from '@shared/constants/queue'
 import type { QueueItem, QueueItemState, QueueRunDetail } from '@shared/types/queue'
 import { useNow } from '../hooks/useNow'
 import { formatDateTime, formatDurationMs } from '../lib/duration'
+import { buildStateBadgeClass } from '../lib/state-badge'
 
 const STATE_LABEL: Record<QueueItemState, string> = {
   pending: '排队中',
@@ -34,18 +35,7 @@ function concurrencyOptions(): Array<{ value: number; label: string }> {
   return options
 }
 
-function stateBadgeClass(state: QueueItemState | QueueRunDetail['state']): string {
-  if (state === 'success') {
-    return 'badge badge--success'
-  }
-  if (state === 'failed') {
-    return 'badge badge--destructive'
-  }
-  if (state === 'running') {
-    return 'badge badge--info'
-  }
-  return 'badge badge--muted'
-}
+
 
 /** 每个变体自己的构建耗时：跑着的用 startedAt 现算，跑完用落库的 durationMs */
 function runDurationText(run: QueueRunDetail, now: number): string {
@@ -209,7 +199,7 @@ export function QueuePanel({
                 <li key={item.id} className="queue-list__item">
                   <div className="queue-list__row">
                     <span className="queue-list__project">{item.projectName}</span>
-                    <span className={stateBadgeClass(item.state)}>
+                    <span className={buildStateBadgeClass(item.state)}>
                       {isCanceling ? '取消中…' : STATE_LABEL[item.state]}
                     </span>
                     {item.attempt > 1 ? (
@@ -277,7 +267,7 @@ export function QueuePanel({
                       {item.runs.slice(0, RUN_DETAIL_LIMIT).map((run) => (
                         <li key={run.variant} className="run-detail__item">
                           <span className="run-detail__variant tabular">{run.variant}</span>
-                          <span className={stateBadgeClass(run.state)}>{RUN_STATE_LABEL[run.state]}</span>
+                          <span className={buildStateBadgeClass(run.state)}>{RUN_STATE_LABEL[run.state]}</span>
                           {/* 三段计时分开给：这一项的总耗时在最上面那行，这里是这个变体的排队与构建 */}
                           <span className="run-detail__time tabular">
                             {run.startedAt !== null

@@ -5,6 +5,7 @@ import { ArrowDown, FolderOpen, FileText, Search } from 'lucide-react'
 import type { BuildRun } from '@shared/types/build'
 import { useNow } from '../hooks/useNow'
 import { elapsedMs, formatClock, formatDurationMs } from '../lib/duration'
+import { buildStateBadgeClass } from '../lib/state-badge'
 
 const STATE_LABEL: Record<BuildRun['state'], string> = {
   running: '构建中',
@@ -17,18 +18,7 @@ const STATE_LABEL: Record<BuildRun['state'], string> = {
 const LOG_RENDER_LIMIT = 2000
 const ERROR_LINE = /error|failed|failure|exception|caused by|FAILURE:|not found/i
 
-function stateBadgeClass(state: BuildRun['state']): string {
-  if (state === 'success') {
-    return 'badge badge--success'
-  }
-  if (state === 'failed') {
-    return 'badge badge--destructive'
-  }
-  if (state === 'running') {
-    return 'badge badge--info'
-  }
-  return 'badge badge--muted'
-}
+
 
 /** 跑着的显示已用时间，跑完显示完成时刻 + 该变体的构建耗时 */
 function runTimeText(run: BuildRun, now: number): string {
@@ -117,7 +107,7 @@ export function BuildPanel({
           <h3 className="build-panel__title">构建记录</h3>
           {building ? <Badge variant="info">构建中</Badge> : null}
           {activeRun ? (
-            <span className={stateBadgeClass(activeRun.state)}>{STATE_LABEL[activeRun.state]}</span>
+            <span className={buildStateBadgeClass(activeRun.state)}>{STATE_LABEL[activeRun.state]}</span>
           ) : null}
         </header>
 
@@ -129,7 +119,7 @@ export function BuildPanel({
               <li key={run.id} className="run-list__item">
                 <div className="run-list__row">
                   <span className="run-list__variant tabular">{run.variant}</span>
-                  <span className={stateBadgeClass(run.state)}>{STATE_LABEL[run.state]}</span>
+                  <span className={buildStateBadgeClass(run.state)}>{STATE_LABEL[run.state]}</span>
                   <span className="run-list__time tabular" title={new Date(run.startedAt).toLocaleString()}>
                     {runTimeText(run, now)}
                   </span>

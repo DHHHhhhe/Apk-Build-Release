@@ -1,6 +1,7 @@
 import { RefreshCw } from 'lucide-react'
 import { Button } from './ui/button'
 import type { EnvItemState, EnvProbeItem, EnvProbeResult } from '@shared/types/env'
+import { envStateBadgeClass } from '../lib/state-badge'
 
 const STATE_LABEL: Record<EnvItemState, string> = {
   ok: '就绪',
@@ -8,22 +9,14 @@ const STATE_LABEL: Record<EnvItemState, string> = {
   error: '缺失'
 }
 
-function stateBadgeClass(state: EnvItemState): string {
-  if (state === 'ok') {
-    return 'badge badge--success'
-  }
-  if (state === 'warn') {
-    return 'badge badge--warning'
-  }
-  return 'badge badge--destructive'
-}
+
 
 function EnvRow({ item }: { item: EnvProbeItem }): React.JSX.Element {
   return (
     <li className="env-card__row">
       <div className="env-card__row-head">
         <span className="env-card__label">{item.label}</span>
-        <span className={stateBadgeClass(item.state)}>{STATE_LABEL[item.state]}</span>
+        <span className={envStateBadgeClass(item.state)}>{STATE_LABEL[item.state]}</span>
       </div>
       {item.value ? <p className="env-card__value tabular">{item.value}</p> : null}
       {item.detail ? <p className="env-card__detail">{item.detail}</p> : null}

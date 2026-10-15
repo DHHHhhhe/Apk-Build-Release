@@ -6,6 +6,7 @@ import type { SummaryArtifact, SummaryScope } from '@shared/types/build'
 import { useBuildSummary } from '../hooks/useBuildSummary'
 import { formatBytes } from '../lib/bytes'
 import { formatDateTime, formatDurationMs } from '../lib/duration'
+import { buildStateBadgeClass } from '../lib/state-badge'
 
 const STATE_LABEL: Record<SummaryArtifact['state'], string> = {
   running: '构建中',
@@ -14,18 +15,7 @@ const STATE_LABEL: Record<SummaryArtifact['state'], string> = {
   canceled: '已取消'
 }
 
-function stateBadgeClass(state: SummaryArtifact['state']): string {
-  if (state === 'success') {
-    return 'badge badge--success'
-  }
-  if (state === 'failed') {
-    return 'badge badge--destructive'
-  }
-  if (state === 'running') {
-    return 'badge badge--info'
-  }
-  return 'badge badge--muted'
-}
+
 
 /** 复制给同事的产物路径清单：一行一个完整路径 */
 export function buildPathList(
@@ -197,7 +187,7 @@ export function SummaryPanel(): React.JSX.Element {
               {group.artifacts.map((artifact) => (
                 <li key={artifact.variant} className="summary__row">
                   <span className="summary__row-variant tabular">{artifact.variant}</span>
-                  <span className={stateBadgeClass(artifact.state)}>{STATE_LABEL[artifact.state]}</span>
+                  <span className={buildStateBadgeClass(artifact.state)}>{STATE_LABEL[artifact.state]}</span>
                   <span className="summary__row-file tabular" title={artifact.apkPath ?? ''}>
                     {artifact.apkName ?? (artifact.state === 'success' ? '（未定位到产物）' : '—')}
                   </span>
