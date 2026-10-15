@@ -192,13 +192,26 @@ apps/desktop/src/
 
 ## 发布新版本
 
+**正常路径是打标签让 CI 发**：推一个 `v<版本>` 标签，工作流会构建、核对版本号与更新记录、再发布。
+
 ```powershell
 # 1. 抬版本号（根 package.json 与 apps/desktop/package.json 两处一起改）
-# 2. 提交推送
+# 2. 改 apps/desktop/build/release-notes.md（整份就是 Release 正文），
+#    再 cd apps/desktop && pnpm changelog 把本版并进 CHANGELOG
+# 3. 提交推送，然后打标签
+git tag v<版本>
+git push origin v<版本>
+```
+
+**手动发版（不走 CI）**：产物是 4 个，一个都不能少 —— 少了 `latest.yml` 客户端就查不到更新（装过的人只能重装），而这件事在发布页面上看不出来。
+
+```powershell
 pnpm package
 gh release create v<版本> `
   apps/desktop/release/<版本>/apk-batch-build-<版本>-setup.exe `
+  apps/desktop/release/<版本>/apk-batch-build-<版本>-setup.exe.blockmap `
   apps/desktop/release/<版本>/apk-batch-build-<版本>-portable.exe `
+  apps/desktop/release/<版本>/latest.yml `
   --title "v<版本>" --notes "..."
 ```
 
