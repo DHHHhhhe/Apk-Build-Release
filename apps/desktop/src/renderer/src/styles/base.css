@@ -71,9 +71,6 @@ body {
 }
 
 /* ── 浮层阴影：不带 @layer，优先级最高（避免与 ring-* 抢 box-shadow） ── */
-.float-shadow {
-  box-shadow: var(--shadow-float);
-}
 
 /* ── 数字等宽 ── */
 .tabular {
