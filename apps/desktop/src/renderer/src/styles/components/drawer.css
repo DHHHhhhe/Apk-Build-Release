@@ -79,3 +79,65 @@
   flex-direction: column;
   gap: 16px;
 }
+
+/* ── 左边缘的拖宽把手 ──
+ * 命中区给足 6px（1px 的线太难抓），视觉上仍然只是一条细线；
+ * 键盘聚焦时也加粗，告诉用户这里可以用方向键调。
+ */
+.drawer__resize {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.drawer__resize::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border);
+}
+
+.drawer__resize:hover::after,
+.drawer__resize:focus-visible::after {
+  width: 2px;
+  background: var(--primary);
+}
+
+.drawer__resize:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
+/* 别名字段：跟在项目路径下面 */
+.project-detail__alias {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.project-detail__alias input {
+  width: 180px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.project-detail__alias input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
