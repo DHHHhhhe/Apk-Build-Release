@@ -31,6 +31,8 @@ const api: AppApi = {
       ipcRenderer.invoke(IPC_CHANNELS.PROJECT.SET_VARIANTS, { projectId, variants }),
     setAlias: (projectId: string, alias: string | null) =>
       ipcRenderer.invoke(IPC_CHANNELS.PROJECT.SET_ALIAS, { projectId, alias }),
+    reorder: (projectIds: string[]) =>
+      ipcRenderer.invoke(IPC_CHANNELS.PROJECT.REORDER, { projectIds }),
     pickDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.PROJECT.PICK_DIRECTORY)
   },
   queue: {

@@ -48,8 +48,7 @@ export default function App(): React.JSX.Element {
     addProject,
     removeProject,
     refreshVariants,
-    setVariants
-  } = useProjects()
+    setVariants } = useProjects()
 
   // 抽屉当前展示的项目。刻意不回退到「第一个项目」：没打开任何项目时，
   // 主列就该只有全局内容，不该凭空出现一个项目的详情

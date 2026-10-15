@@ -10,6 +10,7 @@ export const IPC_CHANNELS = {
     REFRESH_VARIANTS: 'project:refreshVariants',
     SET_VARIANTS: 'project:setVariants',
     SET_ALIAS: 'project:setAlias',
+    REORDER: 'project:reorder',
     PICK_DIRECTORY: 'project:pickDirectory'
   },
   QUEUE: {

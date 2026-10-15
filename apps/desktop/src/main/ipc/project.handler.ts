@@ -5,6 +5,7 @@ import { listProjects } from '../services/project/procedures/list'
 import { pickProjectDirectory } from '../services/project/procedures/pick-directory'
 import { refreshProjectVariants } from '../services/project/procedures/refresh-variants'
 import { removeProject } from '../services/project/procedures/remove'
+import { reorderProjects } from '../services/project/procedures/reorder'
 import { setProjectAlias } from '../services/project/procedures/set-alias'
 import { setProjectVariants } from '../services/project/procedures/set-variants'
 
@@ -19,5 +20,6 @@ export function setupProjectHandlers(): void {
     setProjectVariants(input)
   )
   ipcMain.handle(IPC_CHANNELS.PROJECT.SET_ALIAS, (_event, input: unknown) => setProjectAlias(input))
+  ipcMain.handle(IPC_CHANNELS.PROJECT.REORDER, (_event, input: unknown) => reorderProjects(input))
   ipcMain.handle(IPC_CHANNELS.PROJECT.PICK_DIRECTORY, () => pickProjectDirectory())
 }
