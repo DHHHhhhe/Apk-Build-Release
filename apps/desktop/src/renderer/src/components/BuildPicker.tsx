@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Button } from './ui/button'
 import { ChevronDown, ChevronRight, TerminalSquare } from 'lucide-react'
 import { filterVariantsForPackaging } from '@shared/lib/variants'
 import type { Project, ProjectVariant } from '@shared/types/project'
@@ -122,14 +123,13 @@ export function BuildPicker({
         <span className="build-picker__count tabular" role="status" aria-live="polite">
           已选 {selectedCount} / 可构建 {buildableVariantCount}
         </span>
-        <button
-          type="button"
-          className="btn-ghost"
+        <Button
+          variant="ghost"
           disabled={visibleCount === 0}
           onClick={selectAll}
         >
           全选全部项目（{visibleCount} 个变体）
-        </button>
+        </Button>
         <button type="button" className="btn-ghost" disabled={selectedCount === 0} onClick={clearAll}>
           清空
         </button>
@@ -147,9 +147,9 @@ export function BuildPicker({
           return (
             <li key={project.id} className="summary__group build-picker__group">
               <div className="summary__group-head build-picker__group-head">
-                <button
-                  type="button"
-                  className="btn-ghost build-picker__collapse"
+                <Button
+                  variant="ghost"
+                  className="build-picker__collapse"
                   aria-expanded={!isCollapsed}
                   aria-label={isCollapsed ? `展开 ${project.name}` : `收起 ${project.name}`}
                   onClick={() => {
@@ -161,7 +161,7 @@ export function BuildPicker({
                   ) : (
                     <ChevronDown size={14} aria-hidden="true" />
                   )}
-                </button>
+                </Button>
                 <span className="summary__group-name">{project.name}</span>
                 <span className="summary__group-path tabular" title={project.path}>
                   {project.path}
@@ -171,40 +171,37 @@ export function BuildPicker({
                   <span className="badge badge--muted">无变体</span>
                 ) : null}
                 <span className="build-picker__group-actions">
-                  <button
-                    type="button"
-                    className="btn-ghost"
+                  <Button
+                    variant="ghost"
                     disabled={busyProjectId !== null || visible.length === 0}
                     onClick={() => {
                       selectAllOf(project)
                     }}
                   >
                     全选本项目（{visible.length} 个变体）
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-ghost"
+                  </Button>
+                  <Button
+                    variant="ghost"
                     disabled={busyProjectId !== null || project.selectedVariants.length === 0}
                     onClick={() => {
                       onSetVariants(project.id, [])
                     }}
                   >
                     清空
-                  </button>
+                  </Button>
                   {/* 只有一种 buildType 时这个按钮是恒等操作（「只选 release」= 全选），不显示 */}
                   {buildTypes.length > 1
                     ? buildTypes.map((buildType) => (
-                        <button
+                        <Button
                           key={buildType}
-                          type="button"
-                          className="btn-ghost"
+                          variant="ghost"
                           disabled={busyProjectId !== null}
                           onClick={() => {
                             onlyBuildTypeOf(project, buildType)
                           }}
                         >
                           只选 {buildType}
-                        </button>
+                        </Button>
                       ))
                     : null}
                 </span>
@@ -213,9 +210,9 @@ export function BuildPicker({
               {isCollapsed ? null : project.variants.length === 0 ? (
                 <p className="build-picker__hint">
                   没解析出变体。点右侧「用 Gradle 解析」跑一遍真实配置，或者先在项目详情里刷新变体。
-                  <button
-                    type="button"
-                    className="btn-ghost build-picker__inline-action"
+                  <Button
+                    variant="ghost"
+                    className="build-picker__inline-action"
                     disabled={busyProjectId !== null}
                     onClick={() => {
                       onRefreshVariants(project.id)
@@ -223,7 +220,7 @@ export function BuildPicker({
                   >
                     <TerminalSquare size={14} aria-hidden="true" />
                     {busyProjectId === project.id ? 'Gradle 解析中…' : '用 Gradle 解析（较慢）'}
-                  </button>
+                  </Button>
                 </p>
               ) : (
                 <ul className="build-picker__rows">

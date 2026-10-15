@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Button } from './components/ui/button'
 import { Settings } from 'lucide-react'
 import logoUrl from './assets/logo.png'
 import { BuildPanel } from './components/BuildPanel'
@@ -204,26 +205,24 @@ export default function App(): React.JSX.Element {
             : ''}
         </span>
         {enqueueBlocked ? <span className="app-topbar__hint">{enqueueBlocked}</span> : null}
-        <button
-          type="button"
-          className="btn-outline"
+        <Button
+          variant="outline"
           disabled={crossBlocked !== null}
           title={crossBlocked ?? '把勾选的变体加入队列并构建'}
           onClick={buildCheckedProjects}
         >
           构建勾选项（{crossProject.buildableVariantCount}）
-        </button>
+        </Button>
         {update.state?.phase === 'available' || update.state?.phase === 'downloaded' ? (
-          <button
-            type="button"
-            className="btn-outline"
+          <Button
+            variant="outline"
             title={update.state.message}
             onClick={() => {
               setSettingsOpen(true)
             }}
           >
             有新版本
-          </button>
+          </Button>
         ) : null}
         <button
           type="button"

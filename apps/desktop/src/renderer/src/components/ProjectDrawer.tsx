@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Button } from './ui/button'
 import { X } from 'lucide-react'
 import type { Project } from '@shared/types/project'
 
@@ -156,15 +157,15 @@ export function ProjectDrawer({
         <h2 className="drawer__title" id="project-drawer-title">
           {project.name}
         </h2>
-        <button
+        <Button
           ref={closeRef}
-          type="button"
-          className="btn-ghost drawer__close"
+          variant="ghost"
+          className="drawer__close"
           aria-label="关闭项目面板"
           onClick={onClose}
         >
           <X size={16} aria-hidden="true" />
-        </button>
+        </Button>
         <span className="drawer__path tabular" title={project.path}>
           {project.path}
         </span>

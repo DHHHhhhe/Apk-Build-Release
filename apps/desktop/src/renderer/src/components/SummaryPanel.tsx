@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Button } from './ui/button'
 import { Check, Copy, FolderOpen, RefreshCw } from 'lucide-react'
 import type { SummaryArtifact, SummaryScope } from '@shared/types/build'
 import { useBuildSummary } from '../hooks/useBuildSummary'
@@ -88,18 +89,16 @@ export function SummaryPanel(): React.JSX.Element {
               全部记录
             </button>
           </div>
-          <button
-            type="button"
-            className="btn-ghost"
+          <Button
+            variant="ghost"
             onClick={refresh}
             disabled={loading}
             aria-label="刷新汇总"
           >
             <RefreshCw size={14} aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            className="btn-ghost"
+          </Button>
+          <Button
+            variant="ghost"
             disabled={!hasArtifacts}
             onClick={() => {
               void window.api.settings.openPath(summary?.outputRoot ?? '')
@@ -107,10 +106,9 @@ export function SummaryPanel(): React.JSX.Element {
           >
             <FolderOpen size={14} aria-hidden="true" />
             打开输出目录
-          </button>
-          <button
-            type="button"
-            className="btn-ghost"
+          </Button>
+          <Button
+            variant="ghost"
             disabled={pathList === ''}
             onClick={() => {
               void copyPaths()
@@ -118,7 +116,7 @@ export function SummaryPanel(): React.JSX.Element {
           >
             {copied ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}
             {copied ? '已复制' : '复制路径'}
-          </button>
+          </Button>
         </header>
 
         {error ? (

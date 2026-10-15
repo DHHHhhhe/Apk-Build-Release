@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { Button } from './ui/button'
 import { AlertTriangle } from 'lucide-react'
 
 /** 通用确认对话框：危险操作前用它，说明会发生什么而不是只问「确定吗」 */

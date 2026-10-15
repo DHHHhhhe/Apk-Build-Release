@@ -1,4 +1,5 @@
 import { RefreshCw } from 'lucide-react'
+import { Button } from './ui/button'
 import type { EnvItemState, EnvProbeItem, EnvProbeResult } from '@shared/types/env'
 
 const STATE_LABEL: Record<EnvItemState, string> = {
@@ -64,15 +65,15 @@ export function EnvCard({
               按 {projectPath} 探测
             </span>
           ) : null}
-          <button
-            type="button"
-            className="btn-ghost env-card__refresh"
+          <Button
+            variant="ghost"
+            className="env-card__refresh"
             onClick={onRefresh}
             disabled={loading}
           >
             <RefreshCw size={16} aria-hidden="true" />
             {loading ? '探测中' : '重新探测'}
-          </button>
+          </Button>
         </header>
 
         {error ? (

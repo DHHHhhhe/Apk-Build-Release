@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Button } from './ui/button'
 import { ArrowDown, FolderOpen, FileText, Search } from 'lucide-react'
 import type { BuildRun } from '@shared/types/build'
 import { useNow } from '../hooks/useNow'
@@ -135,9 +136,8 @@ export function BuildPanel({
                     <span className="run-list__exit tabular">exit {run.exitCode}</span>
                   ) : null}
                   {run.logPath ? (
-                    <button
-                      type="button"
-                      className="btn-ghost"
+                    <Button
+                      variant="ghost"
                       title={run.logPath}
                       onClick={() => {
                         void window.api.settings.openPath(run.logPath ?? '')
@@ -145,22 +145,22 @@ export function BuildPanel({
                     >
                       <FileText size={14} aria-hidden="true" />
                       日志文件
-                    </button>
+                    </Button>
                   ) : null}
                 </div>
 
                 {run.apkName ? (
                   <p className="run-list__apk tabular">
-                    <button
-                      type="button"
-                      className="btn-ghost run-list__open"
+                    <Button
+                      variant="ghost"
+                      className="run-list__open"
                       title="打开产物所在目录"
                       onClick={() => {
                         void window.api.settings.openPath(dirnameOf(run.apkPath ?? ''))
                       }}
                     >
                       <FolderOpen size={14} aria-hidden="true" />
-                    </button>
+                    </Button>
                     {run.apkName}
                     {run.signed === false ? (
                       <span className="badge badge--warning">未签名，不可直接安装</span>

@@ -1,4 +1,5 @@
 import { Component } from 'react'
+import { Button } from './ui/button'
 import type { ErrorInfo, ReactNode } from 'react'
 import { TriangleAlert } from 'lucide-react'
 
@@ -46,15 +47,14 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           正在跑的构建任务不受影响，但这一页已经没法继续操作。重新加载界面通常就能恢复；如果每次打开都这样，把下面这段发出来。
         </p>
         <pre className="app-crash__detail">{`${error.name}: ${error.message}`}</pre>
-        <button
-          type="button"
-          className="btn-primary"
+        <Button
+          variant="default"
           onClick={() => {
             window.location.reload()
           }}
         >
           重新加载界面
-        </button>
+        </Button>
       </div>
     )
   }

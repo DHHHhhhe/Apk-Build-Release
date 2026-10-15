@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react'
 
 /**
  * 按钮。
@@ -38,6 +38,11 @@ export function Button({
   variant?: ButtonVariant
   size?: ButtonSize
   children?: ReactNode
+  /**
+   * React 19 里 ref 就是普通 prop：这里声明它、但不解构，让它跟着 ...rest 透传下去 ——
+   * 迁移过来的调用点有传 ref 的（抽屉的关闭按钮要拿它做焦点管理）。
+   */
+  ref?: Ref<HTMLButtonElement>
 }): React.JSX.Element {
   const classes = [VARIANT_CLASS[variant], SIZE_CLASS[size], className].filter(Boolean).join(' ')
   return (

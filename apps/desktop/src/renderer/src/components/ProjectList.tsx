@@ -1,4 +1,5 @@
 import { FolderPlus, Trash2 } from 'lucide-react'
+import { Button } from './ui/button'
 import { filterVariantsForPackaging } from '@shared/lib/variants'
 import type { Project } from '@shared/types/project'
 
@@ -115,9 +116,9 @@ export function ProjectList({
                    * 有一对能点的按钮才算两种输入方式都能用（WCAG 2.5.7）。
                    */}
                   <span className="project-list__order">
-                    <button
-                      type="button"
-                      className="btn-ghost project-list__order-btn"
+                    <Button
+                      variant="ghost"
+                      className="project-list__order-btn"
                       aria-label={`把 ${project.name} 上移`}
                       disabled={index === 0}
                       onClick={() => {
@@ -125,10 +126,10 @@ export function ProjectList({
                       }}
                     >
                       ↑
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-ghost project-list__order-btn"
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="project-list__order-btn"
                       aria-label={`把 ${project.name} 下移`}
                       disabled={index === projects.length - 1}
                       onClick={() => {
@@ -136,12 +137,12 @@ export function ProjectList({
                       }}
                     >
                       ↓
-                    </button>
+                    </Button>
                   </span>
 
-                  <button
-                    type="button"
-                    className="btn-ghost project-list__remove"
+                  <Button
+                    variant="ghost"
+                    className="project-list__remove"
                     title={inQueue ? '这个项目还在队列里，先取消它再移除' : `移除 ${project.name}`}
                     onClick={() => {
                       onRemove(project.id)
@@ -150,7 +151,7 @@ export function ProjectList({
                     aria-label={`移除 ${project.name}`}
                   >
                     <Trash2 size={14} aria-hidden="true" />
-                  </button>
+                  </Button>
                 </div>
               </li>
             )

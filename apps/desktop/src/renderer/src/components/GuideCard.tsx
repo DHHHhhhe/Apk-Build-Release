@@ -1,4 +1,5 @@
 import { FolderPlus, ListChecks, Rocket } from 'lucide-react'
+import { Button } from './ui/button'
 import logoUrl from '../assets/logo.png'
 
 const STEPS: Array<{ icon: typeof FolderPlus; title: string; desc: string }> = [

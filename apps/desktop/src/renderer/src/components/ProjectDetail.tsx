@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Button } from './ui/button'
 import { RefreshCw, TerminalSquare } from 'lucide-react'
 import { filterVariantsForPackaging } from '@shared/lib/variants'
 import type { Project } from '@shared/types/project'
@@ -97,9 +98,8 @@ export function ProjectDetail({
             </label>
           </div>
           <span className={badge.className}>{badge.label}</span>
-          <button
-            type="button"
-            className="btn-outline"
+          <Button
+            variant="outline"
             title="只读项目里的 Gradle 配置文件，毫秒级出结果"
             onClick={() => {
               onRefreshVariants(false)
@@ -108,10 +108,9 @@ export function ProjectDetail({
           >
             <RefreshCw size={16} aria-hidden="true" />
             {busyKind === 'static' ? '解析中…' : '刷新变体'}
-          </button>
-          <button
-            type="button"
-            className="btn-ghost"
+          </Button>
+          <Button
+            variant="ghost"
             title="真的跑一遍 Gradle 配置阶段，慢的时候要几分钟，但结果最准"
             onClick={() => {
               onRefreshVariants(true)
@@ -120,7 +119,7 @@ export function ProjectDetail({
           >
             <TerminalSquare size={16} aria-hidden="true" />
             {busyKind === 'gradle' ? 'Gradle 解析中…' : '用 Gradle 解析（较慢）'}
-          </button>
+          </Button>
         </header>
 
         <dl className="project-detail__facts">
@@ -166,9 +165,8 @@ export function ProjectDetail({
               >
                 全选
               </button>
-              <button
-                type="button"
-                className="btn-ghost"
+              <Button
+                variant="ghost"
                 disabled={busy || selected.size === 0}
                 onClick={() => {
                   // 清空是名副其实的清空：连同看不见的残留一起清掉
@@ -176,7 +174,7 @@ export function ProjectDetail({
                 }}
               >
                 清空
-              </button>
+              </Button>
               {/* 只选某类型：列表里只有一种 buildType 时这个按钮是恒等操作（比如「只选 release」= 全选），不显示 */}
               {mixedBuildTypes
                 ? buildTypes.map((buildType) => (

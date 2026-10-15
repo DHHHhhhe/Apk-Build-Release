@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Button } from './ui/button'
 import { X, RotateCcw, Trash2, FileText, FolderOpen } from 'lucide-react'
 import { QUEUE_CONCURRENCY, QUEUE_LIST_LIMIT } from '@shared/constants/queue'
 import type { QueueItem, QueueItemState, QueueRunDetail } from '@shared/types/queue'
@@ -172,9 +173,8 @@ export function QueuePanel({
             <X size={14} aria-hidden="true" />
             全部取消
           </button>
-          <button
-            type="button"
-            className="btn-ghost"
+          <Button
+            variant="ghost"
             disabled={finished.length === 0}
             onClick={() => {
               onClear('finished')
@@ -182,10 +182,9 @@ export function QueuePanel({
           >
             <Trash2 size={14} aria-hidden="true" />
             清空已结束
-          </button>
-          <button
-            type="button"
-            className="btn-ghost"
+          </Button>
+          <Button
+            variant="ghost"
             disabled={items.length === 0}
             onClick={() => {
               onClear('all')
@@ -193,7 +192,7 @@ export function QueuePanel({
           >
             <Trash2 size={14} aria-hidden="true" />
             清空全部
-          </button>
+          </Button>
         </header>
 
         {items.length === 0 ? (
@@ -228,19 +227,17 @@ export function QueuePanel({
                          * 查看详情走一个显式入口，而不是把整行做成可点：这一行里已经有取消、查看日志、
                          * 重新构建，整行可点会让辅助技术分不清点的是什么（嵌套交互式控件）
                          */}
-                        <button
-                          type="button"
-                          className="btn-ghost"
+                        <Button
+                          variant="ghost"
                           onClick={() => {
                             onShowLog(item.projectId)
                           }}
                         >
                           <FolderOpen size={14} aria-hidden="true" />
                           查看详情
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-ghost"
+                        </Button>
+                        <Button
+                          variant="ghost"
                           disabled={isCanceling}
                           onClick={() => {
                             markCanceling(item.id)
@@ -249,30 +246,28 @@ export function QueuePanel({
                         >
                           <X size={14} aria-hidden="true" />
                           {isCanceling ? '取消中…' : '取消'}
-                        </button>
+                        </Button>
                       </>
                     ) : (
                       <>
-                        <button
-                          type="button"
-                          className="btn-ghost"
+                        <Button
+                          variant="ghost"
                           onClick={() => {
                             onShowLog(item.projectId)
                           }}
                         >
                           <FileText size={14} aria-hidden="true" />
                           查看日志
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-ghost"
+                        </Button>
+                        <Button
+                          variant="ghost"
                           onClick={() => {
                             onRetry(item.id)
                           }}
                         >
                           <RotateCcw size={14} aria-hidden="true" />
                           重新构建
-                        </button>
+                        </Button>
                       </>
                     )}
                   </div>

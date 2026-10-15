@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Button } from './ui/button'
 import { FolderOpen, Trash2, X } from 'lucide-react'
 import type { Settings } from '@shared/types/settings'
 
@@ -129,16 +130,15 @@ export function SettingsDialog({
             <span className="dialog__label">构建日志</span>
             <div className="dialog__row">
               <span className="dialog__value tabular">{settings?.logDir ?? '（读取中）'}</span>
-              <button
-                type="button"
-                className="btn-ghost"
+              <Button
+                variant="ghost"
                 onClick={() => {
                   void window.api.settings.openPath(settings?.logDir ?? '')
                 }}
               >
                 <FolderOpen size={14} aria-hidden="true" />
                 打开
-              </button>
+              </Button>
               <button type="button" className="btn-ghost" onClick={() => void clearLogs()}>
                 <Trash2 size={14} aria-hidden="true" />
                 清理日志

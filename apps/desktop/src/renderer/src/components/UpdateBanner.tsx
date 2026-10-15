@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Button } from './ui/button'
 import { Download, RotateCw } from 'lucide-react'
 import { useUpdate } from '../hooks/useUpdate'
 
@@ -197,15 +198,14 @@ export function UpdateBanner({ queueBusy }: { queueBusy: boolean }): React.JSX.E
           <button type="button" className="btn-primary" disabled={starting} onClick={() => void startDownload()}>
             {starting ? '正在开始下载…' : '下载并更新'}
           </button>
-          <button
-            type="button"
-            className="btn-ghost"
+          <Button
+            variant="ghost"
             onClick={() => {
               setDismissed(true)
             }}
           >
             稍后
-          </button>
+          </Button>
         </div>
       ) : null}
 
@@ -225,15 +225,14 @@ export function UpdateBanner({ queueBusy }: { queueBusy: boolean }): React.JSX.E
           >
             立即重启并更新
           </button>
-          <button
-            type="button"
-            className="btn-ghost"
+          <Button
+            variant="ghost"
             onClick={() => {
               setDismissed(true)
             }}
           >
             稍后
-          </button>
+          </Button>
         </div>
       ) : null}
     </div>

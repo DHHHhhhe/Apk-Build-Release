@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Button } from './ui/button'
 import { Info, Sparkles, TrendingUp, Wrench, X } from 'lucide-react'
 import { Badge } from './ui/badge'
-import { Button } from './ui/button'
 import { PROJECT_REPO_URL } from '@shared/constants/links'
 import { CHANGELOG_MARKDOWN } from '../lib/changelog-source'
 import { parseChangelog } from '../lib/changelog'
