@@ -13,12 +13,6 @@
   flex-wrap: wrap;
 }
 
-.summary__title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-}
-
 .summary__scope {
   display: flex;
   gap: 4px;
