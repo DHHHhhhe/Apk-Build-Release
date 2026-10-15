@@ -34,7 +34,8 @@
 /*
  * Tailwind v4 映射：必须用 @theme inline。
  * 用 @theme（非 inline）会在构建期把值固化进工具类，.dark 切换就会失效。
- * 阴影不映射成 shadow-* 工具类 —— 见 DESIGN.md 第 4 节与 base.css 的 .shadow-card / .shadow-float。
+ * 阴影不映射成 shadow-* 工具类：各处直接写 box-shadow: var(--shadow-card) / var(--shadow-float)，
+ * 工具类已清掉。见 DESIGN.md 第 4 节与 tokens.css 的 --shadow-*。
  */
 @theme inline {
   --color-background: var(--background);
