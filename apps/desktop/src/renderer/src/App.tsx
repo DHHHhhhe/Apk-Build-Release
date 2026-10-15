@@ -48,7 +48,7 @@ export default function App(): React.JSX.Element {
     addProject,
     removeProject,
     refreshVariants,
-    setVariants } = useProjects()
+    setVariants, refresh } = useProjects()
 
   // 抽屉当前展示的项目。刻意不回退到「第一个项目」：没打开任何项目时，
   // 主列就该只有全局内容，不该凭空出现一个项目的详情
@@ -257,6 +257,12 @@ export default function App(): React.JSX.Element {
             onSelect={setSelectedProjectId}
             onAdd={handleAdd}
             onRemove={setPendingRemove}
+            onReorder={(ids) => {
+              // 顺序落库后重取列表：侧栏与抽屉读同一份数据，别各留一份旧顺序
+              void window.api.project.reorder(ids).then(() => {
+                refresh()
+              })
+            }}
           />
           {/* 左下角：主题、自动检查更新、设置、版本与检查更新（左列信息、右列控件） */}
           <div className="app-sidebar__bottom">

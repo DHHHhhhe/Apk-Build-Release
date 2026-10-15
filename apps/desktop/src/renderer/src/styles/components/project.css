@@ -216,3 +216,20 @@
   color: var(--destructive);
   font-size: 12px;
 }
+
+/* ── 手工排序按钮 ──
+ * 与拖拽并列的那条路：键盘、读屏、单手操作都靠它。命中区按 24px 给，不做成难点的小箭头。
+ */
+.project-list__order {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.project-list__order-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  font-size: 12px;
+  line-height: 1;
+}

@@ -9,7 +9,8 @@ export function ProjectList({
   queuedProjectIds,
   onSelect,
   onAdd,
-  onRemove
+  onRemove,
+  onReorder
 }: {
   projects: Project[]
   selectedId: string | null
@@ -19,22 +20,43 @@ export function ProjectList({
   onSelect: (projectId: string) => void
   onAdd: () => void
   onRemove: (projectId: string) => void
+  /** 手工排序：给出完整的新顺序（当前全部项目 id） */
+  onReorder: (projectIds: string[]) => void
 }): React.JSX.Element {
   const queued = new Set(queuedProjectIds)
+
+  /** 把某个项目往前/往后挪一位，然后整份顺序交出去 */
+  const move = (projectId: string, delta: -1 | 1): void => {
+    const ids = projects.map((project) => project.id)
+    const at = ids.indexOf(projectId)
+    const current = ids[at]
+    const swapped = ids[at + delta]
+    if (at < 0 || current === undefined || swapped === undefined) {
+      return
+    }
+    ids[at] = swapped
+    ids[at + delta] = current
+    onReorder(ids)
+  }
+
+  /** 拖动落位：把被拖的项目插到目标项目的位置上 */
+  const dropOn = (draggedId: string, targetId: string): void => {
+    if (draggedId.length === 0 || draggedId === targetId) {
+      return
+    }
+    const ids = projects.map((project) => project.id).filter((id) => id !== draggedId)
+    const at = ids.indexOf(targetId)
+    ids.splice(at < 0 ? ids.length : at, 0, draggedId)
+    onReorder(ids)
+  }
 
   return (
     <div className="project-list">
       <div className="project-list__head">
         <span className="project-list__title">项目</span>
-        <button
-          type="button"
-          className="btn-ghost project-list__add"
-          onClick={onAdd}
-          disabled={busyProjectId === '__add__'}
-          aria-label="添加本地项目"
-        >
-          <FolderPlus size={16} aria-hidden="true" />
-          {busyProjectId === '__add__' ? '解析中' : '添加'}
+        <button type="button" className="btn-ghost project-list__add" onClick={onAdd}>
+          <FolderPlus size={14} aria-hidden="true" />
+          添加
         </button>
       </div>
 
@@ -42,13 +64,29 @@ export function ProjectList({
         <p className="project-list__empty">还没有项目，点右上角「添加」选择项目目录</p>
       ) : (
         <ul className="project-list__items">
-          {projects.map((project) => {
+          {projects.map((project, index) => {
             const active = project.id === selectedId
             const busy = project.id === busyProjectId
             const inQueue = queued.has(project.id)
             return (
               <li key={project.id}>
-                <div className={active ? 'project-list__item project-list__item--active' : 'project-list__item'}>
+                <div
+                  className={active ? 'project-list__item project-list__item--active' : 'project-list__item'}
+                  draggable
+                  onDragStart={(event) => {
+                    // 拖拽只是快捷方式：同一行里的上移/下移按钮才是键盘与读屏用户走的那条路
+                    event.dataTransfer.effectAllowed = 'move'
+                    event.dataTransfer.setData('text/plain', project.id)
+                  }}
+                  onDragOver={(event) => {
+                    event.preventDefault()
+                    event.dataTransfer.dropEffect = 'move'
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault()
+                    dropOn(event.dataTransfer.getData('text/plain'), project.id)
+                  }}
+                >
                   <button
                     type="button"
                     className="project-list__select"
@@ -71,6 +109,36 @@ export function ProjectList({
                       {inQueue ? <span className="badge badge--info">队列中</span> : null}
                     </span>
                   </button>
+
+                  {/*
+                   * 手工排序的两个按钮：拖拽对键盘与读屏用户等于不存在，
+                   * 有一对能点的按钮才算两种输入方式都能用（WCAG 2.5.7）。
+                   */}
+                  <span className="project-list__order">
+                    <button
+                      type="button"
+                      className="btn-ghost project-list__order-btn"
+                      aria-label={`把 ${project.name} 上移`}
+                      disabled={index === 0}
+                      onClick={() => {
+                        move(project.id, -1)
+                      }}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-ghost project-list__order-btn"
+                      aria-label={`把 ${project.name} 下移`}
+                      disabled={index === projects.length - 1}
+                      onClick={() => {
+                        move(project.id, 1)
+                      }}
+                    >
+                      ↓
+                    </button>
+                  </span>
+
                   <button
                     type="button"
                     className="btn-ghost project-list__remove"
