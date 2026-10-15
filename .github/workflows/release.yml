@@ -134,7 +134,6 @@ jobs:
           $assets = @(
             "$dir/apk-batch-build-$version-setup.exe",
             "$dir/apk-batch-build-$version-setup.exe.blockmap",
-            "$dir/apk-batch-build-$version-portable.exe",
             "$dir/latest.yml"
           )
           foreach ($asset in $assets) {
@@ -147,4 +146,4 @@ jobs:
 
       - name: 提示
         run: |
-          Write-Host "已发布。安装包与便携版都在 Releases 里，README 的下载链接指向这一页。"
+          Write-Host "已发布。安装包在 Releases 里，README 的下载链接指向这一页。"
