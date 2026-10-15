@@ -197,10 +197,10 @@ apps/desktop/src/
 # 1. 抬版本号（根 package.json 与 apps/desktop/package.json 两处一起改）
 # 2. 提交推送
 pnpm package
-gh release create v0.1.1 `
+gh release create v<版本> `
   apps/desktop/release/<版本>/apk-batch-build-<版本>-setup.exe `
   apps/desktop/release/<版本>/apk-batch-build-<版本>-portable.exe `
-  --title "v0.1.1" --notes "..."
+  --title "v<版本>" --notes "..."
 ```
 
 判据是「用户会不会感觉到这是一次更新」，不是改了几个文件。改了会影响产物内容的代码就抬版本并重新出包；只改文档不用。
