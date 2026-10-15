@@ -43,7 +43,7 @@ If you ship several Android apps, each with its own flavours and build types, op
 | Live build log | Streams to the window, filterable to errors only, and the full log is written to disk with one-click open |
 | Cancel / retry / clear | Cancelling kills the entire Gradle process tree, leaving no orphan `java.exe` |
 | Desktop notification | Useful when a long build finishes while you are doing something else |
-| Auto-update (installer) | Checks GitHub Releases shortly after launch; a **New version** button appears in the top bar when one is found, with release notes, download and restart-to-install. The **portable build does not auto-update** |
+| Auto-update (installer) | Checks GitHub Releases shortly after launch; a **New version** prompt appears in the bottom-right when one is found, with release notes, download and restart-to-install. Manual checks report back through the same corner. The entry point is the version row at the bottom-left of the sidebar |
 
 ## Getting started
 
@@ -54,9 +54,9 @@ Grab a build from [Releases](https://github.com/DHHHhhhe/Apk-Build-Release/relea
 | Package | Best for | Notes |
 | --- | --- | --- |
 | `apk-batch-build-<version>-setup.exe` | Regular use | Installer, you choose the install path; adds Start Menu and desktop shortcuts |
-| `apk-batch-build-<version>-portable.exe` | No install | Runs on double-click, extracts to `%TEMP%\apk-batch-build` on every launch |
 
-> The installed build updates itself from then on (there is a check shortly after launch); the **portable build does not**, so grab a new download for each version. An auto-updated release still triggers SmartScreen once — that is the cost of shipping unsigned, not a damaged file.
+
+> The app updates itself from then on (there is a check shortly after launch). An auto-updated release still triggers SmartScreen once — that is the cost of shipping unsigned, not a damaged file.
 
 > The first launch triggers a Windows SmartScreen warning (no code-signing certificate, publisher shows as "Unknown publisher"). Click **More info** → **Run anyway**; the file is not damaged.
 
@@ -164,7 +164,7 @@ pnpm dev              # development: Vite server + Electron with hot reload
 pnpm start            # build then launch (same as pnpm preview)
 pnpm test             # unit and integration tests
 pnpm typecheck        # type check
-pnpm package          # build the Windows installer and portable exe into apps/desktop/release
+pnpm package          # build the Windows installer into apps/desktop/release
 ```
 
 Requires Node.js ≥ 20 and pnpm ≥ 9.
@@ -200,7 +200,7 @@ git push origin main --tags
 ```
 
 Pushing the tag runs the release workflow, which type-checks, tests, builds, packages, and publishes
-the installer and portable exe to Releases.
+the installer to Releases.
 
 The test for whether a version bump is warranted is "would a user notice this as an update", not how many files changed. Code that affects the built artifact means a bump and a fresh package; documentation alone does not.
 
