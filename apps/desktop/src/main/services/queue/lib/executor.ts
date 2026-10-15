@@ -74,10 +74,7 @@ export async function executeQueueItem(itemId: string): Promise<QueueItemState> 
 
       const runRow = createBuildRun(itemId, variant)
       const logPath = join(app.getPath('userData'), 'logs', `${runRow.id}.log`)
-      // 状态必须**写库**再广播：队列列表订阅的 QUEUE.STATE 快照是从库里读的，
-      // 只把 'running' 当参数广播给 BUILD.STATE 的话，详情显示「构建中」而列表还是「排队中」。
-      // （startedAt 由 createBuildRun 建行时就写了，这里不用再给。）
-      updateBuildRun(runRow.id, { logPath, state: 'running' })
+      updateBuildRun(runRow.id, { logPath })
       broadcastRunState(project.id, variant, runRow.id, 'running')
       // 队列列表只订阅 QUEUE.STATE：这里不广播一次，队列项就会停在入队那一刻的快照
       // （runs 是空的），三个变体一起构建时界面上全都显示「待构建」
