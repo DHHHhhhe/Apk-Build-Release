@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Button } from './ui/button'
 import { FolderOpen, Trash2, X } from 'lucide-react'
 import type { Settings } from '@shared/types/settings'
+import { Dialog } from './ui/dialog'
 
 export function SettingsDialog({
   open,
@@ -27,20 +28,6 @@ export function SettingsDialog({
     })
   }, [open])
 
-  useEffect(() => {
-    if (!open) {
-      return
-    }
-    const handleKey = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') {
-        onClose()
-      }
-    }
-    window.addEventListener('keydown', handleKey)
-    return () => {
-      window.removeEventListener('keydown', handleKey)
-    }
-  }, [open, onClose])
 
   if (!open) {
     return null
@@ -87,16 +74,7 @@ export function SettingsDialog({
   }
 
   return (
-    <div className="dialog-backdrop" role="presentation" onClick={onClose}>
-      <div
-        className="dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-label="设置"
-        onClick={(event) => {
-          event.stopPropagation()
-        }}
-      >
+    <Dialog open={open} label="设置" onClose={onClose}>
         <header className="dialog__head">
           <h2 className="dialog__title">设置</h2>
           <Button  variant="ghost" aria-label="关闭设置" onClick={onClose}>
@@ -157,7 +135,6 @@ export function SettingsDialog({
             </p>
           ) : null}
         </div>
-      </div>
-    </div>
+    </Dialog>
   )
 }

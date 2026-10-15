@@ -3,6 +3,7 @@ import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Info, Sparkles, TrendingUp, Wrench, X } from 'lucide-react'
 import { PROJECT_REPO_URL } from '@shared/constants/links'
+import { Dialog } from './ui/dialog'
 import { CHANGELOG_MARKDOWN } from '../lib/changelog-source'
 import { parseChangelog } from '../lib/changelog'
 
@@ -91,20 +92,6 @@ export function ChangelogDialog({
     setPage(index >= 0 ? Math.floor(index / PAGE_SIZE) : 0)
   }, [open, entries, currentVersion])
 
-  useEffect(() => {
-    if (!open) {
-      return
-    }
-    const handleKey = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') {
-        onClose()
-      }
-    }
-    window.addEventListener('keydown', handleKey)
-    return () => {
-      window.removeEventListener('keydown', handleKey)
-    }
-  }, [open, onClose])
 
   if (!open) {
     return null
@@ -123,16 +110,7 @@ export function ChangelogDialog({
   }
 
   return (
-    <div className="dialog-backdrop" role="presentation" onClick={onClose}>
-      <div
-        className="dialog dialog--changelog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="changelog-title"
-        onClick={(event) => {
-          event.stopPropagation()
-        }}
-      >
+    <Dialog open={open} labelledBy="changelog-title" className="dialog--changelog" onClose={onClose}>
         <header className="dialog__head">
           <span className="dialog__icon">
             <Sparkles size={16} aria-hidden="true" />
@@ -227,8 +205,7 @@ export function ChangelogDialog({
             </div>
           </footer>
         ) : null}
-      </div>
-    </div>
+    </Dialog>
   )
 }
 
