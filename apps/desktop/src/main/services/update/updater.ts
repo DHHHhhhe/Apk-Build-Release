@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app } from 'electron'
 import { IPC_CHANNELS } from '@shared/constants/channels'
 import type { UpdateState } from '@shared/types/update'
 import { logger as baseLogger } from '../logger'
