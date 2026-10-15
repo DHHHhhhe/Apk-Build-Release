@@ -70,3 +70,19 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* ── 尺寸修饰 ──
+ * 以前各处用「外层选择器 + 高度覆盖」凑小按钮（如 .changelog__pager-actions .btn-outline），
+ * 现在收进一个修饰类：`<Button size="sm">`。
+ */
+.btn--sm {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.btn--icon {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}

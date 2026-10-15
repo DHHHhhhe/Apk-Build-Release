@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Info, Sparkles, TrendingUp, Wrench, X } from 'lucide-react'
+import { Badge } from './ui/badge'
+import { Button } from './ui/button'
 import { PROJECT_REPO_URL } from '@shared/constants/links'
 import { CHANGELOG_MARKDOWN } from '../lib/changelog-source'
 import { parseChangelog } from '../lib/changelog'
@@ -171,7 +173,7 @@ export function ChangelogDialog({
                       v<span className="tabular">{entry.version}</span>
                     </h3>
                     <time className="changelog__date tabular">{entry.date}</time>
-                    {isCurrent ? <span className="badge badge--muted changelog__current">当前版本</span> : null}
+                    {isCurrent ? <Badge variant="muted" className="changelog__current">当前版本</Badge> : null}
                   </header>
 
                   {entry.sections.map((section, sectionIndex) => {
@@ -213,29 +215,15 @@ export function ChangelogDialog({
               {entries.length} 个版本
             </p>
             <div className="changelog__pager-actions">
-              <button
-                type="button"
-                className="btn-outline"
-                disabled={safePage === 0}
-                onClick={() => {
-                  step(-1)
-                }}
-              >
+              <Button variant="outline" size="sm" disabled={safePage === 0} onClick={() => step(-1)}>
                 上一页
-              </button>
+              </Button>
               <span className="changelog__pager-page tabular">
                 {safePage + 1} / {pageCount}
               </span>
-              <button
-                type="button"
-                className="btn-outline"
-                disabled={safePage >= pageCount - 1}
-                onClick={() => {
-                  step(1)
-                }}
-              >
+              <Button variant="outline" size="sm" disabled={safePage >= pageCount - 1} onClick={() => step(1)}>
                 下一页
-              </button>
+              </Button>
             </div>
           </footer>
         ) : null}
