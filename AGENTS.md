@@ -320,3 +320,34 @@ await win.loadURL(url + '?theme=dark&t=' + Date.now())   // 时间戳穿透缓�
 对不上当前产物就说明拿的是旧页，这时任何「元素不存在」的结论都不成立。
 
 **症状与判据**：探针报「元素不存在」而源码里明明有该元素时，先查这一条，不要急着怀疑代码。
+### 要验证「构建相关」的改动：用合成 Android 工程，离线跑真 Gradle
+
+不必找真实业务工程，也不必联网。本机已有可复用的缓存（AGP 7.4.2 在
+`~/.gradle/caches/modules-2`，Gradle 7.5 / 8.10.2 在 `~/.gradle/wrapper/dists`），
+所以一个最小合成工程 **12.8 秒**就能跑出两个变体的真实 APK。实测过整条链：
+执行器 → Gradle → `output-metadata.json` 定位 → 按别名复制 → APK 落进 `<输出目录>/<别名>/`。
+
+最小工程只要这几个文件：
+
+| 文件 | 内容要点 |
+| --- | --- |
+| `settings.gradle` | `pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }` + `include ':app'` |
+| `build.gradle` | `buildscript { repositories { google(); mavenCentral() }; dependencies { classpath 'com.android.tools.build:gradle:7.4.2' } }` |
+| `app/build.gradle` | `apply plugin: 'com.android.application'` + `namespace` + `compileSdk 33` + 两个 flavor（`flavorDimensions 'channel'`） |
+| `app/src/main/AndroidManifest.xml` | 一个带 `android:label` 的 `<application />` 即可 |
+| `app/src/main/java/.../Main.java` | 空类；有源码才会走 javac/dex |
+| `local.properties` | `sdk.dir=` + `$env:ANDROID_HOME`（**反斜杠要换成 `/`**） |
+
+**不需要 wrapper jar**：直接用本机已下载的发行版
+`~/.gradle/wrapper/dists/gradle-7.5-bin/*/gradle-7.5/bin/gradle.bat`，
+`--offline --no-daemon` 跑。要给执行器用（它要 `locateGradlew` 找到 `gradlew`），
+就写一个转发脚本 `gradlew.bat` → `call "<上面那个 gradle.bat>" %*`。
+
+三条不能忘的：
+
+1. **统一输出目录必须先指到临时目录**：`setOutputRoot(临时目录)`。
+   默认值是「文档/APK批量打包」，测试里不覆盖就会往真实文档目录写 APK。
+2. **写成 `*.real.test.ts`，跑完即删**：它必然含本机路径（Gradle 启动器、`sdk.dir`），
+   属于脱敏红线，不能进仓库。日常套件也不该带它 —— 一个 13 秒的用例会把 1.7 秒的套件拖垮。
+3. **看清产物布局**：AGP 7.x 是 `build/outputs/apk/<flavor>/<buildType>/`，8.x 才是 `<variant>/`。
+   合成工程用 7.4.2 时走的是 `findApkArtifacts` 的 metadata 主路径（不是退化的文件名匹配）。
