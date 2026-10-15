@@ -410,6 +410,16 @@ export default function App(): React.JSX.Element {
               onRefreshVariants={(force) => {
                 void refreshVariants(selectedProject.id, force)
               }}
+              onSetAlias={(alias) => {
+                // 落库后重取一次项目：抽屉与侧栏都要跟着更新，别各留一份旧值。
+                // 走 refreshVariants 而不是另外加一条刷新链路 —— 它本来就会重读项目并更新列表，
+                // 静态解析是毫秒级，省下一条新链路比省这一次解析更值。
+                void window.api.project.setAlias(selectedProject.id, alias).then((result) => {
+                  if (result.success) {
+                    void refreshVariants(selectedProject.id, false)
+                  }
+                })
+              }}
             />
             <EnvCard
               result={env.result}

@@ -45,6 +45,7 @@ export function toProjectDto(row: ProjectRow): Project {
     name: row.name,
     path: row.path,
     appModule: row.appModule,
+    alias: row.alias,
     selectedVariants: parseJsonArray(row.selectedVariants),
     variants: listVariants(row.id),
     variantsSource: row.variantsSource,

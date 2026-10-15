@@ -9,6 +9,7 @@ export const IPC_CHANNELS = {
     REMOVE: 'project:remove',
     REFRESH_VARIANTS: 'project:refreshVariants',
     SET_VARIANTS: 'project:setVariants',
+    SET_ALIAS: 'project:setAlias',
     PICK_DIRECTORY: 'project:pickDirectory'
   },
   QUEUE: {

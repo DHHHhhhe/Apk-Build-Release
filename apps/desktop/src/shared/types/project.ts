@@ -16,6 +16,8 @@ export const projectSchema = z.object({
   name: z.string(),
   path: z.string(),
   appModule: z.string().nullable(),
+  /** 分发用的别名：产物归档到统一输出目录时优先用它做文件夹名 */
+  alias: z.string().nullable(),
   selectedVariants: z.array(z.string()),
   variants: z.array(projectVariantSchema),
   variantsSource: variantSourceSchema.nullable(),

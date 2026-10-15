@@ -39,6 +39,7 @@ export interface AppApi {
     remove: (projectId: string) => Promise<{ success: boolean; error?: string }>
     refreshVariants: (projectId: string, force?: boolean) => Promise<ProjectResult>
     setVariants: (projectId: string, variants: string[]) => Promise<ProjectResult>
+    setAlias: (projectId: string, alias: string | null) => Promise<ProjectResult>
     pickDirectory: () => Promise<PickDirectoryResult>
   }
   queue: {

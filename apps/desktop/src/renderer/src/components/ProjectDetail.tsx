@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { RefreshCw, TerminalSquare } from 'lucide-react'
 import { filterVariantsForPackaging } from '@shared/lib/variants'
 import type { Project } from '@shared/types/project'
@@ -22,7 +23,8 @@ export function ProjectDetail({
   queuedVariants,
   onToggleVariant,
   onSetVariants,
-  onRefreshVariants
+  onRefreshVariants,
+  onSetAlias
 }: {
   project: Project
   busyKind: ProjectBusyKind | null
@@ -33,10 +35,27 @@ export function ProjectDetail({
   onToggleVariant: (variantName: string) => void
   onSetVariants: (names: string[]) => void
   onRefreshVariants: (force: boolean) => void
+  /** 保存别名；null 表示清空，回到用项目名归档 */
+  onSetAlias: (alias: string | null) => void
 }): React.JSX.Element {
   const selected = new Set(project.selectedVariants)
   const badge = sourceBadge(project)
   const busy = busyKind !== null
+  const [aliasDraft, setAliasDraft] = useState(project.alias ?? '')
+
+  // 切换项目时把草稿同步过来，否则会把上一个项目的别名显示成当前项目的
+  useEffect(() => {
+    setAliasDraft(project.alias ?? '')
+  }, [project.id, project.alias])
+
+  // 失焦或回车才提交：边打字边写库会把半截别名存进去
+  const commitAlias = (): void => {
+    const next = aliasDraft.trim()
+    if (next === (project.alias ?? '')) {
+      return
+    }
+    onSetAlias(next.length === 0 ? null : next)
+  }
 
   // 只列发布变体；项目连 release 变体都没有时回退到全部，不能让用户面对空列表
   const visibleVariants = filterVariantsForPackaging(project.variants)
@@ -56,6 +75,26 @@ export function ProjectDetail({
           <div>
             <h3 className="project-detail__title">{project.name}</h3>
             <p className="project-detail__path tabular">{project.path}</p>
+            <label className="project-detail__alias">
+              <span>别名</span>
+              <input
+                type="text"
+                className="tabular"
+                value={aliasDraft}
+                maxLength={64}
+                placeholder="留空则用项目名"
+                title="产物归档到统一输出目录时，用它做文件夹名"
+                onChange={(event) => {
+                  setAliasDraft(event.target.value)
+                }}
+                onBlur={commitAlias}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.currentTarget.blur()
+                  }
+                }}
+              />
+            </label>
           </div>
           <span className={badge.className}>{badge.label}</span>
           <button
