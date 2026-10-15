@@ -210,7 +210,6 @@ pnpm package
 gh release create v<版本> `
   apps/desktop/release/<版本>/apk-batch-build-<版本>-setup.exe `
   apps/desktop/release/<版本>/apk-batch-build-<版本>-setup.exe.blockmap `
-
   apps/desktop/release/<版本>/latest.yml `
   --title "v<版本>" --notes "..."
 ```

@@ -195,12 +195,23 @@ apps/desktop/src/
 # 1. bump the version in both root package.json and apps/desktop/package.json
 # 2. update apps/desktop/build/release-notes.md (it becomes the Release body)
 # 3. commit, then tag
-git tag v0.1.1
+git tag v<version>
 git push origin main --tags
 ```
 
 Pushing the tag runs the release workflow, which type-checks, tests, builds, packages, and publishes
 the installer to Releases.
+
+**Manual release (bypassing CI)**: the output is 3 files, and none may be missing — without `latest.yml` clients cannot find updates (anyone on an older build would have to reinstall), and that is invisible on the release page.
+
+```powershell
+pnpm package
+gh release create v<version> `
+  apps/desktop/release/<version>/apk-batch-build-<version>-setup.exe `
+  apps/desktop/release/<version>/apk-batch-build-<version>-setup.exe.blockmap `
+  apps/desktop/release/<version>/latest.yml `
+  --title "v<version>" --notes "..."
+```
 
 The test for whether a version bump is warranted is "would a user notice this as an update", not how many files changed. Code that affects the built artifact means a bump and a fresh package; documentation alone does not.
 
