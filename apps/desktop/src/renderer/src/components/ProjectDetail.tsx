@@ -150,9 +150,8 @@ export function ProjectDetail({
         ) : (
           <>
             <div className="variant-quick">
-              <button
-                type="button"
-                className="btn-ghost"
+              <Button
+                 variant="ghost"
                 disabled={busy || allVisibleSelected}
                 onClick={() => {
                   // 与构建中心一致：全选是**并集**，不会把看不见的勾选（旧的 debug 残留）抹掉
@@ -164,7 +163,7 @@ export function ProjectDetail({
                 }}
               >
                 全选
-              </button>
+              </Button>
               <Button
                 variant="ghost"
                 disabled={busy || selected.size === 0}
