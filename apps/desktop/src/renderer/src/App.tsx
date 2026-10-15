@@ -320,11 +320,7 @@ export default function App(): React.JSX.Element {
             queueBusy={queue.items.some((item) => item.state === 'running' || item.state === 'pending')}
           />
           <UpdateResultToast />
-          <UpdateNoticeToast
-            onOpenChangelog={() => {
-              setChangelogOpen(true)
-            }}
-          />
+          <UpdateNoticeToast />
         </div>
 
         {/* 与参考实现同一套配置：右下角、richColors、带关闭按钮；theme=system 跟随系统深浅色 */}

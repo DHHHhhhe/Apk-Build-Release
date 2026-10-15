@@ -12,10 +12,24 @@ function clampDrawerWidth(value: number): number {
   return Math.min(Math.max(Math.round(value), DRAWER_WIDTH_MIN), DRAWER_WIDTH_MAX)
 }
 
+/** localStorage 在隐私模式或被策略禁用时会直接抛，读不到就当没存过 */
 function readStoredDrawerWidth(): number {
-  const raw = window.localStorage.getItem(DRAWER_WIDTH_KEY)
-  const parsed = raw === null ? Number.NaN : Number(raw)
-  return Number.isFinite(parsed) ? clampDrawerWidth(parsed) : DRAWER_WIDTH_DEFAULT
+  try {
+    const raw = window.localStorage.getItem(DRAWER_WIDTH_KEY)
+    const parsed = raw === null ? Number.NaN : Number(raw)
+    return Number.isFinite(parsed) ? clampDrawerWidth(parsed) : DRAWER_WIDTH_DEFAULT
+  } catch {
+    return DRAWER_WIDTH_DEFAULT
+  }
+}
+
+/** 只在松手/键盘操作结束时写一次，不是每帧都写 */
+function rememberDrawerWidth(value: number): void {
+  try {
+    window.localStorage.setItem(DRAWER_WIDTH_KEY, String(value))
+  } catch {
+    // 存不下就算了：这次会话里宽度仍然是对的，只是下次打开回到默认
+  }
 }
 
 interface ProjectDrawerProps {
@@ -56,7 +70,6 @@ export function ProjectDrawer({
      */
     const host = document.querySelector('.drawer')?.parentElement ?? document.documentElement
     host.style.setProperty('--drawer-width', `${width}px`)
-    window.localStorage.setItem(DRAWER_WIDTH_KEY, String(width))
   }, [width])
 
   const startResize = (event: React.PointerEvent<HTMLDivElement>): void => {
@@ -73,6 +86,9 @@ export function ProjectDrawer({
   }
 
   const endResize = (event: React.PointerEvent<HTMLDivElement>): void => {
+    if (resizingRef.current) {
+      rememberDrawerWidth(width)
+    }
     resizingRef.current = false
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
@@ -85,7 +101,9 @@ export function ProjectDrawer({
     }
     event.preventDefault()
     // 键盘也要能调：拖拽不能是唯一手段（WCAG 2.5.7）
-    setWidth((current) => clampDrawerWidth(current + (event.key === 'ArrowLeft' ? 16 : -16)))
+    const next = clampDrawerWidth(width + (event.key === 'ArrowLeft' ? 16 : -16))
+    setWidth(next)
+    rememberDrawerWidth(next)
   }
 
   // 打开时记住焦点从哪来，关闭时还回去；触发项已经不在了（例如项目被移除）就不还，
@@ -130,6 +148,7 @@ export function ProjectDrawer({
         onPointerCancel={endResize}
         onDoubleClick={() => {
           setWidth(DRAWER_WIDTH_DEFAULT)
+          rememberDrawerWidth(DRAWER_WIDTH_DEFAULT)
         }}
         onKeyDown={resizeWithKeyboard}
       />
