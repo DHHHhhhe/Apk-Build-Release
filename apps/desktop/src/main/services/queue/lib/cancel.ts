@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import { killProcessTree } from '../../build/lib/spawn-gradle'
 import { logger as baseLogger } from '../../logger'
 
 const logger = baseLogger.scope('queue:cancel')
@@ -63,19 +63,5 @@ export function runningCount(): number {
   return running.size
 }
 
-/** Windows 上 gradlew.bat 会派生 cmd.exe → java.exe，必须杀整棵进程树 */
-export function killProcessTree(pid: number): void {
-  if (process.platform === 'win32') {
-    spawn('taskkill', ['/PID', String(pid), '/T', '/F'], { windowsHide: true })
-    return
-  }
-  try {
-    process.kill(-pid, 'SIGKILL')
-  } catch {
-    try {
-      process.kill(pid, 'SIGKILL')
-    } catch {
-      // 进程已经退出
-    }
-  }
-}
+// 杀进程树的实现只有一份，在 build/lib/spawn-gradle（它与「超时中止」共用同一段逻辑）
+export { killProcessTree } from '../../build/lib/spawn-gradle'
