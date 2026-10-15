@@ -36,8 +36,6 @@ win:
       arch:
         - x64
     - target: portable
-      arch:
-        - x64
   executableName: apk-batch-build
   artifactName: apk-batch-build-${version}-setup.${ext}
 
@@ -50,12 +48,6 @@ nsis:
   uninstallDisplayName: APK批量打包 ${version}
   artifactName: apk-batch-build-${version}-setup.${ext}
 
-# 便携版：免安装，但每次启动会把程序解压到临时目录。
-# unpackDirName 固定成同一个名字，否则每次启动的路径都不同，
-# Windows 防火墙会把每一份都当成新程序、反复弹权限框。
-portable:
-  artifactName: apk-batch-build-${version}-portable.${ext}
-  unpackDirName: apk-batch-build
 
 # 自动更新（electron-updater）从 GitHub Releases 取新版本。
 #
