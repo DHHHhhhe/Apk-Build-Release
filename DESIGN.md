@@ -351,7 +351,6 @@ box-shadow:
 | --- | --- | --- | --- |
 | `default` | 墨色 | 近白 | **每屏一个**，最重要的那个动作 |
 | `outline` | 画布色 + hairline | 正文色 | 常规操作 |
-| `secondary` | `--secondary` | 正文色 | 次于 outline 的操作 |
 | `ghost` | 透明 | 正文色 | 列表行内、工具条 |
 | `destructive` | 危险色 10% | 危险色 | 删除。**必须与主操作分开** |
 
@@ -375,6 +374,16 @@ box-shadow:
 窗口可能被缩得很小，长表单必须能在小窗口里滚到底部的按钮 ——
 配合 sticky 的底部按钮条，让按钮始终露在外面。
 
+**行为契约**（实现收在 `components/ui/Dialog` 一处，调用方只写面板内容）：
+
+| 行为 | 要求 |
+| --- | --- |
+| 打开 | 焦点进入面板内第一个可聚焦元素；`role="dialog"`（需确认的用 `alertdialog`）+ `aria-modal="true"` + 标题关联 |
+| Tab / Shift+Tab | 在面板内循环，不跑到背后的界面上 |
+| Esc | 关闭 |
+| 点遮罩 | 关闭；点面板本身不关 |
+| 关闭后 | 焦点归还给打开它的元素（它若已不在文档里就不硬聚焦） |
+
 ### 表格
 
 表头用 `--muted` 底、12px、次要文字色。行高 40–48px。
@@ -383,6 +392,10 @@ box-shadow:
 ### 徽章
 
 胶囊形，12px。**只用于状态与计数**（条目数、成功/失败），不做装饰性标签。
+
+变体：`success` / `warning` / `destructive` / `info` / `muted`（组件层 `<Badge variant="…">`）。
+选哪一档看语义而不是看颜色：构建中与队列中是 `info`，成功是 `success`，未签名等提醒是 `warning`，
+失败与危险是 `destructive`，中性计数是 `muted`。
 
 ---
 
