@@ -224,7 +224,7 @@ export default function App(): React.JSX.Element {
           </Button>
         ) : null}
         <Button
-           variant="outline"
+          variant="default"
           disabled={Boolean(enqueueBlocked) || !selectedProject}
           title={enqueueBlocked ?? undefined}
           onClick={() => {
