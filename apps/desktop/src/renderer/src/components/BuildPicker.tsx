@@ -260,7 +260,7 @@ export function BuildPicker({
       </ul>
 
       <div className="build-picker__foot">
-        <Button  variant="default" disabled={blockedReason !== null} onClick={onBuild}>
+        <Button  variant="outline" disabled={blockedReason !== null} onClick={onBuild}>
           构建勾选项（{buildableVariantCount}）
         </Button>
         {blockedReason ? (
