@@ -21,8 +21,14 @@ const STARTUP_CHECK_DELAY_MS = 15_000
 let updater: AutoUpdater | null = null
 let loaded = false
 
-/** 便携版没有安装目录，装更新只会多出一份副本，所以它一律没有自动更新 */
-function isPortableBuild(): boolean {
+/**
+ * 便携版没有安装目录，装更新只会多出一份副本，所以它一律没有自动更新。
+ *
+ * 判据用 electron-builder 给便携版设的环境变量（`PORTABLE_EXECUTABLE_DIR`）——
+ * 那是官方文档里判断「当前跑的是不是便携版」的方式。导出是为了能单测：
+ * 便携版永远查不到更新，这是用户可见行为，值得有测试守着。
+ */
+export function isPortableBuild(): boolean {
   return Boolean(process.env.PORTABLE_EXECUTABLE_DIR)
 }
 
