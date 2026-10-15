@@ -1,5 +1,4 @@
 import { useRef } from 'react'
-import { Button } from './ui/button'
 import { Monitor, Moon, Sun } from 'lucide-react'
 import type { ThemeChoice } from '@shared/types/settings'
 import { useTheme } from '../hooks/useTheme'

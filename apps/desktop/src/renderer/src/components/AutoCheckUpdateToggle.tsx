@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Button } from './ui/button'
 
 /**
  * 「启动时自动检查更新」开关。
