@@ -45,7 +45,6 @@ nsis:
   createDesktopShortcut: always
   shortcutName: APK批量打包
   uninstallDisplayName: APK批量打包 ${version}
-  artifactName: apk-batch-build-${version}-setup.${ext}
 
 
 # 自动更新（electron-updater）从 GitHub Releases 取新版本。
