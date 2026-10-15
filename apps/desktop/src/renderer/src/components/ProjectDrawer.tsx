@@ -47,7 +47,15 @@ export function ProjectDrawer({
    * 改一处两处都跟着走，不会出现抽屉变宽了而内容还被压着。
    */
   useEffect(() => {
-    document.documentElement.style.setProperty('--drawer-width', `${width}px`)
+    /*
+     * 写到抽屉的**父元素**上，不是 :root。
+     *
+     * App 会把响应式默认宽度声明在那一层（`--drawer-width: resolveDrawerWidth(windowWidth)`），
+     * 而自定义属性是继承的：写在 :root 上的值会被父元素自己的声明压掉 —— 实测过，
+     * :root 读到 624px 而抽屉仍是 560px。写在同一个元素上才盖得住。
+     */
+    const host = document.querySelector('.drawer')?.parentElement ?? document.documentElement
+    host.style.setProperty('--drawer-width', `${width}px`)
     window.localStorage.setItem(DRAWER_WIDTH_KEY, String(width))
   }, [width])
 
