@@ -14,7 +14,7 @@
     "package": "node scripts/run.mjs electron-vite build && node scripts/run.mjs electron-builder",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "changelog": "node scripts/sync-changelog.mjs",
-    "lint": "node -e \"console.log('lint: 待接入 eslint')\"",
+    "lint": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "vitest run"
   },
   "dependencies": {
