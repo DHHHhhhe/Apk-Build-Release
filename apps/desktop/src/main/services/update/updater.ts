@@ -3,6 +3,7 @@ import { IPC_CHANNELS } from '@shared/constants/channels'
 import type { UpdateState } from '@shared/types/update'
 import { logger as baseLogger } from '../logger'
 import { getAutoCheckUpdate } from '../build/lib/settings'
+import { broadcast } from '../../lib/broadcast'
 
 const logger = baseLogger.scope('update')
 
@@ -41,17 +42,10 @@ function createInitialState(): UpdateState {
 
 let state: UpdateState = createInitialState()
 
-function broadcast(): void {
-  for (const win of BrowserWindow.getAllWindows()) {
-    if (!win.isDestroyed()) {
-      win.webContents.send(IPC_CHANNELS.UPDATE.STATE, state)
-    }
-  }
-}
-
 function patch(next: Partial<UpdateState>): void {
   state = { ...state, ...next }
-  broadcast()
+  // 用共享的广播：遍历窗口、跳过已销毁的那段逻辑只留一份（lib/broadcast）
+  broadcast(IPC_CHANNELS.UPDATE.STATE, state)
 }
 
 /**
