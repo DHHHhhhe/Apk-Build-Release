@@ -1,8 +1,8 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, join, relative } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { copyArtifactToOutput, findApkArtifacts, readOutputMetadata } from './artifacts'
+import { copyArtifactToOutput, findApkArtifacts, readOutputMetadata, resolveOutputFolderName } from './artifacts'
 
 let workspace: string
 
@@ -179,5 +179,53 @@ describe('copyArtifactToOutput', () => {
     expect(/app-release_\d{8}-\d{6}\.apk$/.test(second)).toBe(true)
     expect(readFileSync(first, 'utf8')).toBe('first')
     expect(readFileSync(second, 'utf8')).toBe('first')
+  })
+
+  it('别名优先：文件夹名由 resolveOutputFolderName 决定，文件真的落进别名目录', () => {
+    writeFile('app/build/outputs/apk/free/release/app-release.apk', 'bytes')
+    const outputRoot = join(workspace, 'out')
+    const artifact = {
+      apkPath: join(workspace, 'app/build/outputs/apk/free/release/app-release.apk'),
+      apkName: 'app-release.apk',
+      applicationId: null,
+      variantName: null,
+      versionCode: null,
+      versionName: null,
+      signed: null,
+      matchedBy: 'filename' as const
+    }
+
+    // 别名与项目名的解析在同一处（resolveOutputFolderName），这里把两段接起来验落盘
+    const folder = resolveOutputFolderName({ alias: 'demo-alias', name: '模板工程' })
+    const target = copyArtifactToOutput(artifact, outputRoot, folder)
+
+    expect(folder).toBe('demo-alias')
+    expect(target).toContain(join('demo-alias', 'app-release.apk'))
+    expect(readFileSync(target, 'utf8')).toBe('bytes')
+  })
+
+  it('别名里塞「上一级」也跑不出输出目录', () => {
+    writeFile('app/build/outputs/apk/free/release/app-release.apk', 'bytes')
+    const outputRoot = join(workspace, 'out')
+    const folder = resolveOutputFolderName({ alias: '../../evil', name: '模板工程' })
+    const target = copyArtifactToOutput(
+      {
+        apkPath: join(workspace, 'app/build/outputs/apk/free/release/app-release.apk'),
+        apkName: 'app-release.apk',
+        applicationId: null,
+        variantName: null,
+        versionCode: null,
+        versionName: null,
+        signed: null,
+        matchedBy: 'filename'
+      },
+      outputRoot,
+      folder
+    )
+
+    // 关键：复制结果必须仍在统一输出目录之内（别名是用户随手填的）
+    const rel = relative(outputRoot, target)
+    expect(rel.startsWith('..')).toBe(false)
+    expect(target.startsWith(outputRoot)).toBe(true)
   })
 })
