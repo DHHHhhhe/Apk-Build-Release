@@ -7,7 +7,7 @@ import type { QueueItemState } from '@shared/types/queue'
 import { broadcast } from '../../../lib/broadcast'
 import { locateGradlew } from '../../../lib/gradle-paths'
 import { logger as baseLogger } from '../../logger'
-import { copyArtifactToOutput, findApkArtifacts } from '../../build/lib/artifacts'
+import { copyArtifactToOutput, findApkArtifacts, resolveOutputFolderName } from '../../build/lib/artifacts'
 import { classifyFailure } from '../../build/lib/failure'
 import {
   createBuildRun,
@@ -104,7 +104,7 @@ export async function executeQueueItem(itemId: string): Promise<QueueItemState> 
       const artifact = succeeded
         ? (findApkArtifacts({ projectPath: project.path, moduleDirs, expectedVariant: variant })[0] ?? null)
         : null
-      const copiedPath = artifact ? copyArtifactToOutput(artifact, outputRoot, project.name) : null
+      const copiedPath = artifact ? copyArtifactToOutput(artifact, outputRoot, resolveOutputFolderName(project)) : null
 
       // 签名状态以 apksigner 为准：文件名只能看出 unsigned，看不出「签了但无效」
       const signature = artifact

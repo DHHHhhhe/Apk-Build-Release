@@ -31,6 +31,8 @@ export function ensureSchema(): void {
       name TEXT NOT NULL,
       path TEXT NOT NULL UNIQUE,
       app_module TEXT,
+      alias TEXT,
+      sort_order INTEGER,
       selected_variants TEXT NOT NULL DEFAULT '[]',
       variants_source TEXT,
       variants_signature TEXT,

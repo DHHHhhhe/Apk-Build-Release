@@ -12,6 +12,10 @@ export const projects = sqliteTable(
     path: text('path').notNull().unique(),
     /** 应用了 com.android.application 的模块路径，例如 :app */
     appModule: text('app_module'),
+    /** 分发用的别名：输出目录下的文件夹名优先用它；空表示仍用项目名 */
+    alias: text('alias'),
+    /** 左侧列表的手工排序位：越小越靠前，null 表示还没排过（按创建时间兜底） */
+    sortOrder: integer('sort_order'),
     /** 用户勾选的变体名，JSON 数组 */
     selectedVariants: text('selected_variants').notNull().default('[]'),
     /** 变体列表是怎么来的：static / gradle */
