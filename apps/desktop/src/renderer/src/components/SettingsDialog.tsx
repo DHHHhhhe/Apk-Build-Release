@@ -99,9 +99,9 @@ export function SettingsDialog({
       >
         <header className="dialog__head">
           <h2 className="dialog__title">设置</h2>
-          <button type="button" className="btn-ghost" aria-label="关闭设置" onClick={onClose}>
+          <Button  variant="ghost" aria-label="关闭设置" onClick={onClose}>
             <X size={16} aria-hidden="true" />
-          </button>
+          </Button>
         </header>
 
         <div className="dialog__body">
@@ -116,12 +116,12 @@ export function SettingsDialog({
                 }}
                 aria-label="统一输出目录"
               />
-              <button type="button" className="btn-ghost" onClick={() => void pick()}>
+              <Button  variant="ghost" onClick={() => void pick()}>
                 选择…
-              </button>
-              <button type="button" className="btn-ghost" onClick={() => void apply()}>
+              </Button>
+              <Button  variant="ghost" onClick={() => void apply()}>
                 保存
-              </button>
+              </Button>
             </div>
             <span className="dialog__hint">构建出的 APK 会按项目名复制到这个目录下</span>
           </label>
@@ -139,10 +139,10 @@ export function SettingsDialog({
                 <FolderOpen size={14} aria-hidden="true" />
                 打开
               </Button>
-              <button type="button" className="btn-ghost" onClick={() => void clearLogs()}>
+              <Button  variant="ghost" onClick={() => void clearLogs()}>
                 <Trash2 size={14} aria-hidden="true" />
                 清理日志
-              </button>
+              </Button>
             </div>
           </div>
 

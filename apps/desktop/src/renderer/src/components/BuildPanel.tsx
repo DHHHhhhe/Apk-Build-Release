@@ -188,9 +188,9 @@ export function BuildPanel({
         )}
 
         {hasMore ? (
-          <button type="button" className="btn-ghost build-panel__more" onClick={onLoadMore}>
+          <Button  variant="ghost" className="build-panel__more" onClick={onLoadMore}>
             加载更早的构建记录
-          </button>
+          </Button>
         ) : null}
 
         {activeRun ? (
@@ -241,9 +241,8 @@ export function BuildPanel({
                     ))}
               </pre>
               {!follow && !filtered ? (
-                <button
-                  type="button"
-                  className="btn-outline build-panel__log-jump"
+                <Button
+                   variant="outline" className="build-panel__log-jump"
                   onClick={() => {
                     setFollow(true)
                     const node = logRef.current
@@ -254,7 +253,7 @@ export function BuildPanel({
                 >
                   <ArrowDown size={14} aria-hidden="true" />
                   有新日志
-                </button>
+                </Button>
               ) : null}
             </div>
           </div>

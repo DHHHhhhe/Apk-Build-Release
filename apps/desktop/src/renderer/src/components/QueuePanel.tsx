@@ -159,9 +159,8 @@ export function QueuePanel({
               ))}
             </select>
           </label>
-          <button
-            type="button"
-            className="btn-ghost"
+          <Button
+             variant="ghost"
             disabled={pending.length + running.length === 0}
             onClick={() => {
               for (const item of [...running, ...pending]) {
@@ -172,7 +171,7 @@ export function QueuePanel({
           >
             <X size={14} aria-hidden="true" />
             全部取消
-          </button>
+          </Button>
           <Button
             variant="ghost"
             disabled={finished.length === 0}

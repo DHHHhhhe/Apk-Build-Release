@@ -224,9 +224,8 @@ export default function App(): React.JSX.Element {
             有新版本
           </Button>
         ) : null}
-        <button
-          type="button"
-          className="btn-outline"
+        <Button
+           variant="outline"
           disabled={Boolean(enqueueBlocked) || !selectedProject}
           title={enqueueBlocked ?? undefined}
           onClick={() => {
@@ -237,7 +236,7 @@ export default function App(): React.JSX.Element {
           }}
         >
           {projectBuilding ? '构建中…' : '加入队列并构建'}
-        </button>
+        </Button>
       </header>
 
       <div className="app-body">

@@ -60,9 +60,9 @@ export function ConfirmDialog({
           <p className="dialog__message-text">{message}</p>
         </div>
         <footer className="dialog__foot">
-          <button type="button" className="btn-ghost" onClick={onCancel}>
+          <Button  variant="ghost" onClick={onCancel}>
             取消
-          </button>
+          </Button>
           <button
             type="button"
             className={tone === 'destructive' ? 'btn-destructive' : 'btn-outline'}

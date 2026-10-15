@@ -55,10 +55,10 @@ export function ProjectList({
     <div className="project-list">
       <div className="project-list__head">
         <span className="project-list__title">项目</span>
-        <button type="button" className="btn-ghost project-list__add" onClick={onAdd}>
+        <Button  variant="ghost" className="project-list__add" onClick={onAdd}>
           <FolderPlus size={14} aria-hidden="true" />
           添加
-        </button>
+        </Button>
       </div>
 
       {projects.length === 0 ? (

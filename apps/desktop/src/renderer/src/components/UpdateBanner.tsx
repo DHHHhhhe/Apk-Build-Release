@@ -195,9 +195,9 @@ export function UpdateBanner({ queueBusy }: { queueBusy: boolean }): React.JSX.E
 
       {offering ? (
         <div className="update-banner__actions">
-          <button type="button" className="btn-primary" disabled={starting} onClick={() => void startDownload()}>
+          <Button  variant="default" disabled={starting} onClick={() => void startDownload()}>
             {starting ? '正在开始下载…' : '下载并更新'}
-          </button>
+          </Button>
           <Button
             variant="ghost"
             onClick={() => {
@@ -211,9 +211,8 @@ export function UpdateBanner({ queueBusy }: { queueBusy: boolean }): React.JSX.E
 
       {ready ? (
         <div className="update-banner__actions">
-          <button
-            type="button"
-            className="btn-primary"
+          <Button
+             variant="default"
             disabled={queueBusy}
             title={queueBusy ? '有构建任务在跑，重启会把它掐掉' : undefined}
             onClick={() => {
@@ -224,7 +223,7 @@ export function UpdateBanner({ queueBusy }: { queueBusy: boolean }): React.JSX.E
             }}
           >
             立即重启并更新
-          </button>
+          </Button>
           <Button
             variant="ghost"
             onClick={() => {

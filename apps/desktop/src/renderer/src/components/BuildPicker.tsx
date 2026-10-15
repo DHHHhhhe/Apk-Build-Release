@@ -130,9 +130,9 @@ export function BuildPicker({
         >
           全选全部项目（{visibleCount} 个变体）
         </Button>
-        <button type="button" className="btn-ghost" disabled={selectedCount === 0} onClick={clearAll}>
+        <Button  variant="ghost" disabled={selectedCount === 0} onClick={clearAll}>
           清空
-        </button>
+        </Button>
       </div>
 
       <ul className="build-picker__groups">
@@ -259,9 +259,9 @@ export function BuildPicker({
       </ul>
 
       <div className="build-picker__foot">
-        <button type="button" className="btn-primary" disabled={blockedReason !== null} onClick={onBuild}>
+        <Button  variant="default" disabled={blockedReason !== null} onClick={onBuild}>
           构建勾选项（{buildableVariantCount}）
-        </button>
+        </Button>
         {blockedReason ? (
           <span className="build-picker__reason" role="status" aria-live="polite">
             {blockedReason}

@@ -178,10 +178,9 @@ export function ProjectDetail({
               {/* 只选某类型：列表里只有一种 buildType 时这个按钮是恒等操作（比如「只选 release」= 全选），不显示 */}
               {mixedBuildTypes
                 ? buildTypes.map((buildType) => (
-                    <button
+                    <Button
                       key={buildType}
-                      type="button"
-                      className="btn-ghost"
+                       variant="ghost"
                       disabled={busy}
                       onClick={() => {
                         // 同样只重排可见的那部分，保留看不见的勾选
@@ -191,7 +190,7 @@ export function ProjectDetail({
                       }}
                     >
                       只选 {buildType}
-                    </button>
+                    </Button>
                   ))
                 : null}
             </div>

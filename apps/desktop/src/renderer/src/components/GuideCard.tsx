@@ -41,10 +41,10 @@ export function GuideCard({
         </ol>
 
         <div className="guide__actions">
-          <button type="button" className="btn-outline" onClick={onAdd}>
+          <Button  variant="outline" onClick={onAdd}>
             <FolderPlus size={16} aria-hidden="true" />
             选择项目目录
-          </button>
+          </Button>
           <span className="guide__hint">{dragging ? '松手即添加' : '或把项目文件夹拖到这里'}</span>
         </div>
       </div>
