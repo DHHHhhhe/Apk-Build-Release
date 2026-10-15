@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { planSpawn } from '../../../lib/gradle-paths'
+import { killProcessTree } from '../../build/lib/spawn-gradle'
 import type { StaticVariant } from './parse-gradle'
 
 // 回退路径：不修改用户项目，用 --init-script 在配置阶段打印变体名。
@@ -195,21 +196,7 @@ export function probeVariantsViaGradle(options: GradleProbeOptions): Promise<Gra
   })
 }
 
-/** Windows 上 gradlew.bat 会派生 cmd.exe → java.exe，只杀第一层会留下孤儿进程 */
-function killProcessTree(pid: number | undefined): void {
-  if (!pid) {
-    return
-  }
-  if (process.platform === 'win32') {
-    spawn('taskkill', ['/PID', String(pid), '/T', '/F'], { windowsHide: true })
-    return
-  }
-  try {
-    process.kill(-pid, 'SIGKILL')
-  } catch {
-    process.kill(pid, 'SIGKILL')
-  }
-}
+
 
 /** 从探针输出里挑出最有用的失败片段，给用户看的是原因不是整段日志 */
 export function extractFailureHint(stderr: string, stdout: string): string | null {
