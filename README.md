@@ -198,8 +198,8 @@ apps/desktop/src/
 # 2. 提交推送
 pnpm package
 gh release create v0.1.1 `
-  apps/desktop/release/0.1.1/apk-batch-build-0.1.1-setup.exe `
-  apps/desktop/release/0.1.1/apk-batch-build-0.1.1-portable.exe `
+  apps/desktop/release/<版本>/apk-batch-build-<版本>-setup.exe `
+  apps/desktop/release/<版本>/apk-batch-build-<版本>-portable.exe `
   --title "v0.1.1" --notes "..."
 ```
 
