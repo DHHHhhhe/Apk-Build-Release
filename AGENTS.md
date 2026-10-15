@@ -274,3 +274,29 @@ pnpm build                     # 界面改动必做 —— 跑的是产物，不
 - 插代码一律用**单引号 here-string**（`@'...'@`）：不做任何插值，模板字符串原样保留
 - 或者用 write 工具整份重写文件（它不做任何转义处理）
 - 真要拼接变量就用字符串加法（`'把 ' + name + ' 上移'`），不要用模板字符串
+### 界面组件层：新写的界面走 components/ui，别再手写类名
+
+`apps/desktop/src/renderer/src/components/ui/` 是**照参考实现的 API 做的一层组件**（Button / Badge / Dialog），
+但实现走本项目已有的语义类（`btn-*`、`badge`、`.dialog*`），**不引 Tailwind、不引 cva** ——
+这个仓库的样式全在 `styles/components/*.css`，再引一套原子类进来会变成两个真相。
+
+| 组件 | 变体映射 | 备注 |
+| --- | --- | --- |
+| `Button` | `default→btn-primary`、`outline`、`ghost`、`destructive`；`size`: `default/sm/icon` | 透传 `ButtonHTMLAttributes` 与 `ref`（React 19 里 ref 是普通 prop） |
+| `Badge` | `default/success/warning/destructive/info/muted` | 透传 `HTMLAttributes<HTMLSpanElement>` |
+| `Dialog` | — | Esc、点遮罩关闭、**焦点陷阱**、**关闭后焦点归还**都在这里，面板内容由调用方写 |
+
+**新界面一律用它们**：`<Button variant="ghost">` 而不是 `className="btn-ghost"`。
+迁移完成后全项目 `className="btn-*"` 与 `className="badge"` 已清零，别再把它们写回来。
+
+**为什么表单控件（checkbox / switch / select）不迁**：这三类在本项目里已经是原生实现或符合 APG 的写法 ——
+复选框与下拉是原生 `<input type="checkbox">` / `<select>`（配 `<label>`），开关是 `<button role="switch" aria-checked>`（按钮天然支持空格键），
+主题三档是 `role="radiogroup"` + roving tabindex + 方向键。换成 Radix 那套只会多一层包装，无障碍不会更好。
+
+### 脚本化改代码的三条硬规矩
+
+这一轮迁移里，脚本改坏过两次、失败过多次，教训固定下来：
+
+1. **自带回退**：门禁失败就 `git checkout -- .`。脚本化改写必须能在失败时回到干净状态，否则一次参数类型错误就能把十几个文件停在半改状态。
+2. **先在一处验证机制，再跑全量**。`[regex]::Replace($input, $pattern, $replacement, 1)` 的第四个参数是 **RegexOptions 不是替换次数**（传 1 = IgnoreCase，于是全量替换）—— 这个错我犯了两次。
+3. **换行与引号**：PowerShell here-string 在 Windows 上产 CRLF，而被工具编辑过的文件是 LF；匹配前要「三种换行都试」。字符串里写 `\"` 不是转义（PowerShell 用反引号），会直接把脚本解析搞崩。
