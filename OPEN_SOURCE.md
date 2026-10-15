@@ -468,7 +468,6 @@ SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST | SHCNF_FLUSH, NULL, NULL)
 
 另外两条和打包方式有关：
 
-- **便携版没有自动更新**：它每次启动自解压到临时目录、没有安装目录，装更新只会多出一份副本。判据是构建工具给便携版设了环境变量。
 - **CI 发版要覆盖仓库坐标**：用 `--config.publish.owner=<owner> --config.publish.repo=<repo>` 从当前仓库推导，fork 出去也能正常发版，不依赖手改配置文件。
 
 ---

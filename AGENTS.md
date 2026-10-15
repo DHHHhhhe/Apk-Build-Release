@@ -34,13 +34,13 @@ Managed by Trellis. Edits outside this block are preserved; edits inside may be 
 | 主进程或渲染进程代码 | `pnpm build`（或直接 `pnpm start`，它会先构建） | 跑起来的还是上一版 |
 | 影响打包内容的代码 | `pnpm package` 重新出包 | `apps/desktop/release/` 里还是旧产物 |
 
-`pnpm build` 只更新 `apps/desktop/out/`，**不会**动 `release/` 下的安装包与便携版。改动完成后至少核对一次：产物的修改时间要晚于最后一次源码改动。
+`pnpm build` 只更新 `apps/desktop/out/`，**不会**动 `release/` 下的安装包。改动完成后至少核对一次：产物的修改时间要晚于最后一次源码改动。
 
 `out/` 与 `release/` 都不入库，可以随时删了重建：
 
 ```powershell
 pnpm build            # 重建 out/
-pnpm package          # 重建 release/ 下的安装包与便携版
+pnpm package          # 重建 release/ 下的安装包
 ```
 
 ### 脚本必须走 scripts/run.mjs
@@ -170,7 +170,7 @@ pnpm build                     # 界面改动必做 —— 跑的是产物，不
 
 这条**不靠自觉**：保存设置时会向上找 `.git`，落在仓库里直接拒绝并说明原因（`services/settings/lib/output-root-guard.ts`，含「目录还不存在」「盘根」等边界用例）。
 
-### 自动更新：安装版有，便携版没有
+### 自动更新：只有安装版有
 
 已接入 `electron-updater`（安装版专用）：
 
@@ -185,8 +185,7 @@ pnpm build                     # 界面改动必做 —— 跑的是产物，不
 三条容易漏的（**通用做法见 `OPEN_SOURCE.md` 第 4 节**，这里只记本仓库的落点）：
 
 1. `latest.yml` 必须跟着上传 —— 工作流的资产清单里已经有它，别删。
-2. 便携版没有自动更新（`PORTABLE_EXECUTABLE_DIR` 存在即便携版）：它每次启动自解压到临时目录，装更新只会多出一份副本。
-3. 关机时不装更新（`session-end` 守卫）：Windows 会在关机途中掐掉安装程序，留下「旧的卸了、新的没装上」的残局。
+2. 关机时不装更新（`session-end` 守卫）：Windows 会在关机途中掐掉安装程序，留下「旧的卸了、新的没装上」的残局。
 
 发版前检查四件事：版本号比线上大、Release 资产齐全（3 个：`setup.exe` + `setup.exe.blockmap` + `latest.yml`）、`latest.yml` 里的 `version` 与新版本一致、**安装包里** `resources/app-update.yml` 的 `owner`/`repo` 是真实仓库。
 
