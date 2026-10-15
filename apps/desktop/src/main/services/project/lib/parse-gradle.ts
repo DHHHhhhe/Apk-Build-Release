@@ -312,8 +312,53 @@ export function extractFlavorDimensions(source: string): string[] {
   return Array.from(new Set(dimensions))
 }
 
+/**
+ * 去掉注释 —— 但**字符串里的 `//` 不是注释**。
+ *
+ * 这个坑真的踩过：有个项目的 buildConfigField 值是一串 base64，里面恰好出现 `//`，
+ * 而旧实现按正则把 `//` 到行尾整段删掉，于是那行结尾的引号一起消失，引号与花括号的
+ * 配平从那里开始全乱 —— `productFlavors` 块取不出来，界面上就只剩一个假定出来的
+ * `Release` 变体；同目录另一个项目（那串里没有 `//`）一切正常。
+ *
+ * 所以这里按字符走一遍：只有不在字符串里时，`//` 与 `/*` 才算注释。
+ * 顺带把「URL 里的 `://` 要保护」这条老特例也自然覆盖了 —— 那种写法本来就在字符串里。
+ */
 function stripComments(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1')
+  let result = ''
+  let index = 0
+
+  while (index < source.length) {
+    const char = source[index]
+
+    if (char === '"' || char === "'") {
+      const end = skipString(source, index)
+      result += source.slice(index, end + 1)
+      index = end + 1
+      continue
+    }
+
+    if (char === '/' && source[index + 1] === '/') {
+      // 行注释：吃掉到行尾，换行符留着（行号与缩进别跟着乱）
+      while (index < source.length && source[index] !== '\n') {
+        index += 1
+      }
+      continue
+    }
+
+    if (char === '/' && source[index + 1] === '*') {
+      index += 2
+      while (index < source.length && !(source[index] === '*' && source[index + 1] === '/')) {
+        index += 1
+      }
+      index += 2
+      continue
+    }
+
+    result += char
+    index += 1
+  }
+
+  return result
 }
 
 function skipString(source: string, startIndex: number): number {

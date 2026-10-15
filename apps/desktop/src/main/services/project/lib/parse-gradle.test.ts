@@ -2,7 +2,13 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { extractDeclaredNames, extractIncludes, parseProjectStatics } from './parse-gradle'
+import {
+  extractBlockBody,
+  extractDeclaredNames,
+  extractFlavorDimensions,
+  extractIncludes,
+  parseProjectStatics
+} from './parse-gradle'
 
 let workspace: string
 
@@ -166,5 +172,64 @@ describe('parseProjectStatics', () => {
     const result = parseProjectStatics(join(workspace, 'empty-project'))
     expect(result.ok).toBe(false)
     expect(result.limitations[0]).toContain('settings.gradle')
+  })
+
+  /*
+   * 回归：字符串里的 `//` 不是注释。
+   *
+   * 真实事故：某项目 buildConfigField 的值是一串 base64，中间带 `//`，旧实现按正则
+   * 把那行从 `//` 起整段删掉（连结尾引号一起），后面的引号与花括号配平全乱，
+   * `productFlavors` 读不出来 —— 界面上只剩一个假定出来的 Release 变体，
+   * 而同目录另一个项目（那串里没有 `//`）解析正常。
+   */
+  it('字符串里的 // 不会让 flavor 读不出来', () => {
+    const projectPath = makeProject({
+      settings: "include ':app'",
+      appBuild: `
+        plugins { id 'com.android.application' }
+        android {
+          defaultConfig {
+            buildConfigField "String", "SAMPLE_KEY", "AbCd//EfGh=="
+          }
+          productFlavors {
+            demo {
+              dimension "channel"
+              buildConfigField "String", "SAMPLE_SECRET", "xYz//Wvu=="
+            }
+          }
+          flavorDimensions = ["channel"]
+          buildTypes {
+            release { }
+          }
+        }
+      `
+    })
+
+    const result = parseProjectStatics(projectPath)
+    expect(result.flavors).toEqual(['demo'])
+    expect(result.variants.map((variant) => variant.name)).toEqual(['demoRelease'])
+    expect(result.ok).toBe(true)
+  })
+})
+
+describe('静态解析：注释与块边界', () => {
+  it('注释里的花括号不影响块配平', () => {
+    const source = `
+      android {
+        // 行注释，里面有个左花括号 {
+        /* 块注释里也有 { 与 } */
+        productFlavors {
+          demo { dimension "channel" }
+        }
+      }
+    `
+    const block = extractBlockBody(source, /productFlavors\s*\{/)
+    expect(block).not.toBeNull()
+    expect(extractDeclaredNames(block ?? '')).toEqual(['demo'])
+  })
+
+  it('flavorDimensions 的两种写法都读得出来', () => {
+    expect(extractFlavorDimensions('flavorDimensions = ["a", "b"]')).toEqual(['a', 'b'])
+    expect(extractFlavorDimensions('flavorDimensions += "c"')).toEqual(['c'])
   })
 })
