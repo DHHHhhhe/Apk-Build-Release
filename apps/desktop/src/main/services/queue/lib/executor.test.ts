@@ -114,4 +114,45 @@ describe('executeQueueItem 的状态广播', () => {
     expect(states.every((state) => state === 'running' || state === 'failed' || state === 'success')).toBe(true)
     expect(states[0]).toBe('running')
   })
+
+  /**
+   * 这条守的是「快照里的内容对不对」，而不只是「推了没有」。
+   *
+   * 曾经的样子：变体开始时只把 'running' 当参数广播给 BUILD.STATE（详情读参数，显示「构建中」），
+   * 而队列列表订阅的 QUEUE.STATE 快照是从库里读的 —— 库里那行还没写 running，
+   * 于是列表一直显示「排队中」，要等第一个变体出结果才追上。
+   *
+   * 所以断言落在快照的 runs 上：构建期间必须出现过 running。
+   * 不写库的话，快照里永远只有 pending，这条会红。
+   */
+  it('变体开始构建时，queue:state 快照里的该变体已经是 running', async () => {
+    const dir = join(workspace, 'snapshot-variant-state')
+    mkdirSync(dir, { recursive: true })
+    seedProject(
+      'proj-snapshot',
+      '快照示例',
+      dir,
+      [
+        'android {',
+        '  flavorDimensions "channel"',
+        '  productFlavors {',
+        '    demo { dimension "channel" }',
+        '    paid { dimension "channel" }',
+        '  }',
+        '}',
+        ''
+      ].join('\n')
+    )
+    const item = items.createItem('proj-snapshot', ['demoDebug', 'paidDebug'])
+    hoisted.calls.length = 0
+
+    await executor.executeQueueItem(item.id)
+
+    const runStates = hoisted.calls
+      .filter((call) => call.channel === queueStateChannel)
+      .map((call) => call.payload as { item?: { runs?: Array<{ state?: string }> } })
+      .flatMap((payload) => (payload.item?.runs ?? []).map((run) => String(run.state)))
+
+    expect(runStates).toContain('running')
+  })
 })
