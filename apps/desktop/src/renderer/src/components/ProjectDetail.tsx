@@ -218,12 +218,11 @@ export function ProjectDetail({
                     ) : null}
                     {/* 列表里只有 release 时不必逐行重复，说明放在列表上方一次 */}
                     {mixedBuildTypes && variant.buildType === 'release' ? (
-                      <span
-                        className="badge badge--muted"
+                      <Badge variant="muted"
                         title="release 变体通常没有配签名，工具只标注签名状态、不代签"
                       >
                         通常未签名
-                      </span>
+                      </Badge>
                     ) : null}
                   </span>
                 </li>

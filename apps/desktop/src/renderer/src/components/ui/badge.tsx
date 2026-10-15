@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { HTMLAttributes, ReactNode } from 'react'
 
 /**
  * 徽章。
@@ -21,12 +21,17 @@ const VARIANT_CLASS: Record<BadgeVariant, string | null> = {
 export function Badge({
   variant = 'default',
   className,
-  children
-}: {
+  children,
+  ...rest
+}: HTMLAttributes<HTMLSpanElement> & {
   variant?: BadgeVariant
-  className?: string
   children?: ReactNode
 }): React.JSX.Element {
   const classes = ['badge', VARIANT_CLASS[variant], className].filter(Boolean).join(' ')
-  return <span className={classes}>{children}</span>
+  // 原生属性（title / aria-* 等）原样透传：迁移过来的调用点有带 title 的
+  return (
+    <span className={classes} {...rest}>
+      {children}
+    </span>
+  )
 }
