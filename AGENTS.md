@@ -188,7 +188,7 @@ pnpm build                     # 界面改动必做 —— 跑的是产物，不
 2. 便携版没有自动更新（`PORTABLE_EXECUTABLE_DIR` 存在即便携版）：它每次启动自解压到临时目录，装更新只会多出一份副本。
 3. 关机时不装更新（`session-end` 守卫）：Windows 会在关机途中掐掉安装程序，留下「旧的卸了、新的没装上」的残局。
 
-发版前检查四件事：版本号比线上大、Release 资产齐全（4 个：`setup.exe` + `setup.exe.blockmap` + `portable.exe` + `latest.yml`）、`latest.yml` 里的 `version` 与新版本一致、**安装包里** `resources/app-update.yml` 的 `owner`/`repo` 是真实仓库。
+发版前检查四件事：版本号比线上大、Release 资产齐全（3 个：`setup.exe` + `setup.exe.blockmap` + `latest.yml`）、`latest.yml` 里的 `version` 与新版本一致、**安装包里** `resources/app-update.yml` 的 `owner`/`repo` 是真实仓库。
 
 ### 发布说明：只写「这一版改了什么」
 
@@ -263,7 +263,7 @@ pnpm build                     # 界面改动必做 —— 跑的是产物，不
 
 - 本机更新由我自己手动触发：打开应用 → 左下角「检查更新」→「下载 x.y.z」→「重启并安装」。
 - 原因：自动装会在我人不在电脑前的时候把正在用的版本换掉，而我可能正对着旧版排查问题。
-- 汇报要包含这三样：**版本号**、**Release 资产是否齐全**（4 个：setup.exe + setup.exe.blockmap + portable.exe + latest.yml）、**`latest.yml` 是否可访问**。
+- 汇报要包含这三样：**版本号**、**Release 资产是否齐全**（3 个：setup.exe + setup.exe.blockmap + latest.yml）、**`latest.yml` 是否可访问**。
 - 同一条道理：为了验证而在我这台机器上**安装或卸载**应用，也要先问一句再做。
 
 ### 往 TS/JSX 里插代码：不要用双引号 here-string

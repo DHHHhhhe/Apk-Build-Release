@@ -43,7 +43,7 @@
 | 构建日志 | 实时流到界面，可过滤关键字、只看报错；完整日志落盘，一键打开 |
 | 取消 / 重试 / 清空 | 取消会杀掉整棵 Gradle 进程树，不留孤儿 `java.exe` |
 | 构建完成通知 | 跑长构建时可以切走 |
-| 自动更新（安装版） | 启动后自动查一次 GitHub Releases，发现新版本时右下角出现提示，可看更新内容、下载、重启并安装；手动检查的结果也从右下角通知返回。入口在侧栏左下角的版本行；**便携版不参与**自动更新 |
+| 自动更新（安装版） | 启动后自动查一次 GitHub Releases，发现新版本时右下角出现提示，可看更新内容、下载、重启并安装；手动检查的结果也从右下角通知返回。入口在侧栏左下角的版本行 |
 
 ## 快速开始
 
@@ -54,9 +54,9 @@
 | 包 | 适合 | 说明 |
 | --- | --- | --- |
 | `apk-batch-build-<版本>-setup.exe` | 长期用 | 安装版，安装路径可以自己选；开始菜单与桌面有快捷方式 |
-| `apk-batch-build-<版本>-portable.exe` | 免安装 | 便携版，双击即用，每次启动自解压到 `%TEMP%\apk-batch-build` |
 
-> 安装版的后续更新由应用自己完成（启动后自动查一次）；**便携版没有自动更新**，换版本要重新下载。自动更新下来的新版本同样会被 SmartScreen 拦一次 —— 这是没有代码签名证书的代价，不是文件损坏。
+
+> 后续更新由应用自己完成（启动后自动查一次）。自动更新下来的新版本同样会被 SmartScreen 拦一次 —— 这是没有代码签名证书的代价，不是文件损坏。
 
 > 第一次打开会被 Windows SmartScreen 拦一下（没有代码签名证书，发布者显示为「未知发布者」）。点「更多信息」→「仍要运行」即可，不是文件损坏。
 
@@ -165,7 +165,7 @@ pnpm dev              # 开发模式：Vite 服务 + Electron，热更新
 pnpm start            # 先 build 再启动（等价于 pnpm preview）
 pnpm test             # 单元与集成测试
 pnpm typecheck        # 类型检查
-pnpm package          # 打 Windows 安装包与便携版，产物在 apps/desktop/release
+pnpm package          # 打 Windows 安装包，产物在 apps/desktop/release
 ```
 
 需要 Node.js ≥ 20 与 pnpm ≥ 9。
@@ -210,7 +210,7 @@ pnpm package
 gh release create v<版本> `
   apps/desktop/release/<版本>/apk-batch-build-<版本>-setup.exe `
   apps/desktop/release/<版本>/apk-batch-build-<版本>-setup.exe.blockmap `
-  apps/desktop/release/<版本>/apk-batch-build-<版本>-portable.exe `
+
   apps/desktop/release/<版本>/latest.yml `
   --title "v<版本>" --notes "..."
 ```
