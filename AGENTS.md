@@ -382,3 +382,34 @@ await win.loadURL(url + '?theme=dark&t=' + Date.now())   // 时间戳穿透缓�
 更根本的是：`schema.ts` 里项目相关的外键全是 `onDelete: 'cascade'`，**删项目会连队列项一起删掉**，所以「队列项还在、项目没了」这个状态根本构造不出来。执行器里那句 `项目已经被移除了` 是**防御性分支，实践中不可达**。
 
 **判据**：断言莫名其妙不成立时，先怀疑前一行的造数被数据库拒绝了（尤其是带外键的插入），再看断言本身。
+### 可以定期跑的几个自查（都是纯文本扫描，不用装工具）
+
+这些是排查时反复用到的，留成命令免得下次重写。**判断类的检查要打印实际内容再看结论**（见上一节）。
+
+**死样式**：CSS 里定义了、源码里一次都没出现的类。
+
+```powershell
+# 列出 styles/ 里定义的类名，逐个在源码中找（不带 -SimpleMatch，避免把 | 当字面量）
+$defined = @{}
+Get-ChildItem src/renderer/src/styles -Recurse -Include *.css | ForEach-Object {
+  foreach ($m in [regex]::Matches((Get-Content $_.FullName -Raw), '(?<![\w-])\.([a-zA-Z][\w-]*)')) { $defined[$m.Groups[1].Value] = $true }
+}
+$src = (Get-ChildItem src -Recurse -Include *.tsx,*.ts | Where-Object { $_.FullName -notmatch '\\styles\\' } | ForEach-Object { Get-Content $_.FullName -Raw }) -join "`n"
+$defined.Keys | Where-Object { $src -notmatch "(?<![\w-])$([regex]::Escape($_))(?![\w-])" } | Sort-Object
+```
+
+两条坑：`var(--shadow-card)` 里的变量名会被当成类名（判据要带词边界）；`className={` + '`' + `badge badge--${x}` + '`' + `}` 这类**拼接出来的类名扫描器看不见**，删之前要确认前缀也没被拼接过。
+
+**重复实现**：同名函数被定义多次。
+
+```powershell
+Get-ChildItem src -Recurse -Include *.ts,*.tsx | Where-Object { $_.FullName -notmatch '\.test\.' } |
+  Select-String -Pattern '^\s*(?:export )?(?:async )?function ([A-Za-z_][\w]*)\s*\(' -AllMatches |
+  ForEach-Object { $_.Matches[0].Groups[1].Value } | Group-Object | Where-Object { $_.Count -gt 1 }
+```
+
+**双语 README 结构**：标题层级、表格行数、代码块数、总行数四项对照。数字对不上就是一边改了另一边没改 —— 实测一次抓出三处（含一段被我改坏的命令）。
+
+**配色对比度**：WCAG 判定**不四舍五入**（4.49 不算过）。半透明底（如徽章的 `color-mix(… 10%, transparent)`）要先和它下面的表面混合再算。当前最紧的三处：浅色次要文字 4.72、浅色 `badge--warning` 4.64、深色 `badge--muted` 4.57 —— 都在 4.5 线上一点，调淡任何一个都会掉出去。
+
+**同一个数字散落在多处**：改一处漏一处是常态（资产数量在 5 个文件里出现过）。改这类数字时用 `Select-String` 把所有出现点一次列出来，逐个改完再复核。
