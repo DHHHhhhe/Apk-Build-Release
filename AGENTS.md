@@ -43,6 +43,28 @@ pnpm build            # 重建 out/
 pnpm package          # 重建 release/ 下的安装包
 ```
 
+### 本机没装 pnpm：用 `corepack pnpm`
+
+**这台机器的 PowerShell 里 `pnpm` 不在 PATH，而且哪都没装** —— 实测
+`%APPDATA%\npm`、`C:\Program Files\nodejs`、DSH 安装目录下都没有 `pnpm.cmd`。
+但 `node` / `npm` / `npx` / `corepack` 都在 PATH（Node 24，装在 `C:\Program Files\nodejs`），
+而且 `corepack pnpm --version` 直接可用（11.8.0，与 `package.json` 的 `packageManager` 一致）。
+
+所以命令行里一律用：
+
+```powershell
+corepack pnpm package      # 而不是 pnpm package
+corepack pnpm dev
+corepack pnpm test
+```
+
+想让 `pnpm` 直接可用，两条路（都要自己动手，别替用户装东西）：
+
+| 做法 | 命令 | 要不要管理员 |
+| --- | --- | --- |
+| 装到用户目录 | `npm install -g pnpm@11.8.0` | 不用 |
+| 用 corepack 开 shim | `corepack enable pnpm` | 要（写 `C:\Program Files\nodejs`） |
+
 ### 脚本必须走 scripts/run.mjs
 
 本机的 pnpm 由 DSH Desktop（Electron）以 `ELECTRON_RUN_AS_NODE=1` 的身份驱动，直接跑 `electron-vite` 会让 Electron 退化成纯 Node、`electron.app` 为 undefined。
