@@ -80,6 +80,28 @@
   background: var(--sidebar-accent);
 }
 
+/* 拖拽手柄：只是「这一行可以拖」的视觉引导，不接事件 */
+.project-list__grip {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding-left: 4px;
+  color: var(--muted-foreground);
+  opacity: 0.45;
+  cursor: grab;
+  transition: opacity var(--duration-fast) ease;
+}
+
+/* 悬停时加深：平时不抢注意力，要拖的时候看得见 */
+.project-list__item:hover .project-list__grip {
+  opacity: 1;
+}
+
+.project-list__item--lifted .project-list__grip {
+  cursor: grabbing;
+  opacity: 1;
+}
+
 .project-list__select {
   flex: 1 1 auto;
   min-width: 0;

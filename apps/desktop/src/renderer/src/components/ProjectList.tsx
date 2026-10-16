@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { FolderPlus, Trash2 } from 'lucide-react'
+import { FolderPlus, GripVertical, Trash2 } from 'lucide-react'
 import { indexForPointer, moveItemTo } from '../lib/reorder'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
@@ -374,6 +374,14 @@ export function ProjectList({
                     event.preventDefault()
                   }}
                 >
+                  {/*
+                   * 可拖拽的视觉引导：它本身不接事件（热区是整行，与「长按列表项拾起」一致），
+                   * 对读屏用户是装饰（键盘走的是下面那对 ↑↓ 按钮，WCAG 2.5.7）。
+                   */}
+                  <span className="project-list__grip" aria-hidden="true">
+                    <GripVertical size={14} />
+                  </span>
+
                   <button
                     type="button"
                     className="project-list__select"
