@@ -189,6 +189,25 @@ pnpm build                     # 界面改动必做 —— 跑的是产物，不
 
 发版前检查四件事：版本号比线上大、Release 资产齐全（3 个：`setup.exe` + `setup.exe.blockmap` + `latest.yml`）、`latest.yml` 里的 `version` 与新版本一致、**安装包里** `resources/app-update.yml` 的 `owner`/`repo` 是真实仓库。
 
+### 发版后核对：查 Release，别查 `gh run list`
+
+**`gh run list` 在这台机器上基本每次都失败**（访问 GitHub API 不稳），
+而按「14 次 × 30 秒」的写法轮询它，等于**每次都把 7 分钟烧完**再去查真正有信息的那个接口。
+实测连续几次发版都是这样：轮询全失败 → 超时 → 换成查 Release → **秒回**。
+
+**Release 存在本身就证明 CI 成功了** —— 工作流失败不会建 Release。所以：
+
+```powershell
+# 只等 Release 出现，短间隔，预算按 CI 的已知耗时（约 3.5 分钟）给
+for ($i = 1; $i -le 20; $i++) {
+  gh release view "v$v" --json assets 2>$null | Out-Null
+  if ($LASTEXITCODE -eq 0) { break }      # 一出现就返回
+  Start-Sleep -Seconds 15
+}
+```
+
+CI 要跑多久是它的事，省不掉；**能省掉的是「明知会失败还轮询 7 分钟」**。
+
 ### 发布说明：只写「这一版改了什么」
 
 `apps/desktop/build/release-notes.md` 是三个面向用户的地方的共同来源：GitHub Release 正文、客户端「更新内容」（经 `latest.yml` 的 `releaseInfo.releaseNotesFile`）、以及 CHANGELOG（由 `pnpm changelog` 追加）。
