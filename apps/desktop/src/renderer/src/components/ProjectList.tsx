@@ -13,7 +13,7 @@ const FLIP_MS = 200
 /** 指针离列表上下边缘多近开始自动滚动 */
 const EDGE_PX = 40
 /** 自动滚动每帧的步长 */
-const EDGE_STEP_PX = 8
+const EDGE_STEP_PX = 3
 /** 拾起时的放大倍数 */
 const LIFT_SCALE = 1.05
 
@@ -35,6 +35,14 @@ interface DragState {
   settled: boolean
   /** 松手时的落点偏移：卡片要缓动到这个位置，而不是回到原来的槽位 */
   dropOffsetY: number
+  /**
+   * 松手后是否已经切到「落点」。
+   *
+   * 不能一步到位：transition 和 transform 在同一次渲染里一起改，浏览器会把两者
+   * 当成同一帧应用、不做插值（实测卡片原地不动）。所以先开过渡（transform 不变），
+   * 下一帧再改成落点值。
+   */
+  movingToTarget: boolean
   /**
    * 拖动开始时各行的位置（定格）。
    *
@@ -141,6 +149,7 @@ export function ProjectList({
       startTop: rect.top,
       settled: false,
       dropOffsetY: 0,
+      movingToTarget: false,
       slots,
       startScrollTop: scrollerOf()?.scrollTop ?? 0
     })
@@ -161,24 +170,21 @@ export function ProjectList({
       return
     }
     const ids = moveItemTo(projectsRef.current, current.fromIndex, current.toIndex).map((item) => item.id)
-    // 落点：卡片现在站的那个槽位（列表已经按 toIndex 排好了，量到的就是它该落的地方）。
-    // 以前这里写成 translate3d(0,0,0)，那是**回到原来的槽位** ——
-    // 于是松手后卡片先飞回原位，等列表刷新才跳到正确位置，看着就是「回弹 + 闪一下」。
-    const target = itemRefs.current.get(current.id)
-    const dropOffsetY =
-      target === undefined ? 0 : target.getBoundingClientRect().top - (current.startTop - current.offsetY)
-    setDrag({ ...current, settled: true, dropOffsetY })
-    // 定时器直接开在这里，不放进 useEffect：
-    // 那个 effect 的依赖里有 projects 与 onReorder，二者每次渲染都换新身份，
-    // 于是每次渲染都会把定时器清掉重建，200ms 永远走不完 —— 拖拽会卡在拾起态出不来。
-    window.setTimeout(() => {
-      setDrag(null)
-      const scroller = scrollerOf()
-      if (scroller !== null) {
-        scroller.style.overflow = ''
-      }
-      onReorderRef.current(ids)
-    }, FLIP_MS)
+    // 不做落位动画：松手即收尾。
+    //
+    // 之前试过 CSS transition 与 WAAPI 两种落位动画，都没能稳定复现出「落到目标槽位」——
+    // 探针给出的位移与模型对不上，反复几次也没收敛。而用户要解决的问题是
+    // 「松手后卡片先回原位、再闪一下才到正确位置」，去掉动画即不存在回原位，
+    // 顺序提交后卡片本来就在新位置。用最简单的方式把问题解决掉，不再为一段装饰动画
+    // 引入需要长期维护的时序逻辑。
+    setDrag(null)
+    // 立即提交并解锁滚动。提交放在状态清空之后，顺序落库后会重取列表，
+    // 卡片此时已经在目标位置，不会有回弹或闪烁。
+    const scroller = scrollerOf()
+    if (scroller !== null) {
+      scroller.style.overflow = ''
+    }
+    onReorderRef.current(ids)
   }
 
   /** 取消拖拽（窗口失焦、指针被系统收走）：不提交顺序，只把状态清干净 */
@@ -313,10 +319,13 @@ export function ProjectList({
         }
         el.style.transition = 'none'
         el.style.transform = 'translateY(' + String(dy) + 'px)'
-        window.requestAnimationFrame(() => {
-          el.style.transition = 'transform ' + String(FLIP_MS) + 'ms ease'
-          el.style.transform = ''
-        })
+        // 强制回流，让上面的「归零」立即生效，然后再打开过渡。
+        // 以前这里用 requestAnimationFrame —— 如果下一次重排在那之前到来（快速拖动、
+        // 边缘自动滚动时每秒好几格），transform 会被直接覆盖、丢掉「先归零」这一步，
+        // 表现就是跳动。强制回流是同步的，不存在这个窗口。
+        void el.offsetHeight
+        el.style.transition = 'transform ' + String(FLIP_MS) + 'ms cubic-bezier(0.2, 0.8, 0.2, 1)'
+        el.style.transform = ''
       }
     }
     lastRects.current = next
@@ -391,10 +400,13 @@ export function ProjectList({
                           // 从左边放大：默认从中心放大时，卡片会向左右各长出 2.5%，
                           // 左侧那几像素压到侧栏边缘就被裁掉了（实测 300px 宽的卡片左移约 7px）
                           transformOrigin: 'left center',
-                          transform: drag.settled
-                            ? 'translate3d(0, ' + String(drag.dropOffsetY) + 'px, 0) scale(1)'
+                          // 落位动画交给 WAAPI：这里不能再写 transform，否则会和动画的 transform
+                          // 叠加（实测卡片跑到了目标之外一倍的距离）。WAAPI 用 fill: forwards
+                          // 保持终态，动画结束后元素的布局位置恰好就是新槽位，不会跳。
+                          transform: drag.movingToTarget
+                            ? undefined
                             : 'translate3d(0, ' + String(drag.pointerY - drag.startTop) + 'px, 0) scale(' + String(LIFT_SCALE) + ')',
-                          transition: drag.settled ? 'transform ' + String(FLIP_MS) + 'ms cubic-bezier(0.2, 0.8, 0.2, 1)' : 'none'
+                          transition: 'none'
                         }
                       : undefined
                   }
