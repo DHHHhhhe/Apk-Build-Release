@@ -27,6 +27,8 @@ interface DragState {
   offsetY: number
   width: number
   height: number
+  /** 拾起那一刻该项的水平位置：浮动时保持不动，否则会贴到视口左边缘被遮住 */
+  startLeft: number
   /** 拾起那一刻该项的视口顶部，落位动画从这里开始 */
   startTop: number
   /** 已松手、正在做落位动画 */
@@ -118,6 +120,7 @@ export function ProjectList({
       offsetY: startY - rect.top,
       width: rect.width,
       height: rect.height,
+      startLeft: rect.left,
       startTop: rect.top,
       settled: false,
       slots,
@@ -244,7 +247,10 @@ export function ProjectList({
     }
   }, [drag])
 
-  // FLIP：顺序变化后，其余项先从旧位置「倒回」再缓动到新位置，看着是让位而不是跳
+  // FLIP 只在顺序真的变化时跑。
+  // 以前这个 useLayoutEffect 没有依赖 —— 指针每动一下（每秒上百次）都会把所有行重新量一遍、
+  // 强制一次布局，那就是「拖动中抖动」的来源。
+  const orderKey = ordered.map((project) => project.id).join(',')
   useLayoutEffect(() => {
     const next = new Map<string, DOMRect>()
     for (const [id, el] of itemRefs.current) {
@@ -273,7 +279,9 @@ export function ProjectList({
       }
     }
     lastRects.current = next
-  })
+    // 只在顺序变化时重跑；drag 从 ref 读，避免把它写进依赖
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderKey])
 
   /** 把某个项目往前/往后挪一位，然后整份顺序交出去 */
   const move = (projectId: string, delta: -1 | 1): void => {
@@ -335,10 +343,13 @@ export function ProjectList({
                           // 全程用 transform 定位：top 每帧都会触发一次布局，transform 只走合成层，
                           // 跟手明显更顺；落位动画也就成了同一条属性的过渡，不必换写法
                           position: 'fixed',
-                          left: 0,
+                          left: drag.startLeft,
                           top: drag.startTop - drag.offsetY,
                           width: drag.width,
                           willChange: 'transform',
+                          // 从左边放大：默认从中心放大时，卡片会向左右各长出 2.5%，
+                          // 左侧那几像素压到侧栏边缘就被裁掉了（实测 300px 宽的卡片左移约 7px）
+                          transformOrigin: 'left center',
                           transform: drag.settled
                             ? 'translate3d(0, 0, 0) scale(1)'
                             : 'translate3d(0, ' + String(drag.pointerY - drag.startTop) + 'px, 0) scale(' + String(LIFT_SCALE) + ')',
@@ -364,24 +375,30 @@ export function ProjectList({
                       if (event.pointerType === 'mouse' && event.button !== 0) {
                         return
                       }
-                      pending.current = { id: project.id, startY: event.clientY, fromIndex: index }
+                      const id = project.id
+                      const fromIndex = index
+                      const startY = event.clientY
+                      pending.current = { id, startY, fromIndex }
                       clearLongPress()
                       longPressTimer.current = window.setTimeout(() => {
                         const held = pending.current
-                        if (held !== null && held.id === project.id) {
-                          lift(project.id, held.fromIndex, held.startY)
+                        if (held !== null && held.id === id) {
+                          lift(id, held.fromIndex, held.startY)
                         }
                       }, LONG_PRESS_MS)
-                    }}
-                    onPointerUp={() => {
-                      clearLongPress()
-                      pending.current = null
-                    }}
-                    onPointerLeave={() => {
-                      if (drag === null) {
+                      // 只认「松开」才算取消。
+                      // 以前在手柄上挂了 pointerleave —— 手指一动就离开手柄、计时器被清掉，
+                      // 于是「长按的同时开始移动」永远触发不了。手柄上有 touch-action: none，
+                      // 不会误触发滚动，所以按住期间的移动可以放心不管。
+                      // 挂在 window 上是因为手指可能已经移出手柄，手柄上的 pointerup 收不到。
+                      const cancel = (): void => {
                         clearLongPress()
-                        pending.current = null
+                        if (dragRef.current === null) {
+                          pending.current = null
+                        }
+                        window.removeEventListener('pointerup', cancel)
                       }
+                      window.addEventListener('pointerup', cancel, { once: true })
                     }}
                   >
                     <GripVertical size={14} />
