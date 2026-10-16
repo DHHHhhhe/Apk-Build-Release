@@ -31,6 +31,15 @@ interface DragState {
   startTop: number
   /** 已松手、正在做落位动画 */
   settled: boolean
+  /**
+   * 拖动开始时各行的位置（定格）。
+   *
+   * 不在 onMove 里现量：那一刻各行正在做让位动画，中点每帧都在漂，
+   * 算出来的落点会在两档之间来回跳，列表跟着反复重排 —— 就是「跳动很大」的来源。
+   */
+  slots: Array<{ id: string; top: number; height: number }>
+  /** 拖动开始时的滚动位置，用于补偿拖动过程中的滚动 */
+  startScrollTop: number
 }
 
 export function ProjectList({
@@ -68,6 +77,12 @@ export function ProjectList({
   // 拖动中的顺序：被拖的项已经站到落点上，其余项据此让位
   const ordered = drag === null ? projects : moveItemTo(projects, drag.fromIndex, drag.toIndex)
 
+  /** 列表所在的滚动容器：边缘自动滚动与滚动补偿都用它 */
+  const scrollerOf = (): HTMLElement | null => {
+    const found = listRef.current?.closest('.app-sidebar__scroll')
+    return found instanceof HTMLElement ? found : null
+  }
+
   const clearLongPress = (): void => {
     if (longPressTimer.current !== null) {
       window.clearTimeout(longPressTimer.current)
@@ -82,6 +97,12 @@ export function ProjectList({
       return
     }
     const rect = el.getBoundingClientRect()
+    // 定格各行的位置：后续落点判断都基于这一份，不再受让位动画影响
+    const slots: Array<{ id: string; top: number; height: number }> = []
+    for (const [id, node] of itemRefs.current) {
+      const box = node.getBoundingClientRect()
+      slots.push({ id, top: box.top, height: box.height })
+    }
     setDrag({
       id: projectId,
       fromIndex,
@@ -91,7 +112,9 @@ export function ProjectList({
       width: rect.width,
       height: rect.height,
       startTop: rect.top,
-      settled: false
+      settled: false,
+      slots,
+      startScrollTop: scrollerOf()?.scrollTop ?? 0
     })
     // 进拖拽态后禁掉页面滚动，否则手指一动整页跟着跑
     document.body.style.overflow = 'hidden'
@@ -112,20 +135,18 @@ export function ProjectList({
         if (current === null || current.settled) {
           return current
         }
-        const list = listRef.current
-        if (list === null) {
-          return current
-        }
-        // 落点：按当前渲染顺序各行的中点判断指针越过了哪几项
-        const mids: number[] = []
-        for (const project of moveItemTo(projects, current.fromIndex, current.toIndex)) {
-          const el = itemRefs.current.get(project.id)
-          if (el !== undefined && project.id !== current.id) {
-            const rect = el.getBoundingClientRect()
-            mids.push(rect.top + rect.height / 2)
-          }
-        }
+        // 落点用**拖动开始时定格**的各行中点判断，不看当前动画中的位置：
+        // 现量的话中点每帧都在漂，落点会在两档之间来回跳。
+        // 滚动会让定格坐标与视口错位，用滚动差量补偿回来。
+        const scrolled = (scrollerOf()?.scrollTop ?? 0) - current.startScrollTop
+        const mids = current.slots
+          .filter((slot) => slot.id !== current.id)
+          .map((slot) => slot.top - scrolled + slot.height / 2)
         const toIndex = indexForPointer(mids, event.clientY)
+        if (toIndex === current.toIndex) {
+          // 落点没变就只更新指针位置，不触发重排
+          return current.pointerY === event.clientY ? current : { ...current, pointerY: event.clientY }
+        }
         return { ...current, pointerY: event.clientY, toIndex }
       })
     }
@@ -288,12 +309,17 @@ export function ProjectList({
                   style={
                     dragging
                       ? {
+                          // 全程用 transform 定位：top 每帧都会触发一次布局，transform 只走合成层，
+                          // 跟手明显更顺；落位动画也就成了同一条属性的过渡，不必换写法
                           position: 'fixed',
                           left: 0,
-                          top: drag.settled ? undefined : drag.pointerY - drag.offsetY,
+                          top: drag.startTop - drag.offsetY,
                           width: drag.width,
-                          transform: drag.settled ? 'translateY(' + String(drag.startTop - drag.offsetY) + 'px) scale(1)' : 'scale(' + String(LIFT_SCALE) + ')',
-                          transition: drag.settled ? 'transform ' + String(FLIP_MS) + 'ms ease' : 'none'
+                          willChange: 'transform',
+                          transform: drag.settled
+                            ? 'translate3d(0, 0, 0) scale(1)'
+                            : 'translate3d(0, ' + String(drag.pointerY - drag.startTop) + 'px, 0) scale(' + String(LIFT_SCALE) + ')',
+                          transition: drag.settled ? 'transform ' + String(FLIP_MS) + 'ms cubic-bezier(0.2, 0.8, 0.2, 1)' : 'none'
                         }
                       : undefined
                   }
