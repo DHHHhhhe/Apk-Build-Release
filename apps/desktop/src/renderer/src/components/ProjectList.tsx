@@ -346,39 +346,44 @@ export function ProjectList({
                         }
                       : undefined
                   }
-                  onPointerDown={(event) => {
-                    if (event.pointerType === 'mouse' && event.button !== 0) {
-                      return
-                    }
-                    pending.current = { id: project.id, startY: event.clientY, fromIndex: index }
-                    clearLongPress()
-                    longPressTimer.current = window.setTimeout(() => {
-                      const held = pending.current
-                      if (held !== null && held.id === project.id) {
-                        lift(project.id, held.fromIndex, held.startY)
-                      }
-                    }, LONG_PRESS_MS)
-                  }}
-                  onPointerUp={() => {
-                    clearLongPress()
-                    pending.current = null
-                  }}
-                  onPointerLeave={() => {
-                    // 只清长按计时：拾起之后手指移出行也要继续跟，由 window 上的监听接手
-                    if (drag === null) {
-                      clearLongPress()
-                      pending.current = null
-                    }
-                  }}
-                  onContextMenu={(event) => {
-                    event.preventDefault()
-                  }}
+
                 >
                   {/*
-                   * 可拖拽的视觉引导：它本身不接事件（热区是整行，与「长按列表项拾起」一致），
-                   * 对读屏用户是装饰（键盘走的是下面那对 ↑↓ 按钮，WCAG 2.5.7）。
+                   * 拖拽的唯一热区。
+                   *
+                   * 原来热区是整行，结果用户想选文字时长按就触发了拖拽（实测：三个项目名与徽章
+                   * 都是蓝色选中态，说明当时正在选文字）。把拖拽收敛到手柄上，行内其余部分
+                   * 仍可点选、文字仍可选中 —— 两个动作分开。
+                   * 对读屏用户是装饰：键盘走下面那对 ↑↓ 按钮（WCAG 2.5.7）。
                    */}
-                  <span className="project-list__grip" aria-hidden="true">
+                  <span
+                    className="project-list__grip"
+                    aria-hidden="true"
+                    title="按住拖动可调整顺序"
+                    onPointerDown={(event) => {
+                      if (event.pointerType === 'mouse' && event.button !== 0) {
+                        return
+                      }
+                      pending.current = { id: project.id, startY: event.clientY, fromIndex: index }
+                      clearLongPress()
+                      longPressTimer.current = window.setTimeout(() => {
+                        const held = pending.current
+                        if (held !== null && held.id === project.id) {
+                          lift(project.id, held.fromIndex, held.startY)
+                        }
+                      }, LONG_PRESS_MS)
+                    }}
+                    onPointerUp={() => {
+                      clearLongPress()
+                      pending.current = null
+                    }}
+                    onPointerLeave={() => {
+                      if (drag === null) {
+                        clearLongPress()
+                        pending.current = null
+                      }
+                    }}
+                  >
                     <GripVertical size={14} />
                   </span>
 

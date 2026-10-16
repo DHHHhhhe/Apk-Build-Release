@@ -80,16 +80,26 @@
   background: var(--sidebar-accent);
 }
 
-/* 拖拽手柄：只是「这一行可以拖」的视觉引导，不接事件 */
+/*
+ * 拖拽手柄：唯一热区。
+ * padding 让触摸目标达到 24×24（规范要求），touch-action 禁掉手势滚动，
+ * user-select 禁掉在手柄上起文字选择 —— 否则长按会被浏览器当成选字。
+ */
 .project-list__grip {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  padding-left: 4px;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-left: 2px;
+  border-radius: var(--radius-sm);
   color: var(--muted-foreground);
   opacity: 0.45;
   cursor: grab;
-  transition: opacity var(--duration-fast) ease;
+  touch-action: none;
+  user-select: none;
+  transition: opacity var(--duration-fast) ease, background-color var(--duration-fast) ease;
 }
 
 /* 悬停时加深：平时不抢注意力，要拖的时候看得见 */
