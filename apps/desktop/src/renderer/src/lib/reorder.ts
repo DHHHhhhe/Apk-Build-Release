@@ -24,10 +24,10 @@ export function moveItemTo<T>(items: T[], fromIndex: number, toIndex: number): T
  * 判据是「指针越过了哪几项的中点」—— 越过第 i 项中点就该排到它后面。
  * 用中点而不是项边界：停在两项的缝隙上时，用边界判会反复跨过、列表来回闪。
  */
-export function indexForPointer(midpoints: number[], pointerY: number): number {
+export function indexForPointer(midpoints: number[], pointerY: number, margin = 0): number {
   let index = 0
   for (const mid of midpoints) {
-    if (pointerY > mid) {
+    if (pointerY > mid + margin) {
       index += 1
     }
   }

@@ -33,6 +33,8 @@ interface DragState {
   startTop: number
   /** 已松手、正在做落位动画 */
   settled: boolean
+  /** 松手时的落点偏移：卡片要缓动到这个位置，而不是回到原来的槽位 */
+  dropOffsetY: number
   /**
    * 拖动开始时各行的位置（定格）。
    *
@@ -138,6 +140,7 @@ export function ProjectList({
       startLeft: rect.left,
       startTop: rect.top,
       settled: false,
+      dropOffsetY: 0,
       slots,
       startScrollTop: scrollerOf()?.scrollTop ?? 0
     })
@@ -158,7 +161,13 @@ export function ProjectList({
       return
     }
     const ids = moveItemTo(projectsRef.current, current.fromIndex, current.toIndex).map((item) => item.id)
-    setDrag({ ...current, settled: true })
+    // 落点：卡片现在站的那个槽位（列表已经按 toIndex 排好了，量到的就是它该落的地方）。
+    // 以前这里写成 translate3d(0,0,0)，那是**回到原来的槽位** ——
+    // 于是松手后卡片先飞回原位，等列表刷新才跳到正确位置，看着就是「回弹 + 闪一下」。
+    const target = itemRefs.current.get(current.id)
+    const dropOffsetY =
+      target === undefined ? 0 : target.getBoundingClientRect().top - (current.startTop - current.offsetY)
+    setDrag({ ...current, settled: true, dropOffsetY })
     // 定时器直接开在这里，不放进 useEffect：
     // 那个 effect 的依赖里有 projects 与 onReorder，二者每次渲染都换新身份，
     // 于是每次渲染都会把定时器清掉重建，200ms 永远走不完 —— 拖拽会卡在拾起态出不来。
@@ -201,7 +210,8 @@ export function ProjectList({
         const mids = current.slots
           .filter((slot) => slot.id !== current.id)
           .map((slot) => slot.top - scrolled + slot.height / 2)
-        const toIndex = indexForPointer(mids, event.clientY)
+        // 迟滞 8px：快速上下移动时，指针在分界线上来回蹭不会让落点反复切换
+        const toIndex = indexForPointer(mids, event.clientY, 8)
         if (toIndex === current.toIndex) {
           // 落点没变就只更新指针位置，不触发重排
           return current.pointerY === event.clientY ? current : { ...current, pointerY: event.clientY }
@@ -382,7 +392,7 @@ export function ProjectList({
                           // 左侧那几像素压到侧栏边缘就被裁掉了（实测 300px 宽的卡片左移约 7px）
                           transformOrigin: 'left center',
                           transform: drag.settled
-                            ? 'translate3d(0, 0, 0) scale(1)'
+                            ? 'translate3d(0, ' + String(drag.dropOffsetY) + 'px, 0) scale(1)'
                             : 'translate3d(0, ' + String(drag.pointerY - drag.startTop) + 'px, 0) scale(' + String(LIFT_SCALE) + ')',
                           transition: drag.settled ? 'transform ' + String(FLIP_MS) + 'ms cubic-bezier(0.2, 0.8, 0.2, 1)' : 'none'
                         }

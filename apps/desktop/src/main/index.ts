@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, shell } from 'electron'
+import { app, BrowserWindow, Menu, dialog, shell } from 'electron'
 import { join } from 'node:path'
 import { ensureSchema } from './db/client'
 import { setupIpcHandlers } from './ipc'
@@ -14,12 +14,20 @@ let quitConfirmed = false
 
 // 渲染进程只做界面，所有 IO 与进程操作留在主进程（design.md §2）
 function createWindow(): void {
+  // 去掉应用菜单栏。
+  // autoHideMenuBar 只让菜单栏自动隐藏，按一下 Alt 仍会把它唤出来 ——
+  // 而 Alt 是常用修饰键，在应用里按到就会弹出 File / Edit 那一栏，很突兀。
+  // 传 null 会抑制默认菜单；Windows 上这会连菜单栏一起移除，Alt 也就没东西可聚焦了。
+  Menu.setApplicationMenu(null)
+
   const win = new BrowserWindow({
     width: 1280,
     height: 800,
     minWidth: 1024,
     minHeight: 680,
     show: false,
+    // autoHideMenuBar 只是「自动隐藏」—— 文档写明用户仍可按 Alt 唤出菜单栏。
+    // 真正去掉它要 Menu.setApplicationMenu(null)（见 createWindow 开头）。
     autoHideMenuBar: true,
     // 跟随主题的窗口底色：Chromium 在首帧之前画的就是它，深色下给白色会闪一下
     backgroundColor: currentBackgroundColor(),
