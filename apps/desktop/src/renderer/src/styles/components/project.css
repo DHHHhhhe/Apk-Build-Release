@@ -34,7 +34,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
 }
 
 /* 拖拽排序的三段视觉：原位占位块、被拾起的那一项、以及承载它们的槽 */
@@ -50,7 +50,7 @@
 /* 原位占位：半透明 + 虚线，示意松手后会落在哪儿 */
 .project-list__placeholder {
   border-radius: var(--radius-md);
-  background: color-mix(in oklab, var(--foreground) 8%, transparent);
+  background: color-mix(in oklab, var(--foreground) 6%, transparent);
   border: 1px dashed color-mix(in oklab, var(--foreground) 22%, transparent);
 }
 
@@ -63,17 +63,28 @@
   pointer-events: none;
 }
 
+/*
+ * 每行都是一张卡片：常显底色 + hairline 边框。
+ *
+ * 为什么不加阴影：DESIGN.md 明确「不要给非浮层元素加阴影」，贴面用底色与边框表达层级，
+ * 阴影留给浮层（被拾起的那张卡用 --shadow-float）。深色下 --card 与侧栏底色相同，
+ * 靠 8% 白的边框定义边界。
+ */
 .project-list__item {
   display: flex;
   align-items: center;
   gap: 4px;
   border-radius: var(--radius-md);
+  background: var(--card);
+  border: 1px solid var(--border);
   /* 拖动重排时让行位置变化有个短过渡：位移看着是滑过去的，不是瞬间跳 */
-  transition: transform var(--duration-fast) ease, background-color var(--duration-fast) ease;
+  transition: transform var(--duration-fast) ease, background-color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease;
 }
 
 .project-list__item:hover {
   background: var(--muted);
+  border-color: color-mix(in oklab, var(--foreground) 14%, transparent);
 }
 
 .project-list__item--active {
