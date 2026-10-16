@@ -86,10 +86,25 @@ export function ProjectList({
   // 拖动中的顺序：被拖的项已经站到落点上，其余项据此让位
   const ordered = drag === null ? projects : moveItemTo(projects, drag.fromIndex, drag.toIndex)
 
-  /** 列表所在的滚动容器：边缘自动滚动与滚动补偿都用它 */
+  /**
+   * 列表所在的滚动容器：边缘自动滚动与滚动补偿都用它。
+   *
+   * 往上找「真正能滚的那个」而不是猜类名 —— 实测原来写的 `.app-sidebar__scroll`
+   * 在仓库里根本不存在（ProjectList 直接挂在 .app-sidebar 下，中间没有专门的滚动层），
+   * 于是 closest 返回 null、落到了 document.scrollingElement 的兜底上，
+   * 边缘自动滚动就去滚整个文档，表现是「往下拖，整个应用跟着上移」。
+   * 找不到就返回 null，调用方什么都不做 —— 绝不回退去滚文档。
+   */
   const scrollerOf = (): HTMLElement | null => {
-    const found = listRef.current?.closest('.app-sidebar__scroll')
-    return found instanceof HTMLElement ? found : null
+    let el = listRef.current?.parentElement ?? null
+    while (el !== null) {
+      const style = window.getComputedStyle(el)
+      if (/(auto|scroll)/.test(style.overflowY) && el.scrollHeight > el.clientHeight) {
+        return el
+      }
+      el = el.parentElement
+    }
+    return null
   }
 
   const clearLongPress = (): void => {
@@ -242,8 +257,9 @@ export function ProjectList({
     }
     const step = (): void => {
       const list = listRef.current
-      const scroller = list?.closest('.app-sidebar__scroll') ?? document.scrollingElement
-      if (list !== null && scroller !== null && scroller !== undefined) {
+      // 绝不回退到 document.scrollingElement：那会把整个应用滚起来
+      const scroller = scrollerOf()
+      if (list !== null && scroller !== null) {
         const rect = list.getBoundingClientRect()
         if (drag.pointerY < rect.top + EDGE_PX) {
           scroller.scrollTop -= EDGE_STEP_PX
