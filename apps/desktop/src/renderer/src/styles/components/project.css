@@ -42,6 +42,8 @@
   align-items: center;
   gap: 4px;
   border-radius: var(--radius-md);
+  /* 拖动重排时让行位置变化有个短过渡：位移看着是滑过去的，不是瞬间跳 */
+  transition: transform var(--duration-fast) ease, background-color var(--duration-fast) ease;
 }
 
 .project-list__item:hover {

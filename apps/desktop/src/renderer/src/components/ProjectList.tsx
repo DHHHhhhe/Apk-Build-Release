@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { FolderPlus, Trash2 } from 'lucide-react'
+import { previewReorder } from '../lib/reorder'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { filterVariantsForPackaging } from '@shared/lib/variants'
@@ -26,6 +28,12 @@ export function ProjectList({
   onReorder: (projectIds: string[]) => void
 }): React.JSX.Element {
   const queued = new Set(queuedProjectIds)
+
+  // 拖动中的实时预览：只在 onDragOver 期间重排，真正提交仍然发生在 onDrop。
+  // 以前整个过程列表纹丝不动，看不出会插到哪儿。
+  const [draggedId, setDraggedId] = useState<string | null>(null)
+  const [overId, setOverId] = useState<string | null>(null)
+  const displayed = previewReorder(projects, draggedId, overId)
 
   /** 把某个项目往前/往后挪一位，然后整份顺序交出去 */
   const move = (projectId: string, delta: -1 | 1): void => {
@@ -66,7 +74,7 @@ export function ProjectList({
         <p className="project-list__empty">还没有项目，点右上角「添加」选择项目目录</p>
       ) : (
         <ul className="project-list__items">
-          {projects.map((project, index) => {
+          {displayed.map((project, index) => {
             const active = project.id === selectedId
             const busy = project.id === busyProjectId
             const inQueue = queued.has(project.id)
@@ -79,14 +87,23 @@ export function ProjectList({
                     // 拖拽只是快捷方式：同一行里的上移/下移按钮才是键盘与读屏用户走的那条路
                     event.dataTransfer.effectAllowed = 'move'
                     event.dataTransfer.setData('text/plain', project.id)
+                    setDraggedId(project.id)
                   }}
                   onDragOver={(event) => {
                     event.preventDefault()
                     event.dataTransfer.dropEffect = 'move'
+                    // 实时预览：拖到哪一行，列表立刻按落位后的顺序重排
+                    setOverId(project.id)
+                  }}
+                  onDragEnd={() => {
+                    setDraggedId(null)
+                    setOverId(null)
                   }}
                   onDrop={(event) => {
                     event.preventDefault()
                     dropOn(event.dataTransfer.getData('text/plain'), project.id)
+                    setDraggedId(null)
+                    setOverId(null)
                   }}
                 >
                   <button
@@ -116,8 +133,10 @@ export function ProjectList({
                           已选 {project.selectedVariants.length}
                         </Badge>
                       ) : null}
-                      {/* 静态解析有已知限制（比如 flavor 动态生成）时标出来，别让用户以为变体就这么几个 */}
-                      {project.limitations.length > 0 ? (
+                      {/* 解析受限只在**没解析出变体**时才提示：已经拿到变体了还挂着这个标签，
+                          会让人以为当前这些变体是残缺的，而实际上能构建的就是这些 */}
+                      {project.limitations.length > 0 &&
+                      filterVariantsForPackaging(project.variants).length === 0 ? (
                         <Badge variant="warning" title={project.limitations.join('；')}>
                           解析受限
                         </Badge>
