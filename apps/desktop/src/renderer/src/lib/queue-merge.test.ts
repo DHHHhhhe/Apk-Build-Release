@@ -49,10 +49,12 @@ describe('变更响应与事件推送的合并', () => {
     expect(merged.map((entry) => entry.id).sort()).toEqual(['a', 'b'])
   })
 
-  it('结果按入队时间倒序（与列表展示一致）', () => {
+  // 排序规则统一到 shared/lib/queue-order 之后，这条跟着改：
+  // 以前断言的是「按入队时间倒序」，那正是用户说「排序规则不明确」的那个顺序
+  it('结果按统一规则排序（构建中 → 排队中 → 已结束）', () => {
     const previous = [item('a', 'running', 1), item('b', 'pending', 9)]
     const incoming = [item('a', 'pending', 1), item('b', 'pending', 9)]
     const merged = mergeQueueItems(previous, incoming, new Set(['a']))
-    expect(merged.map((entry) => entry.id)).toEqual(['b', 'a'])
+    expect(merged.map((entry) => entry.id)).toEqual(['a', 'b'])
   })
 })

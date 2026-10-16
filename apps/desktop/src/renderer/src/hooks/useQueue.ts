@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { EnqueueTarget, QueueItem } from '@shared/types/queue'
 import { mergeQueueItems } from '../lib/queue-merge'
+import { sortQueueItems } from '@shared/lib/queue-order'
 
 export interface UseQueueResult {
   items: QueueItem[]
@@ -78,7 +79,7 @@ export function useQueue(): UseQueueResult {
       eventSeqById.current.set(event.item.id, eventSeq.current)
       setItems((previous) => {
         const withoutCurrent = previous.filter((item) => item.id !== event.item.id)
-        return [event.item, ...withoutCurrent].sort((left, right) => right.enqueuedAt - left.enqueuedAt)
+        return sortQueueItems([event.item, ...withoutCurrent])
       })
     })
   }, [])

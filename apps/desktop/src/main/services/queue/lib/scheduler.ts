@@ -3,6 +3,7 @@ import { logger as baseLogger } from '../../logger'
 import { QUEUE_CONCURRENCY } from '@shared/constants/queue'
 import { getSettingNumber, setSettingNumber } from '../../build/lib/settings'
 import type { QueueItem, QueueItemState } from '@shared/types/queue'
+import { sortQueueItems } from '@shared/lib/queue-order'
 import { requestCancel } from './cancel'
 import { executeQueueItem } from './executor'
 import {
@@ -235,7 +236,8 @@ export function recoverStale(): number {
 }
 
 export function listQueue(limit = 50): QueueItem[] {
-  return listItems(limit)
+  // 排序统一走 shared/lib/queue-order，规则只有那一份
+  return sortQueueItems(listItems(limit))
 }
 
 export function runningItemIds(): string[] {

@@ -1,4 +1,5 @@
 import type { QueueItem } from '@shared/types/queue'
+import { sortQueueItems } from '@shared/lib/queue-order'
 
 /**
  * 变更响应与事件推送合并。
@@ -35,5 +36,5 @@ export function mergeQueueItems(
     }
   }
 
-  return merged.sort((left, right) => right.enqueuedAt - left.enqueuedAt)
+  return sortQueueItems(merged)
 }
