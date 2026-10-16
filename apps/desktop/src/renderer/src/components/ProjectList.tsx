@@ -126,8 +126,14 @@ export function ProjectList({
       slots,
       startScrollTop: scrollerOf()?.scrollTop ?? 0
     })
-    // 进拖拽态后禁掉页面滚动，否则手指一动整页跟着跑
-    document.body.style.overflow = 'hidden'
+    // 禁掉滚动：锁在**列表自己的滚动容器**上，不动 document.body。
+    // 给 body 设 overflow 会连带影响整个应用的外层布局（实测这类写法会让内部滚动条错乱、
+    // 甚至让某些元素消失），而拖拽本身不需要动 body —— 手柄上有 touch-action: none，
+    // 鼠标拖动也不会让页面滚动。
+    const scroller = scrollerOf()
+    if (scroller !== null) {
+      scroller.style.overflow = 'hidden'
+    }
   }
 
   /** 落位：先播 200ms 动画，动画结束再提交顺序 */
@@ -143,7 +149,10 @@ export function ProjectList({
     // 于是每次渲染都会把定时器清掉重建，200ms 永远走不完 —— 拖拽会卡在拾起态出不来。
     window.setTimeout(() => {
       setDrag(null)
-      document.body.style.overflow = ''
+      const scroller = scrollerOf()
+      if (scroller !== null) {
+        scroller.style.overflow = ''
+      }
       onReorderRef.current(ids)
     }, FLIP_MS)
   }
@@ -154,7 +163,10 @@ export function ProjectList({
       return
     }
     setDrag(null)
-    document.body.style.overflow = ''
+    const scroller = scrollerOf()
+    if (scroller !== null) {
+      scroller.style.overflow = ''
+    }
   }
 
   // 指针移动/松手挂在 window 上：手指移出列表甚至移出窗口也要继续跟
@@ -208,7 +220,10 @@ export function ProjectList({
   // 卸载或异常时别把页面滚动留在禁用状态
   useEffect(() => {
     return () => {
-      document.body.style.overflow = ''
+      const scroller = scrollerOf()
+      if (scroller !== null) {
+        scroller.style.overflow = ''
+      }
       clearLongPress()
       if (edgeTimer.current !== null) {
         window.cancelAnimationFrame(edgeTimer.current)
