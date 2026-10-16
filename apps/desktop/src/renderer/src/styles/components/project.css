@@ -37,6 +37,32 @@
   gap: 4px;
 }
 
+/* 拖拽排序的三段视觉：原位占位块、被拾起的那一项、以及承载它们的槽 */
+.project-list__slot {
+  position: relative;
+  list-style: none;
+}
+
+.project-list__slot--dragging {
+  z-index: 20;
+}
+
+/* 原位占位：半透明 + 虚线，示意松手后会落在哪儿 */
+.project-list__placeholder {
+  border-radius: var(--radius-md);
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
+  border: 1px dashed color-mix(in oklab, var(--foreground) 22%, transparent);
+}
+
+/* 被拾起：放大 + 投影 + 跟手移动，拖动期间禁掉该元素的默认手势 */
+.project-list__item--lifted {
+  box-shadow: var(--shadow-float);
+  background: var(--popover);
+  cursor: grabbing;
+  touch-action: none;
+  pointer-events: none;
+}
+
 .project-list__item {
   display: flex;
   align-items: center;
