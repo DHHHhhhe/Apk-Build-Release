@@ -216,8 +216,11 @@ export function ProjectList({
         const mids = current.slots
           .filter((slot) => slot.id !== current.id)
           .map((slot) => slot.top - scrolled + slot.height / 2)
-        // 迟滞 8px：快速上下移动时，指针在分界线上来回蹭不会让落点反复切换
-        const toIndex = indexForPointer(mids, event.clientY, 8)
+        // 迟滞取行高的 35%：固定 8px 对快速拖动太小（指针一帧就能走过 8px 以上，
+        // 等于没有死区，落点会在分界线上来回蹭、整列反复换位）。
+        const rowHeight = current.slots[0]?.height ?? 40
+        const margin = Math.max(8, Math.round(rowHeight * 0.35))
+        const toIndex = indexForPointer(mids, event.clientY, margin)
         if (toIndex === current.toIndex) {
           // 落点没变就只更新指针位置，不触发重排
           return current.pointerY === event.clientY ? current : { ...current, pointerY: event.clientY }
@@ -304,6 +307,10 @@ export function ProjectList({
       next.set(id, el.getBoundingClientRect())
     }
     if (lastRects.current.size > 0 && drag !== null) {
+      // 读写分离：先把所有行「倒回」旧位置（纯写），整批只强制一次回流，再统一启动过渡。
+      // 逐行写 + 逐行读 offsetHeight 会让浏览器每行都同步布局一次 —— 十行就是每帧十次，
+      // 掉帧看着就是跳（资料里管这叫 layout thrashing）。
+      const moved: HTMLElement[] = []
       for (const [id, el] of itemRefs.current) {
         if (id === drag.id) {
           continue
@@ -319,13 +326,15 @@ export function ProjectList({
         }
         el.style.transition = 'none'
         el.style.transform = 'translateY(' + String(dy) + 'px)'
-        // 强制回流，让上面的「归零」立即生效，然后再打开过渡。
-        // 以前这里用 requestAnimationFrame —— 如果下一次重排在那之前到来（快速拖动、
-        // 边缘自动滚动时每秒好几格），transform 会被直接覆盖、丢掉「先归零」这一步，
-        // 表现就是跳动。强制回流是同步的，不存在这个窗口。
-        void el.offsetHeight
-        el.style.transition = 'transform ' + String(FLIP_MS) + 'ms cubic-bezier(0.2, 0.8, 0.2, 1)'
-        el.style.transform = ''
+        moved.push(el)
+      }
+      if (moved.length > 0) {
+        // 一次回流，让上面所有「倒回」立即生效（以前是每行一次）
+        void (listRef.current?.offsetHeight ?? 0)
+        for (const el of moved) {
+          el.style.transition = 'transform ' + String(FLIP_MS) + 'ms cubic-bezier(0.2, 0.8, 0.2, 1)'
+          el.style.transform = ''
+        }
       }
     }
     lastRects.current = next
