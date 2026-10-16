@@ -195,18 +195,33 @@ pnpm build                     # 界面改动必做 —— 跑的是产物，不
 而按「14 次 × 30 秒」的写法轮询它，等于**每次都把 7 分钟烧完**再去查真正有信息的那个接口。
 实测连续几次发版都是这样：轮询全失败 → 超时 → 换成查 Release → **秒回**。
 
-**Release 存在本身就证明 CI 成功了** —— 工作流失败不会建 Release。所以：
+**判据是「资产齐了（3 个）」，不是「Release 存在」** —— 实测 0.6.4：Release 在约 165 秒时
+就出现了，但那时只有 2 个资产，`latest.yml` 还没上传完。工作流是**先建 Release、再逐个传资产**的，
+所以「存在」只说明它开始收尾了。所以：
 
 ```powershell
-# 只等 Release 出现，短间隔，预算按 CI 的已知耗时（约 3.5 分钟）给
+# 等资产齐到 3 个；短间隔，预算按 CI 的已知耗时（约 3.5 分钟）给
 for ($i = 1; $i -le 20; $i++) {
-  gh release view "v$v" --json assets 2>$null | Out-Null
-  if ($LASTEXITCODE -eq 0) { break }      # 一出现就返回
+  $j = gh release view "v$v" --json assets 2>$null
+  if ($LASTEXITCODE -eq 0) {
+    if (($j | ConvertFrom-Json).assets.Count -ge 3) { break }   # 齐了才算
+  }
   Start-Sleep -Seconds 15
 }
 ```
 
-CI 要跑多久是它的事，省不掉；**能省掉的是「明知会失败还轮询 7 分钟」**。
+CI 要跑多久是它的事，省不掉；**能省掉的是「明知会失败还轮询 7 分钟」**（原来 7 分钟 → 现在约 3 分钟）。
+
+**另一条：下 `latest.yml` 之前先删本地旧文件。**
+实测被这个骗过一次：那次资产还没传全，`gh release download` **失败**了，
+而**上一轮留下的 `latest.yml` 还在本地** —— 于是脚本读到了上一版的文件，
+报出「version=0.6.3（应 0.6.4）」这种看起来像发版出错的结论。**下载失败时绝不能沿用本地旧文件**：
+
+```powershell
+Remove-Item "$dir\latest.yml" -Force -ErrorAction SilentlyContinue   # 先删
+gh release download "v$v" --pattern 'latest.yml' --dir $dir --clobber
+if ($LASTEXITCODE -ne 0 -or -not (Test-Path "$dir\latest.yml")) { '核对未通过，别读旧文件' }
+```
 
 ### 发布说明：只写「这一版改了什么」
 
