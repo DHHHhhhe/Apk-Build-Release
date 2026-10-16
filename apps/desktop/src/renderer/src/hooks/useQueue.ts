@@ -48,7 +48,8 @@ export function useQueue(): UseQueueResult {
           return
         }
         setError(null)
-        setItems(result.items)
+        // 客户端自己排一次：不依赖服务端的返回顺序，规则与事件推送、合并走同一份
+        setItems(sortQueueItems(result.items))
         setConcurrencyState(result.concurrency)
         setPaused(result.paused)
       })
@@ -158,7 +159,7 @@ export function useQueue(): UseQueueResult {
         return
       }
       setError(null)
-      setItems(result.items)
+      setItems(sortQueueItems(result.items))
       setConcurrencyState(result.concurrency)
       setPaused(result.paused)
     } catch (caught: unknown) {
