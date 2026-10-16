@@ -101,6 +101,14 @@
   flex-wrap: wrap;
 }
 
+/* 徽章 + 两个按钮作为一组：整组换行，不再出现「徽章在第一行、按钮在第二行」 */
+.project-detail__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .project-detail__title {
   margin: 0;
   font-size: 16px;

@@ -319,6 +319,14 @@ await win.loadURL(url + '?theme=dark&t=' + Date.now())   // 时间戳穿透缓�
 对不上当前产物就说明拿的是旧页，这时任何「元素不存在」的结论都不成立。
 
 **症状与判据**：探针报「元素不存在」而源码里明明有该元素时，先查这一条，不要急着怀疑代码。
+
+**还有一条：核对页必须用 `http://127.0.0.1:8909/...` 加载，不要用 `file://`。**
+核对页里的脚本引用是**绝对路径**（`/apps/desktop/out/renderer/assets/index-xxx.js`）——
+`file://` 下它会解析成 `file:///apps/...` 直接 404。而**脚本 404 不会进 `console-message`**，
+探针只会看到「`#root` 里 0 个子元素、0 个按钮、控制台无报错」，看起来像应用自己渲染不出来。
+实测为此白查了好几轮：mock 注入成功、`window.api` 在、控制台干净，唯独 React 没挂载。
+判据：探针里先打 `document.querySelectorAll('script')` 的 `src`，再打 `#root.childElementCount` ——
+前者是绝对路径而后者为 0，就是加载方式错了，不是代码错了。
 ### 要验证「构建相关」的改动：用合成 Android 工程，离线跑真 Gradle
 
 不必找真实业务工程，也不必联网。本机已有可复用的缓存（AGP 7.4.2 在

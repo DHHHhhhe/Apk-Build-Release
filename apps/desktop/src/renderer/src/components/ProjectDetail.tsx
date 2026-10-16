@@ -142,29 +142,36 @@ export function ProjectDetail({
               </p>
             ) : null}
           </div>
-          <span className={badge.className}>{badge.label}</span>
-          <Button
-            variant="outline"
-            title="只读项目里的 Gradle 配置文件，毫秒级出结果"
-            onClick={() => {
-              onRefreshVariants(false)
-            }}
-            disabled={busy}
-          >
-            <RefreshCw size={16} aria-hidden="true" />
-            {busyKind === 'static' ? '解析中…' : '刷新变体'}
-          </Button>
-          <Button
-            variant="ghost"
-            title="真的跑一遍 Gradle 配置阶段，慢的时候要几分钟，但结果最准"
-            onClick={() => {
-              onRefreshVariants(true)
-            }}
-            disabled={busy}
-          >
-            <TerminalSquare size={16} aria-hidden="true" />
-            {busyKind === 'gradle' ? 'Gradle 解析中…' : '用 Gradle 解析（较慢）'}
-          </Button>
+          {/*
+           * 徽章与两个按钮包成一组：它们以前是 header 的直接子元素，标题块又高又宽，
+           * 换行时徽章留在第一行、两个按钮被挤到第二行 —— 量出来徽章顶 181、按钮顶 295，
+           * 看着就不齐。包成一组后要么整组在第一行，要么整组换下去，三个元素始终同一行。
+           */}
+          <div className="project-detail__actions">
+            <span className={badge.className}>{badge.label}</span>
+            <Button
+              variant="outline"
+              title="只读项目里的 Gradle 配置文件，毫秒级出结果"
+              onClick={() => {
+                onRefreshVariants(false)
+              }}
+              disabled={busy}
+            >
+              <RefreshCw size={16} aria-hidden="true" />
+              {busyKind === 'static' ? '解析中…' : '刷新变体'}
+            </Button>
+            <Button
+              variant="ghost"
+              title="真的跑一遍 Gradle 配置阶段，慢的时候要几分钟，但结果最准"
+              onClick={() => {
+                onRefreshVariants(true)
+              }}
+              disabled={busy}
+            >
+              <TerminalSquare size={16} aria-hidden="true" />
+              {busyKind === 'gradle' ? 'Gradle 解析中…' : '用 Gradle 解析（较慢）'}
+            </Button>
+          </div>
         </header>
 
         <dl className="project-detail__facts">
