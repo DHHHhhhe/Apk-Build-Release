@@ -327,6 +327,12 @@ await win.loadURL(url + '?theme=dark&t=' + Date.now())   // 时间戳穿透缓�
 实测为此白查了好几轮：mock 注入成功、`window.api` 在、控制台干净，唯独 React 没挂载。
 判据：探针里先打 `document.querySelectorAll('script')` 的 `src`，再打 `#root.childElementCount` ——
 前者是绝对路径而后者为 0，就是加载方式错了，不是代码错了。
+
+**还有一条：mock 里会改状态的接口必须真的改状态，否则会看到「操作没生效」的假象。**
+实测：核对页里拖动排序，`dragover` 期间实时重排正常（✓），但一松手顺序就弹回原样 ——
+看着像提交没生效。查下去发现 mock 的 `reorder` 是空实现（`async () => ({ success: true, projects: [] })`），
+而真机是 `reorder(ids).then(() => refresh())`，顺序落库后重新拉取，链路本来就是对的。
+判据：探针里「操作之后状态回退」时，先看 mock 那个接口是不是空壳 —— 尤其是 reorder / save / set 这类写操作。
 ### 要验证「构建相关」的改动：用合成 Android 工程，离线跑真 Gradle
 
 不必找真实业务工程，也不必联网。本机已有可复用的缓存（AGP 7.4.2 在
