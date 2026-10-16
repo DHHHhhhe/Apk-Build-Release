@@ -5,6 +5,7 @@ import { buildRuns, projects, queueItems } from '../../../db/schema'
 import type { QueueItemRow } from '../../../db/schema'
 import { logger as baseLogger } from '../../logger'
 import type { QueueItem, QueueItemState, QueueRunDetail } from '@shared/types/queue'
+import { sortRunsByDeclaredOrder } from './run-order'
 
 const logger = baseLogger.scope('queue:items')
 
@@ -95,19 +96,22 @@ export function countPending(): number {
 
 export function toQueueItemDto(row: QueueItemRow): QueueItem {
   const project = db.select().from(projects).where(eq(projects.id, row.projectId)).get()
+  // 变体顺序按入队时记下的勾选顺序排：只按 started_at 排的话，同一毫秒建的 run 顺序不定，
+  // 每次推送快照列表里都可能换一次位（用户看到的「顺序跳动」）
+  const variants = parseVariants(row.variants)
   return {
     id: row.id,
     projectId: row.projectId,
     projectName: project?.name ?? '（项目已移除）',
     projectPath: project?.path ?? '',
     state: row.state,
-    variants: parseVariants(row.variants),
+    variants,
     attempt: row.attempt,
     enqueuedAt: row.enqueuedAt.getTime(),
     startedAt: row.startedAt ? row.startedAt.getTime() : null,
     finishedAt: row.finishedAt ? row.finishedAt.getTime() : null,
     note: row.note,
-    runs: listRunsForItem(row.id)
+    runs: sortRunsByDeclaredOrder(listRunsForItem(row.id), variants)
   }
 }
 
