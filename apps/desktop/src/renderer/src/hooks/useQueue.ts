@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { EnqueueTarget, QueueItem } from '@shared/types/queue'
+import { mergeQueueItems } from '../lib/queue-merge'
 
 export interface UseQueueResult {
   items: QueueItem[]
@@ -66,9 +67,15 @@ export function useQueue(): UseQueueResult {
     }
   }, [reloadToken])
 
+  // 事件序号：用来判断「变更响应回来时，这一项是不是已经被更新的推送覆盖过」
+  const eventSeq = useRef(0)
+  const eventSeqById = useRef(new Map<string, number>())
+
   // 队列项状态由主进程推过来，界面不轮询
   useEffect(() => {
     return window.api.queue.onState((event) => {
+      eventSeq.current += 1
+      eventSeqById.current.set(event.item.id, eventSeq.current)
       setItems((previous) => {
         const withoutCurrent = previous.filter((item) => item.id !== event.item.id)
         return [event.item, ...withoutCurrent].sort((left, right) => right.enqueuedAt - left.enqueuedAt)
@@ -78,6 +85,8 @@ export function useQueue(): UseQueueResult {
 
   const runMutation = useCallback(
     async (operation: () => Promise<{ success: boolean; error?: string; items?: QueueItem[] }>) => {
+      // 记下请求发出时的序号：响应回来后，只对「这期间没被事件更新过」的项采用响应里的版本
+      const seqAtRequest = eventSeq.current
       try {
         const result = await operation()
         if (!result.success) {
@@ -86,7 +95,13 @@ export function useQueue(): UseQueueResult {
         }
         setError(result.error ?? null)
         if (result.items) {
-          setItems(result.items)
+          const incoming = result.items
+          const staleIds = new Set(
+            [...eventSeqById.current.entries()]
+              .filter(([, seq]) => seq > seqAtRequest)
+              .map(([id]) => id)
+          )
+          setItems((previous) => mergeQueueItems(previous, incoming, staleIds))
         }
       } catch (caught: unknown) {
         setError(caught instanceof Error ? caught.message : '操作失败')
