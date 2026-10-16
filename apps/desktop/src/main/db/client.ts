@@ -95,6 +95,10 @@ export function ensureSchema(): void {
   `)
 
   // 幂等补列：CREATE TABLE IF NOT EXISTS 不会给已存在的表加新字段
+  // 项目别名与手动排序是后加的两列 —— 漏了兜底的话，老库一查就报
+  // 「no such column: "alias"」，而新装的库因为建表语句里有，完全看不出来。
+  ensureColumn('projects', 'alias', 'TEXT')
+  ensureColumn('projects', 'sort_order', 'INTEGER')
   ensureColumn('build_runs', 'failure_hint', 'TEXT')
   ensureColumn('queue_items', 'variants', "TEXT NOT NULL DEFAULT '[]'")
   ensureColumn('queue_items', 'note', 'TEXT')
