@@ -9,11 +9,11 @@ import type { Project } from '@shared/types/project'
 /** 长按多久算「拾起」——太短会与点击选中打架，太长会觉得拖不动 */
 const LONG_PRESS_MS = 250
 /** 其余项让位、被拖项落位的缓动时长 */
-const FLIP_MS = 200
+const FLIP_MS = 140
 /** 指针离列表上下边缘多近开始自动滚动 */
 const EDGE_PX = 40
 /** 自动滚动每帧的步长 */
-const EDGE_STEP_PX = 3
+const EDGE_STEP_PX = 2
 /** 拾起时的放大倍数 */
 const LIFT_SCALE = 1.05
 
@@ -219,7 +219,7 @@ export function ProjectList({
         // 迟滞取行高的 35%：固定 8px 对快速拖动太小（指针一帧就能走过 8px 以上，
         // 等于没有死区，落点会在分界线上来回蹭、整列反复换位）。
         const rowHeight = current.slots[0]?.height ?? 40
-        const margin = Math.max(8, Math.round(rowHeight * 0.35))
+        const margin = Math.max(10, Math.round(rowHeight * 0.5))
         const toIndex = indexForPointer(mids, event.clientY, margin)
         if (toIndex === current.toIndex) {
           // 落点没变就只更新指针位置，不触发重排
@@ -302,6 +302,15 @@ export function ProjectList({
   // 强制一次布局，那就是「拖动中抖动」的来源。
   const orderKey = ordered.map((project) => project.id).join(',')
   useLayoutEffect(() => {
+    // 先清掉上一轮留下的倒回 transform，再量位置。
+    //
+    // 不清就量的话，量到的是「被 transform 污染过」的位置：上一轮的偏差会被当成基准，
+    // 下一轮再基于它算一次，位移逐轮累加（实测位移序列呈斐波那契式增长：
+    // -238 → +357 → -595 → +952 → -1547），表现就是越拖越跳。
+    for (const [, el] of itemRefs.current) {
+      el.style.transition = 'none'
+      el.style.transform = ''
+    }
     const next = new Map<string, DOMRect>()
     for (const [id, el] of itemRefs.current) {
       next.set(id, el.getBoundingClientRect())
