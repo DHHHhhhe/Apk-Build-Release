@@ -23,7 +23,12 @@ export function parseVariants(raw: string | null): string[] {
   }
 }
 
-export function createItem(projectId: string, variants: string[], attempt = 1): QueueItemRow {
+export function createItem(
+  projectId: string,
+  variants: string[],
+  attempt = 1,
+  batchId: string | null = null
+): QueueItemRow {
   const id = randomUUID()
   db.insert(queueItems)
     .values({
@@ -31,6 +36,7 @@ export function createItem(projectId: string, variants: string[], attempt = 1): 
       projectId,
       state: 'pending',
       variants: JSON.stringify(variants),
+      batchId,
       attempt
     })
     .run()
@@ -74,6 +80,15 @@ export function countRunning(): number {
     .select({ value: sql<number>`count(*)` })
     .from(queueItems)
     .where(eq(queueItems.state, 'running'))
+    .get()
+  return row?.value ?? 0
+}
+
+export function countPending(): number {
+  const row = db
+    .select({ value: sql<number>`count(*)` })
+    .from(queueItems)
+    .where(eq(queueItems.state, 'pending'))
     .get()
   return row?.value ?? 0
 }
@@ -137,15 +152,15 @@ export function clearItems(scope: 'finished' | 'all'): number {
 }
 
 /**
- * 启动时收尾：上一次进程被强杀时留下的 running / pending 项不可能再有人管，
- * 一律标成 failed 并写明原因，而不是让界面一直转圈。
+ * 启动时收尾：上一次进程被强杀时留下的 **running** 项不可能再有人管，
+ * 标成 failed 并写明原因，而不是让界面一直转圈。
+ *
+ * `pending` 有意保留：它是「排上队但还没轮到」的项，重启后仍然可以跑。
+ * 是否续跑交给用户决定（启动时队列处于暂停态，界面给一个「继续上次队列」按钮），
+ * 免得一开应用就自己占满 CPU。这条以前把 pending 也一并标失败，等于把用户的排队白排了。
  */
 export function recoverStaleItems(): number {
-  const stale = db
-    .select()
-    .from(queueItems)
-    .where(inArray(queueItems.state, ['running', 'pending']))
-    .all()
+  const stale = db.select().from(queueItems).where(eq(queueItems.state, 'running')).all()
 
   if (stale.length === 0) {
     return 0
@@ -153,7 +168,7 @@ export function recoverStaleItems(): number {
 
   db.update(queueItems)
     .set({ state: 'failed', note: '工具上次异常退出，这次构建没有完成', finishedAt: new Date() })
-    .where(inArray(queueItems.state, ['running', 'pending']))
+    .where(eq(queueItems.state, 'running'))
     .run()
 
   db.update(buildRuns)

@@ -147,3 +147,98 @@ describe('结果汇总', () => {
     expect(summary.totals.apkCount).toBe(2)
   })
 })
+
+/**
+ * 批次语义：一次「构建勾选项」入队会为每个项目建一条队列项，它们共用一个 batchId。
+ * 「最近一批」要覆盖这一次的全部项目，而不是最后跑完的那一条。
+ *
+ * 这个 describe 放最后：它会插入更晚的数据，跑在它前面的用例不能受影响。
+ */
+describe('最近一批按批次汇总', () => {
+  beforeAll(async () => {
+    const schema = await import('../../../db/schema')
+    const { db } = dbModule
+
+    db.insert(schema.queueItems)
+      .values([
+        {
+          id: 'q-batch-a',
+          projectId: 'p-a',
+          state: 'success',
+          variants: '[]',
+          batchId: 'batch-1',
+          enqueuedAt: new Date(50_000)
+        },
+        {
+          id: 'q-batch-b',
+          projectId: 'p-b',
+          state: 'success',
+          variants: '[]',
+          batchId: 'batch-1',
+          enqueuedAt: new Date(50_000)
+        }
+      ])
+      .run()
+
+    db.insert(schema.buildRuns)
+      .values([
+        {
+          id: 'r-batch-a',
+          queueItemId: 'q-batch-a',
+          variant: 'freeRelease',
+          state: 'success',
+          exitCode: 0,
+          startedAt: new Date(50_000),
+          finishedAt: new Date(51_000)
+        },
+        {
+          id: 'r-batch-b',
+          queueItemId: 'q-batch-b',
+          variant: 'demoRelease',
+          state: 'success',
+          exitCode: 0,
+          startedAt: new Date(50_100),
+          finishedAt: new Date(51_100)
+        }
+      ])
+      .run()
+  })
+
+  it('同一次入队的多个项目一起汇总 —— 以前只显示最后一条队列项', () => {
+    const summary = summaryModule.buildSummary({ scope: 'latest' })
+    expect(summary.totals.projects).toBe(2)
+    expect(summary.totals.variants).toBe(2)
+    expect(summary.groups.map((group) => group.projectName).sort()).toEqual(['项目 A', '项目 B'])
+  })
+
+  it('老数据没有批次标识时，退回「只看它自己这一条」', async () => {
+    const schema = await import('../../../db/schema')
+    const { db } = dbModule
+    // 更晚的一条，且没有 batchId（模拟加这一列之前入的队）
+    db.insert(schema.queueItems)
+      .values({
+        id: 'q-legacy',
+        projectId: 'p-b',
+        state: 'success',
+        variants: '[]',
+        batchId: null,
+        enqueuedAt: new Date(90_000)
+      })
+      .run()
+    db.insert(schema.buildRuns)
+      .values({
+        id: 'r-legacy',
+        queueItemId: 'q-legacy',
+        variant: 'demoRelease',
+        state: 'success',
+        exitCode: 0,
+        startedAt: new Date(90_000),
+        finishedAt: new Date(91_000)
+      })
+      .run()
+
+    const summary = summaryModule.buildSummary({ scope: 'latest' })
+    expect(summary.totals.projects).toBe(1)
+    expect(summary.totals.variants).toBe(1)
+  })
+})

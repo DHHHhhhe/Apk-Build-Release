@@ -1,12 +1,16 @@
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, dialog, shell } from 'electron'
 import { join } from 'node:path'
 import { ensureSchema } from './db/client'
 import { setupIpcHandlers } from './ipc'
 import { killAllRunning } from './services/queue/lib/cancel'
-import { recoverStale, tick } from './services/queue/lib/scheduler'
+import { countPending, countRunning } from './services/queue/lib/items'
+import { pauseQueue, recoverStale, tick } from './services/queue/lib/scheduler'
 import { initUpdater } from './services/update/updater'
 import { logger } from './services/logger'
 import { currentBackgroundColor, initTheme } from './theme'
+
+/** 用户已经确认过「关闭并中断」，再关就别拦了 */
+let quitConfirmed = false
 
 // 渲染进程只做界面，所有 IO 与进程操作留在主进程（design.md §2）
 function createWindow(): void {
@@ -34,6 +38,47 @@ function createWindow(): void {
     win.show()
   })
 
+  /*
+   * 构建中关窗先问一句。
+   *
+   * 关窗即退出，而退出会把正在跑的构建掐掉（before-quit → killAllRunning），
+   * 已经跑掉的那几分钟就白费了 —— 而且不会自动续跑。所以只要队列里还有项没结束，
+   * 就用系统对话框说清会中断几项，让用户自己决定。
+   *
+   * 用同步对话框：close 事件里必须当场决定要不要 preventDefault。
+   */
+  win.on('close', (event) => {
+    if (quitConfirmed) {
+      return
+    }
+    const running = countRunning()
+    const pending = countPending()
+    if (running + pending === 0) {
+      return
+    }
+    event.preventDefault()
+    const parts: string[] = []
+    if (running > 0) {
+      parts.push(`${running} 个正在构建`)
+    }
+    if (pending > 0) {
+      parts.push(`${pending} 个还在排队`)
+    }
+    const choice = dialog.showMessageBoxSync(win, {
+      type: 'warning',
+      buttons: ['继续构建', '关闭并中断'],
+      defaultId: 0,
+      cancelId: 0,
+      title: '还有构建没结束',
+      message: `队列里还有 ${parts.join('、')}，关闭会中断它们。`,
+      detail: '被中断的构建会记成失败，下次打开不会自动续跑。'
+    })
+    if (choice === 1) {
+      quitConfirmed = true
+      app.quit()
+    }
+  })
+
   // 外链走系统浏览器，不在应用内打开
   win.webContents.setWindowOpenHandler(({ url }) => {
     void shell.openExternal(url)
@@ -55,10 +100,17 @@ if (process.platform === 'win32') {
 void app.whenReady().then(() => {
   ensureSchema()
 
-  // 上次被强杀时留下的 running / pending 项不可能再有人管，收尾成 failed 而不是一直转圈
+  // 上次被强杀时留下的 running 项不可能再有人管，收尾成 failed 而不是一直转圈。
+  // pending 项保留：它们还能跑，但不自动开跑 —— 一开应用就自己占满 CPU 不是用户要的，
+  // 由界面上的「继续上次队列」交给用户决定。
   const recovered = recoverStale()
   if (recovered > 0) {
     logger.warn('已收尾上次残留的队列项', { count: recovered })
+  }
+  const leftover = countPending()
+  if (leftover > 0) {
+    pauseQueue()
+    logger.info('有上次没跑的队列项，队列先停在暂停态', { pending: leftover })
   }
 
   setupIpcHandlers()

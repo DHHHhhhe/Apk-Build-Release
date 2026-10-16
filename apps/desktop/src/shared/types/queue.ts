@@ -65,6 +65,17 @@ export const setConcurrencyInputSchema = z.object({
 export const queueItemInputSchema = z.object({
   itemId: z.string().min(1, '缺少队列项 id')
 })
+
+/**
+ * 重试一条队列项。
+ *
+ * `variants` 给出时只重跑这些变体 —— 一个项目有 8 个渠道、挂掉 1 个时，
+ * 整项重跑等于把另外 7 个也白打一遍。不给就是整项重跑。
+ */
+export const retryQueueInputSchema = z.object({
+  itemId: z.string().min(1, '缺少队列项 id'),
+  variants: z.array(z.string().min(1)).optional()
+})
 export const clearQueueInputSchema = z.object({
   scope: z.enum(['finished', 'all'])
 })
@@ -73,6 +84,11 @@ export const queueListResultSchema = z.object({
   success: z.boolean(),
   error: z.string().optional(),
   concurrency: z.number(),
+  /**
+   * 队列是否处于暂停态：上次退出留下了没跑的项，等用户点「继续上次队列」。
+   * 暂停时不会自动开跑，所以界面要把这件事说出来，否则用户以为卡住了。
+   */
+  paused: z.boolean(),
   items: z.array(queueItemSchema)
 })
 
@@ -93,6 +109,7 @@ export type EnqueueTarget = z.infer<typeof enqueueTargetSchema>
 export type EnqueueInput = z.infer<typeof enqueueInputSchema>
 export type SetConcurrencyInput = z.infer<typeof setConcurrencyInputSchema>
 export type QueueItemInput = z.infer<typeof queueItemInputSchema>
+export type RetryQueueInput = z.infer<typeof retryQueueInputSchema>
 export type ClearQueueInput = z.infer<typeof clearQueueInputSchema>
 export type QueueListResult = z.infer<typeof queueListResultSchema>
 export type QueueMutationResult = z.infer<typeof queueMutationResultSchema>

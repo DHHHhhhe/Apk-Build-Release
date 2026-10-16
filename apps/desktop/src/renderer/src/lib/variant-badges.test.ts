@@ -31,4 +31,15 @@ describe('variantBadgeVisibility', () => {
   it('空列表：什么都不显示，不抛异常', () => {
     expect(variantBadgeVisibility([])).toEqual({ flavor: false, buildType: false })
   })
+
+  it('回退到全部变体时强制显示 buildType：否则唯一的区分依据被藏掉', () => {
+    const variants = [buildType('debug', 'demo_flavor')]
+    expect(variantBadgeVisibility(variants).buildType).toBe(false)
+    expect(variantBadgeVisibility(variants, { forceBuildType: true }).buildType).toBe(true)
+  })
+
+  it('强制显示只影响 buildType，不把 flavor 也逼出来', () => {
+    const variants = [buildType('debug', 'demo_flavor')]
+    expect(variantBadgeVisibility(variants, { forceBuildType: true }).flavor).toBe(false)
+  })
 })

@@ -46,7 +46,7 @@ export function EnvCard({
   const hasBlocking = result?.items.some((item) => item.state === 'error') ?? false
 
   return (
-    <section className="card-shell">
+    <section className="card-shell" data-drawer-section="env">
       <div className="card-core card-core--pad env-card">
         <header className="env-card__head">
           <h3 className="env-card__title">构建环境</h3>

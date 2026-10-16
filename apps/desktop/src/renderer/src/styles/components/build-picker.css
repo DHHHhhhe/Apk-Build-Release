@@ -130,6 +130,65 @@
   flex-wrap: wrap;
 }
 
+/* 回退提示：列表里列的不是发布变体，这是后果提示，用警告色 */
+.build-picker__fallback {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+  color: var(--warning);
+  font-size: 12px;
+}
+
+/* 预检提示：只提示不拦，所以用中性色而不是错误色 */
+.build-picker__preflight {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+  color: var(--warning);
+  font-size: 12px;
+}
+
+/* ── 按渠道（flavor）分组 ──
+ * 出包的单位是渠道，而以前只有一个「只选 release」的维度，选某个渠道得逐个勾。
+ */
+.build-picker__flavors {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.build-picker__flavor {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--foreground) 3%, transparent);
+}
+
+.build-picker__flavor-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.build-picker__flavor-name {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.build-picker__flavor-count {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  margin-right: auto;
+}
+
 .build-picker__inline-action {
   height: 24px;
   font-size: 12px;

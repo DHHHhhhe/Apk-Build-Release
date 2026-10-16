@@ -5,6 +5,8 @@ import { ArrowDown, FolderOpen, FileText, Search } from 'lucide-react'
 import type { BuildRun } from '@shared/types/build'
 import { useNow } from '../hooks/useNow'
 import { elapsedMs, formatClock, formatDurationMs } from '../lib/duration'
+import { dirnameOf } from '../lib/path-display'
+import { openPathOrToast } from '../lib/open-path'
 import { buildStateBadgeClass } from '../lib/state-badge'
 
 const STATE_LABEL: Record<BuildRun['state'], string> = {
@@ -38,6 +40,22 @@ function hintClass(run: BuildRun): string {
   return 'run-list__hint run-list__hint--warning'
 }
 
+/**
+ * 日志区的空态说清是哪一种「空」。
+ *
+ * 以前三种情况共用一句「（还没有输出）」，于是重启后回看历史构建，看起来像构建真的没有输出 ——
+ * 其实日志只在本会话收到过 build:log 事件，历史记录的正文在日志文件里。
+ */
+function emptyLogText(run: BuildRun): string {
+  if (run.state === 'running') {
+    return '（还在跑，暂时没有输出）'
+  }
+  if (run.logPath) {
+    return '（本会话没有收到这一条的输出，完整日志在日志文件里）'
+  }
+  return '（这一条没有输出）'
+}
+
 export function BuildPanel({
   runs,
   logs,
@@ -57,8 +75,16 @@ export function BuildPanel({
   const [follow, setFollow] = useState(true)
   const [keyword, setKeyword] = useState('')
   const [errorsOnly, setErrorsOnly] = useState(false)
+  /**
+   * 手动点选的那一条。
+   *
+   * 以前日志区只能看 `activeRunId ?? runs[0]`：正在跑的时候还好，跑完想看另一条
+   * 就得去队列里找。选中的 run 被删掉（清空队列）时回退到默认那条。
+   */
+  const [pickedRunId, setPickedRunId] = useState<string | null>(null)
 
-  const activeRun = runs.find((run) => run.id === activeRunId) ?? runs[0] ?? null
+  const pickedRun = pickedRunId === null ? null : (runs.find((run) => run.id === pickedRunId) ?? null)
+  const activeRun = pickedRun ?? runs.find((run) => run.id === activeRunId) ?? runs[0] ?? null
   const activeLog = activeRun ? (logs[activeRun.id] ?? '') : ''
   const now = useNow(runs.some((run) => run.state === 'running'))
 
@@ -118,7 +144,22 @@ export function BuildPanel({
             {runs.map((run) => (
               <li key={run.id} className="run-list__item">
                 <div className="run-list__row">
-                  <span className="run-list__variant tabular">{run.variant}</span>
+                  {/* 变体名就是「看这一条日志」的入口：比另加一个按钮省一行，也不会让行内挤满控件 */}
+                  <button
+                    type="button"
+                    className={
+                      run.id === activeRun?.id
+                        ? 'run-list__variant run-list__variant--active'
+                        : 'run-list__variant'
+                    }
+                    aria-pressed={run.id === activeRun?.id}
+                    title={`查看 ${run.variant} 的日志`}
+                    onClick={() => {
+                      setPickedRunId(run.id)
+                    }}
+                  >
+                    {run.variant}
+                  </button>
                   <span className={buildStateBadgeClass(run.state)}>{STATE_LABEL[run.state]}</span>
                   <span className="run-list__time tabular" title={new Date(run.startedAt).toLocaleString()}>
                     {runTimeText(run, now)}
@@ -131,7 +172,7 @@ export function BuildPanel({
                       variant="ghost"
                       title={run.logPath}
                       onClick={() => {
-                        void window.api.settings.openPath(run.logPath ?? '')
+                        void openPathOrToast(run.logPath ?? '', '日志文件')
                       }}
                     >
                       <FileText size={14} aria-hidden="true" />
@@ -147,12 +188,14 @@ export function BuildPanel({
                       className="run-list__open"
                       title="打开产物所在目录"
                       onClick={() => {
-                        void window.api.settings.openPath(dirnameOf(run.apkPath ?? ''))
+                        void openPathOrToast(dirnameOf(run.apkPath ?? ''), '产物目录')
                       }}
                     >
                       <FolderOpen size={14} aria-hidden="true" />
                     </Button>
-                    {run.apkName}
+                    <span className="run-list__apk-name" title={run.apkPath ?? run.apkName}>
+                      {run.apkName}
+                    </span>
                     {run.signed === false ? (
                       <Badge variant="warning">未签名，不可直接安装</Badge>
                     ) : run.signed === true ? (
@@ -179,13 +222,13 @@ export function BuildPanel({
         )}
 
         {hasMore ? (
-          <Button  variant="ghost" className="build-panel__more" onClick={onLoadMore}>
+          <Button variant="ghost" className="build-panel__more" onClick={onLoadMore}>
             加载更早的构建记录
           </Button>
         ) : null}
 
         {activeRun ? (
-          <div className="build-panel__log-wrap">
+          <div className="build-panel__log-wrap" data-drawer-section="log">
             <div className="build-panel__log-head">
               <span className="build-panel__log-label">日志 · {activeRun.variant}</span>
               <label className="build-panel__log-filter">
@@ -213,13 +256,25 @@ export function BuildPanel({
               {filtered ? (
                 <span className="build-panel__log-count tabular">{logLines.length} 行匹配</span>
               ) : null}
+              {activeLog === '' && activeRun.logPath ? (
+                <Button
+                  variant="ghost"
+                  title={activeRun.logPath}
+                  onClick={() => {
+                    void openPathOrToast(activeRun.logPath ?? '', '日志文件')
+                  }}
+                >
+                  <FileText size={14} aria-hidden="true" />
+                  打开日志文件
+                </Button>
+              ) : null}
             </div>
 
             <div className="build-panel__log-body">
               <pre className="build-panel__log" ref={logRef} onScroll={handleScroll} role="log" aria-live="polite">
                 {logLines.length === 0
                   ? activeLog === ''
-                    ? '（还没有输出）'
+                    ? emptyLogText(activeRun)
                     : '（没有匹配的行）'
                   : logLines.map((line, index) => (
                       <span
@@ -233,7 +288,8 @@ export function BuildPanel({
               </pre>
               {!follow && !filtered ? (
                 <Button
-                   variant="outline" className="build-panel__log-jump"
+                  variant="outline"
+                  className="build-panel__log-jump"
                   onClick={() => {
                     setFollow(true)
                     const node = logRef.current
@@ -252,10 +308,4 @@ export function BuildPanel({
       </div>
     </section>
   )
-}
-
-/** 只取目录部分，不引入 node:path（渲染进程没有 node 环境） */
-function dirnameOf(filePath: string): string {
-  const index = Math.max(filePath.lastIndexOf('\\'), filePath.lastIndexOf('/'))
-  return index > 0 ? filePath.slice(0, index) : filePath
 }

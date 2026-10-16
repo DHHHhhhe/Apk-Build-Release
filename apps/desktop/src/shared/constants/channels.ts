@@ -11,7 +11,9 @@ export const IPC_CHANNELS = {
     SET_VARIANTS: 'project:setVariants',
     SET_ALIAS: 'project:setAlias',
     REORDER: 'project:reorder',
-    PICK_DIRECTORY: 'project:pickDirectory'
+    PICK_DIRECTORY: 'project:pickDirectory',
+    /** 入队前的廉价预检：只查文件系统，毫秒级 */
+    PREFLIGHT: 'project:preflight'
   },
   QUEUE: {
     ENQUEUE: 'queue:enqueue',
@@ -21,6 +23,8 @@ export const IPC_CHANNELS = {
     CANCEL_ALL: 'queue:cancelAll',
     RETRY: 'queue:retry',
     CLEAR: 'queue:clear',
+    /** 启动时若留下了没跑的项，队列会停在暂停态，由这个频道恢复 */
+    RESUME: 'queue:resume',
     /** 队列项状态变化的事件推送 */
     STATE: 'queue:state'
   },

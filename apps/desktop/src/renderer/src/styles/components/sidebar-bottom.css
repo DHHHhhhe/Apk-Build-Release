@@ -51,8 +51,8 @@
 /* ── 开关（自动检查更新）── */
 .switch {
   position: relative;
-  width: 32px;
-  height: 18px;
+  width: 34px;
+  height: 22px;
   flex: 0 0 auto;
   padding: 0;
   border: 1px solid var(--sidebar-border);
@@ -69,10 +69,10 @@
 
 .switch__thumb {
   position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 12px;
-  height: 12px;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
   border-radius: 9999px;
   background: var(--sidebar);
   transition: transform var(--duration-micro);
@@ -152,8 +152,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 22px;
+  /* 26×22 的命中区偏小（低于常见的 24px 建议），放大到 28×26；外观仍然是一排小图标 */
+  width: 28px;
+  height: 26px;
   border: none;
   border-radius: calc(var(--radius-md) - 3px);
   background: transparent;

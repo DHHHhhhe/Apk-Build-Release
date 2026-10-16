@@ -50,12 +50,58 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  /* 抽屉窄的时候整行换行，而不是把「日志文件」压成竖排两个字一列 */
+  flex-wrap: wrap;
 }
 
+/*
+ * 行内按钮的文字不换行：窄抽屉下 flex 会把按钮压到比文字还窄，
+ * 结果「日志文件」竖着排 —— 看起来像界面坏了。放不下就换行（上面那条）。
+ */
+.run-list__row button {
+  white-space: nowrap;
+}
+
+.run-list__row button:not(.run-list__variant) {
+  flex: 0 0 auto;
+}
+
+/*
+ * 变体名同时是「看这一条的日志」的入口：外观保持文字（不变成一个按钮样子的东西），
+ * 但它是真按钮 —— 键盘与读屏都能用，比让整行可点安全（行内还有日志文件、打开目录两个控件）。
+ */
 .run-list__variant {
+  margin-right: auto;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-family: inherit;
   font-size: 14px;
   font-weight: 500;
-  margin-right: auto;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.run-list__variant:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.run-list__variant:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* 当前正在看日志的那一条：下划线是常显的选中标记 */
+.run-list__variant--active {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--primary);
 }
 
 /* 完成时刻 + 该变体的构建耗时 */
@@ -76,6 +122,14 @@
   margin: 0;
   font-size: 12px;
   word-break: break-all;
+}
+
+/* 产物文件名可能很长：给它省略号而不是把整行撑宽 */
+.run-list__apk-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* 产物行前面的文件夹是真按钮：点开所在目录 */
@@ -123,6 +177,11 @@
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.build-panel__log-head button {
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 .build-panel__log-label {

@@ -75,3 +75,43 @@ export function enqueueTargets(
   }
   return targets
 }
+
+/** 主进程正在忙时的统一措辞：两条链路说的是同一件事，不该有两种说法 */
+export const BUSY_REASON = '正在处理上一个操作…'
+
+export interface CurrentProjectGuardInput {
+  /** 抽屉里那个项目这次会被构建的变体数（按钮上的 N） */
+  variantCount: number
+  busy: boolean
+  /** 这个项目已经在队列里了 */
+  alreadyQueued: boolean
+  /** 环境检查里第一条 error 的文案；null = 没发现问题 */
+  envIssue: string | null
+}
+
+/**
+ * 「构建当前项目」这个动作不能点时，原因是什么。
+ *
+ * 与 buildBlockedReason 放在一起，是因为它们背后是**同一个动作的两个入口**：
+ * 顶栏那个打的是抽屉里当前项目的变体，勾选表那个打的是跨项目勾选。
+ * 两处的原因文案必须同源，否则会出现「同一个按钮在两处说两种理由」。
+ *
+ * 唯一有意保留的差别是环境检查：它只对「当前项目」生效 —— 跨项目入口没有为每个项目
+ * 跑一遍环境自检的代价预算，所以它不拦。这条差别写在界面上（勾选表的按钮旁边），
+ * 而不是靠用户去猜为什么两处禁用条件不同。
+ */
+export function currentProjectBlockedReason(input: CurrentProjectGuardInput): string | null {
+  if (input.busy) {
+    return BUSY_REASON
+  }
+  if (input.envIssue) {
+    return `构建环境有问题：${input.envIssue}`
+  }
+  if (input.variantCount === 0) {
+    return '先在发布变体里勾选至少一个'
+  }
+  if (input.alreadyQueued) {
+    return '这个项目已经在队列里了'
+  }
+  return null
+}

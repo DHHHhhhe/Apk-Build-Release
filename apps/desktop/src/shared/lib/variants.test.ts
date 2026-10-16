@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { filterVariantsForPackaging, isReleaseBuildType, resolveBuildableVariants } from './variants'
+import {
+  filterVariantsForPackaging,
+  isPackagingFallback,
+  isReleaseBuildType,
+  resolveBuildableVariants
+} from './variants'
 
 const mixed = [
   { name: 'demo_flavorRelease', buildType: 'release' },
@@ -42,6 +47,27 @@ describe('filterVariantsForPackaging', () => {
       { name: 'freeRelease', buildType: 'release' }
     ]
     expect(filterVariantsForPackaging(variants).map((variant) => variant.name)).toEqual(['freeRelease'])
+  })
+})
+
+describe('isPackagingFallback', () => {
+  it('一个 release 都没有时算回退 —— 界面必须把这件事说出来', () => {
+    expect(isPackagingFallback([{ name: 'freeDebug', buildType: 'debug' }])).toBe(true)
+    expect(isPackagingFallback([{ name: 'freeStaging', buildType: 'staging' }])).toBe(true)
+  })
+
+  it('有 release 变体时不算回退（debug 只是被过滤掉了）', () => {
+    expect(isPackagingFallback(mixed)).toBe(false)
+  })
+
+  it('没有变体时不算回退：那是「没解析出变体」，另一条提示管', () => {
+    expect(isPackagingFallback([])).toBe(false)
+  })
+
+  it('判据与 filterVariantsForPackaging 的回退严格对应', () => {
+    const onlyDebug = [{ name: 'freeDebug', buildType: 'debug' }]
+    expect(filterVariantsForPackaging(onlyDebug)).toEqual(onlyDebug)
+    expect(isPackagingFallback(onlyDebug)).toBe(true)
   })
 })
 

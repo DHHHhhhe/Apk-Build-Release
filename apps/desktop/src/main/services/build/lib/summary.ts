@@ -15,7 +15,10 @@ const FINISHED_ITEM_STATES = ['success', 'failed', 'canceled'] as const
  * 结果汇总：一次批量到底出了哪些包、成没成、多大、签没签名。
  * 汇总天然是跨项目的 —— 「这一批出了哪些包」本来就是全局问题，
  * 单个项目的明细在构建记录面板里看。
- * 「最近一批」按队列项取（一个项目 = 一条队列项，一次入队 = 一条）。
+ *
+ * 「最近一批」按**批次**取：一次「构建勾选项」入队会为每个项目建一条队列项，
+ * 它们共用一个 batchId，这一批的产物才是用户要看的。以前它只取最后一条队列项，
+ * 勾 5 个项目跑完只显示 1 个，而 README 与界面都承诺「这一批」。
  */
 export function buildSummary(query: SummaryQuery): BuildSummary {
   const rows = db
@@ -85,15 +88,26 @@ export function buildSummary(query: SummaryQuery): BuildSummary {
   return { scope: query.scope, totals, groups, outputRoot: getOutputRoot() }
 }
 
-/** 最近一条跑完的队列项里的所有变体 */
-function newestBatch<T extends { item: { id: string; state: string } }>(rows: T[]): T[] {
+/**
+ * 最近一批：找最近一条跑完的队列项，再把它**同批次**的项一起取出来。
+ *
+ * 老数据没有 batchId（加这一列之前入的队），这时退回「只看它自己这一条」，
+ * 与加批次标识之前的行为一致 —— 汇总不能因为升级就把历史记录变成另一个样子。
+ */
+function newestBatch<T extends { item: { id: string; state: string; batchId: string | null } }>(
+  rows: T[]
+): T[] {
   const latest = rows.find((row) =>
     (FINISHED_ITEM_STATES as readonly string[]).includes(row.item.state)
   )
   if (!latest) {
     return []
   }
-  return rows.filter((row) => row.item.id === latest.item.id)
+  const batchId = latest.item.batchId
+  if (batchId === null) {
+    return rows.filter((row) => row.item.id === latest.item.id)
+  }
+  return rows.filter((row) => row.item.batchId === batchId)
 }
 
 function toArtifact(run: typeof buildRuns.$inferSelect): SummaryArtifact {

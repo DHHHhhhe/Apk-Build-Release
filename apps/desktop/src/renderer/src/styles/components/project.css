@@ -217,13 +217,88 @@
   font-size: 12px;
 }
 
+/* 回退提示：列表里列的不是发布变体，包打出来也上不了架 —— 用警告色说清后果 */
+.project-detail__fallback {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+  color: var(--warning);
+  font-size: 12px;
+}
+
+/* 归档预览：告诉用户这个包最后会落到哪个目录（按别名优先） */
+.project-detail__archive {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  word-break: break-all;
+}
+
+/* 别名保存后的轻反馈：它是确认而不是状态，所以只闪一下 */
+.project-detail__alias-saved {
+  font-size: 12px;
+  color: var(--success);
+}
+
+/* 错误提示合并后的容器：一条正文 + 「另有 N 条」+ 关闭 */
+.app-errors {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.app-errors .app-error {
+  margin: 0;
+  flex: 1 1 auto;
+}
+
+.app-errors__more {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.app-errors__close {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.app-errors__close:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.app-errors__close:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
 /* ── 手工排序按钮 ──
  * 与拖拽并列的那条路：键盘、读屏、单手操作都靠它。命中区按 24px 给，不做成难点的小箭头。
+ * 平时不显形：每行都挂两个箭头会让列表看起来很吵；hover 或键盘聚焦时才出现（仍在布局里占位，
+ * 所以行宽不会因为鼠标移入移出而跳动）。
  */
 .project-list__order {
   display: inline-flex;
   align-items: center;
   gap: 2px;
+  opacity: 0;
+  transition: opacity var(--duration-micro);
+}
+
+.project-list__item:hover .project-list__order,
+.project-list__item:focus-within .project-list__order {
+  opacity: 1;
 }
 
 .project-list__order-btn {

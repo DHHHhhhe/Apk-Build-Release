@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from './components/ui/button'
 import { Settings } from 'lucide-react'
 import logoUrl from './assets/logo.png'
@@ -8,6 +8,7 @@ import { EnvCard } from './components/EnvCard'
 import { GuideCard } from './components/GuideCard'
 import { ProjectDetail } from './components/ProjectDetail'
 import { ProjectDrawer } from './components/ProjectDrawer'
+import type { DrawerFocus } from './components/ProjectDrawer'
 import { ProjectList } from './components/ProjectList'
 import { QueuePanel } from './components/QueuePanel'
 import { SettingsDialog } from './components/SettingsDialog'
@@ -19,25 +20,39 @@ import { ChangelogDialog } from './components/ChangelogDialog'
 import { UpdateNoticeToast } from './components/UpdateNoticeToast'
 import { UpdateBanner } from './components/UpdateBanner'
 import { UpdateResultToast } from './components/UpdateResultToast'
-import { Toaster } from 'sonner'
-import { buildBlockedReason, enqueueTargets, queuedExclusionHint } from './lib/build-guard'
+import { Toaster, toast } from 'sonner'
+import {
+  buildBlockedReason,
+  currentProjectBlockedReason,
+  enqueueTargets,
+  queuedExclusionHint
+} from './lib/build-guard'
 import { resolveBuildableVariants } from '@shared/lib/variants'
 import { useBuild } from './hooks/useBuild'
 import { useDragAndDrop } from './hooks/useDragAndDrop'
+import { useDrawerWidth } from './hooks/useDrawerWidth'
 import { useEnvProbe } from './hooks/useEnvProbe'
 import { useProjects } from './hooks/useProjects'
 import { useQueue } from './hooks/useQueue'
+import { useSettings } from './hooks/useSettings'
 import { SIDEBAR_MAX, SIDEBAR_MIN, useSidebarWidth } from './hooks/useSidebarWidth'
 import { useUpdate } from './hooks/useUpdate'
 import { useWindowWidth } from './hooks/useWindowWidth'
-import { resolveDrawerWidth, shouldAvoidDrawer } from './lib/layout'
+import { trackInputMode } from './lib/input-mode'
+import { resolveDrawerLayout } from './lib/layout'
 
 export default function App(): React.JSX.Element {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [changelogOpen, setChangelogOpen] = useState(false)
   const [pendingRemove, setPendingRemove] = useState<string | null>(null)
+  const [pendingClear, setPendingClear] = useState<'finished' | 'all' | null>(null)
+  const [pendingCancelAll, setPendingCancelAll] = useState(false)
   const [addError, setAddError] = useState<string | null>(null)
+  const [drawerFocus, setDrawerFocus] = useState<DrawerFocus | null>(null)
+  /** 用户手动关掉过的错误文案；出现新文案时照旧显示 */
+  const [dismissedErrors, setDismissedErrors] = useState<string[]>([])
+  const focusTokenRef = useRef(0)
 
   const {
     projects,
@@ -64,13 +79,89 @@ export default function App(): React.JSX.Element {
   const build = useBuild(selectedProject?.id ?? null)
   const env = useEnvProbe(selectedProject?.path ?? '')
   const sidebar = useSidebarWidth()
+  const drawer = useDrawerWidth()
   const windowWidth = useWindowWidth()
   const update = useUpdate()
+  const settings = useSettings()
 
-  // 抽屉打开时：窗口够宽就让主列整列避让（右侧那排组内按钮不被盖住），
-  // 不够宽就宁可让抽屉盖住 —— 被挤窄的主列没法用
-  const avoidDrawer =
-    selectedProject !== null && shouldAvoidDrawer({ windowWidth, sidebarWidth: sidebar.width })
+  /*
+   * 抽屉的宽度与「主列怎么摆」出自同一个函数：以前避让按布局常量算（1280 下 512）、
+   * 抽屉按用户拖的值画（默认 560），两个数不一致时右边仍有 48px 被压住。
+   */
+  const drawerLayout = resolveDrawerLayout({
+    windowWidth,
+    sidebarWidth: sidebar.width,
+    preferredWidth: drawer.preferredWidth ?? undefined
+  })
+  const avoidDrawer = selectedProject !== null && drawerLayout.mode === 'avoid'
+  const overlapDrawer = selectedProject !== null && drawerLayout.mode === 'overlap'
+
+  // 记录最后一次用的是键盘还是指针：抽屉按它决定要不要把焦点搬进去
+  useEffect(() => trackInputMode(), [])
+
+  /*
+   * 入队前的廉价预检：只查文件系统（项目目录、gradlew、输出目录），毫秒级。
+   * 结果只用来在勾选表上标一句「一眼看得出缺东西」，不拦入队。
+   * 依赖用 id 拼出来的字符串：projects 每次刷新都是新数组，直接依赖会重复请求。
+   */
+  const projectIdsKey = projects.map((project) => project.id).join(',')
+  const [preflightIssues, setPreflightIssues] = useState<Record<string, string[]>>({})
+  useEffect(() => {
+    if (projects.length === 0) {
+      setPreflightIssues({})
+      return
+    }
+    let cancelled = false
+    void window.api.project
+      .preflight(projectIdsKey.split(','))
+      .then((result) => {
+        if (cancelled || !result.success) {
+          return
+        }
+        const next: Record<string, string[]> = {}
+        for (const item of result.projects) {
+          if (item.issues.length > 0) {
+            next[item.projectId] = item.issues
+          }
+        }
+        setPreflightIssues(next)
+      })
+      .catch(() => {
+        // 预检失败不影响主流程：它只是提示
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [projectIdsKey, projects.length])
+
+  // 设置页关掉后重读一次：抽屉里的归档预览要跟着新目录走
+  useEffect(() => {
+    if (!settingsOpen) {
+      settings.refresh()
+    }
+  }, [settingsOpen, settings.refresh])
+
+  /*
+   * sonner 的通知与自己的 toast-stack 都在右下角，两个 fixed 容器会互相压住。
+   * 把 sonner 的偏移量顶到 toast-stack 之上：量的是真实高度，提示条增减都跟着走。
+   */
+  const toastStackRef = useRef<HTMLDivElement>(null)
+  const [toastStackHeight, setToastStackHeight] = useState(0)
+  useEffect(() => {
+    const node = toastStackRef.current
+    if (!node) {
+      return
+    }
+    const measure = (): void => {
+      setToastStackHeight(node.getBoundingClientRect().height)
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(node)
+    return () => {
+      observer.disconnect()
+    }
+  }, [])
 
   const selectedVariants = selectedProject?.selectedVariants ?? []
   // 与主进程同一条规则（shared/lib/variants）：列表里没显示的变体不参与构建
@@ -85,9 +176,8 @@ export default function App(): React.JSX.Element {
   const projectBuilding = currentItem?.state === 'running'
   // 环境缺失（比如 SDK 没找到）时不该让用户白等一次构建
   const envBlocking = env.result?.items.find((item) => item.state === 'error') ?? null
-  const enqueueBlocked = blockedReason({
-    drawerOpen: Boolean(selectedProject),
-    hasProjects: projects.length > 0,
+  // 单项目按钮的原因与勾选表那条共用同一份实现（build-guard），措辞不会走散
+  const enqueueBlocked = currentProjectBlockedReason({
     variantCount: buildableVariants.length,
     busy: busyProjectId !== null,
     alreadyQueued: Boolean(currentItem),
@@ -102,7 +192,11 @@ export default function App(): React.JSX.Element {
     }
   }
 
-  const drag = useDragAndDrop((path) => {
+  const drag = useDragAndDrop((path, total) => {
+    // 只取第一个是既有的实现；但用户拖了两个时要说明白，否则他会以为两个都加进去了
+    if (total > 1) {
+      toast.warning(`一次只能添加一个项目目录，已添加第一个（共拖入 ${total} 个）`)
+    }
     void runAdd(path)
   })
 
@@ -130,6 +224,10 @@ export default function App(): React.JSX.Element {
 
   const removableProject = projects.find((project) => project.id === pendingRemove) ?? null
   const removableRecordCount = queue.items.filter((item) => item.projectId === pendingRemove).length
+  const clearTargetCount =
+    pendingClear === 'finished'
+      ? queue.items.filter((item) => item.state !== 'pending' && item.state !== 'running').length
+      : queue.items.length
 
   // 跨项目的构建判断基准。注意单位：变体数用于按钮上的 N，项目数用于「都被队列占了」的判断，
   // 两者混着比会在某些巧合下得出看似正确的结果。
@@ -181,13 +279,44 @@ export default function App(): React.JSX.Element {
     }
   }
 
+  /** 「查看日志」：打开抽屉并定位到日志区（光打开抽屉的话，日志在首屏之外） */
+  const showLog = (projectId: string): void => {
+    setSelectedProjectId(projectId)
+    focusTokenRef.current += 1
+    setDrawerFocus({ section: 'log', token: focusTokenRef.current })
+  }
+
+  /** 一次补跑所有失败项：每项只重跑失败的变体，已经成功的变体不重复打 */
+  const retryAllFailed = (): void => {
+    for (const item of queue.items) {
+      if (item.state !== 'failed') {
+        continue
+      }
+      const failedVariants = item.runs
+        .filter((run) => run.state === 'failed')
+        .map((run) => run.variant)
+      void queue.retry(item.id, failedVariants.length > 0 ? failedVariants : undefined)
+    }
+  }
+
+  // 同一句错误可能来自两处，去重后再显示；用户关掉的只是那一条文案
+  const errorMessages = Array.from(
+    new Set([error, addError, queue.error, build.error].filter((value): value is string => Boolean(value)))
+  ).filter((message) => !dismissedErrors.includes(message))
+
+  const contentClass = avoidDrawer
+    ? 'app-content app-content--avoid-drawer'
+    : overlapDrawer
+      ? 'app-content app-content--drawer-overlap'
+      : 'app-content'
+
   return (
     <div
-      className="app-shell"
+      className={drag.dragging ? 'app-shell app-shell--dragging' : 'app-shell'}
       style={
         {
           '--sidebar-width': `${sidebar.width}px`,
-          '--drawer-width': `${resolveDrawerWidth(windowWidth)}px`
+          '--drawer-width': `${drawerLayout.width}px`
         } as React.CSSProperties
       }
       onDragOver={drag.onDragOver}
@@ -203,15 +332,20 @@ export default function App(): React.JSX.Element {
             ? ` · 当前项目已选 ${buildableVariants.length} 个变体`
             : ''}
         </span>
-        {enqueueBlocked ? <span className="app-topbar__hint">{enqueueBlocked}</span> : null}
-        <Button
-          variant="outline"
-          disabled={crossBlocked !== null}
-          title={crossBlocked ?? '把勾选的变体加入队列并构建'}
-          onClick={buildCheckedProjects}
-        >
-          构建勾选项（{crossProject.buildableVariantCount}）
-        </Button>
+        {/* 原因摆在按钮旁边，而不是只在 title 里：禁用时 hover 才能看到原因等于没解释 */}
+        {selectedProject && enqueueBlocked ? (
+          <span className="app-topbar__hint">{enqueueBlocked}</span>
+        ) : null}
+        {projects.length > 0 ? (
+          <Button
+            variant="outline"
+            disabled={crossBlocked !== null}
+            title={crossBlocked ?? '把勾选的变体加入队列并构建'}
+            onClick={buildCheckedProjects}
+          >
+            构建勾选项（{crossProject.buildableVariantCount}）
+          </Button>
+        ) : null}
         {update.state?.phase === 'available' || update.state?.phase === 'downloaded' ? (
           <Button
             variant="outline"
@@ -223,19 +357,26 @@ export default function App(): React.JSX.Element {
             有新版本
           </Button>
         ) : null}
-        <Button
-          variant="default"
-          disabled={Boolean(enqueueBlocked) || !selectedProject}
-          title={enqueueBlocked ?? undefined}
-          onClick={() => {
-            if (selectedProject) {
-              // 带上抽屉里这个项目当前可构建的变体，主进程不再回读数据库
-              void queue.enqueue([{ projectId: selectedProject.id, variants: buildableVariants }])
-            }
-          }}
-        >
-          {projectBuilding ? '构建中…' : '加入队列并构建'}
-        </Button>
+        {/*
+         * 单项目入口只在抽屉打开时出现：它是「打抽屉里这个项目」，没打开就没有对象。
+         * 以前它灰着并配一句「先在左侧选一个项目」—— 首屏最显眼的那个按钮点不动，
+         * 还要用户自己去找原因。
+         */}
+        {selectedProject ? (
+          <Button
+            variant="default"
+            disabled={enqueueBlocked !== null}
+            title={enqueueBlocked ?? undefined}
+            onClick={() => {
+              if (selectedProject) {
+                // 带上抽屉里这个项目当前可构建的变体，主进程不再回读数据库
+                void queue.enqueue([{ projectId: selectedProject.id, variants: buildableVariants }])
+              }
+            }}
+          >
+            {projectBuilding ? '构建中…' : `构建当前项目（${buildableVariants.length}）`}
+          </Button>
+        ) : null}
       </header>
 
       <div className="app-body">
@@ -318,7 +459,7 @@ export default function App(): React.JSX.Element {
         />
 
         {/* 右下角叠放：更新提示条、手动检查的结果、更新完成告知 —— 三者可能同时出现，叠起来才不互相压住 */}
-        <div className="toast-stack">
+        <div className="toast-stack" ref={toastStackRef}>
           <UpdateBanner
             queueBusy={queue.items.some((item) => item.state === 'running' || item.state === 'pending')}
           />
@@ -326,29 +467,55 @@ export default function App(): React.JSX.Element {
           <UpdateNoticeToast />
         </div>
 
-        {/* 与参考实现同一套配置：右下角、richColors、带关闭按钮；theme=system 跟随系统深浅色 */}
-        <Toaster position="bottom-right" richColors closeButton theme="system" />
-        
-        <main className={avoidDrawer ? 'app-content app-content--avoid-drawer' : 'app-content'}>
-          {error ? (
-            <p className="app-error" role="status" aria-live="polite">
-              {error}
-            </p>
-          ) : null}
-          {addError ? (
-            <p className="app-error" role="status" aria-live="polite">
-              {addError}
-            </p>
-          ) : null}
-          {queue.error ? (
-            <p className="app-error" role="status" aria-live="polite">
-              {queue.error}
-            </p>
-          ) : null}
-          {build.error ? (
-            <p className="app-error" role="status" aria-live="polite">
-              {build.error}
-            </p>
+        {/*
+         * 与参考实现同一套配置：右下角、richColors、带关闭按钮；theme=system 跟随系统深浅色。
+         * offset 顶到 toast-stack 之上，两个 fixed 容器才不会互相压住。
+         */}
+        <Toaster
+          position="bottom-right"
+          richColors
+          closeButton
+          theme="system"
+          offset={toastStackHeight > 0 ? toastStackHeight + 16 : 16}
+        />
+
+        {/* 拖拽是全窗口生效的：已经有项目时也要给反馈，否则用户以为这里不支持拖拽 */}
+        {drag.dragging ? (
+          <div className="drop-hint" role="status" aria-live="polite">
+            <span className="drop-hint__title">松开就把这个文件夹加进来</span>
+            {drag.fileCount > 1 ? (
+              <span className="drop-hint__note">一次只能加一个：会添加其中第一个</span>
+            ) : null}
+          </div>
+        ) : null}
+
+        <main className={contentClass}>
+          {/*
+           * 四个来源的错误以前各占一条红条，叠起来能占掉半屏。合并成一条：
+           * 显示最近一条，其余只报数量，用户看过了可以关掉。
+           */}
+          {errorMessages.length > 0 ? (
+            <div className="app-errors">
+              <p className="app-error" role="status" aria-live="polite">
+                {errorMessages[errorMessages.length - 1]}
+              </p>
+              {errorMessages.length > 1 ? (
+                <span className="app-errors__more tabular">
+                  另有 {errorMessages.length - 1} 条其他错误
+                </span>
+              ) : null}
+              <button
+                type="button"
+                className="app-errors__close"
+                aria-label="关闭错误提示"
+                title="关闭提示"
+                onClick={() => {
+                  setDismissedErrors((previous) => [...previous, ...errorMessages])
+                }}
+              >
+                ×
+              </button>
+            </div>
           ) : null}
 
           {projects.length === 0 ? (
@@ -363,6 +530,8 @@ export default function App(): React.JSX.Element {
                 buildableVariantCount={crossProject.buildableVariantCount}
                 blockedReason={crossBlocked}
                 queuedHint={crossHint}
+                outputRoot={settings.settings?.outputRoot ?? null}
+                preflightIssues={preflightIssues}
                 onSetVariants={(projectId, names) => {
                   void setVariants(projectId, names)
                 }}
@@ -375,23 +544,24 @@ export default function App(): React.JSX.Element {
               <QueuePanel
                 items={queue.items}
                 concurrency={queue.concurrency}
+                paused={queue.paused}
                 onCancel={(itemId) => {
                   void queue.cancel(itemId)
                 }}
-                onCancelAll={() => {
-                  void queue.cancelAll()
+                onRequestCancelAll={() => {
+                  setPendingCancelAll(true)
                 }}
-                onRetry={(itemId) => {
-                  void queue.retry(itemId)
+                onRetry={(itemId, variants) => {
+                  void queue.retry(itemId, variants)
                 }}
-                onClear={(scope) => {
-                  void queue.clear(scope)
-                }}
+                onRetryAllFailed={retryAllFailed}
+                onRequestClear={setPendingClear}
                 onConcurrencyChange={(limit) => {
                   void queue.setConcurrency(limit)
                 }}
-                onShowLog={(projectId) => {
-                  setSelectedProjectId(projectId)
+                onShowLog={showLog}
+                onResume={() => {
+                  void queue.resume()
                 }}
               />
             </>
@@ -402,8 +572,13 @@ export default function App(): React.JSX.Element {
         {selectedProject ? (
           <ProjectDrawer
             project={selectedProject}
+            width={drawerLayout.width}
+            onResize={drawer.setWidth}
+            onResizeCommit={drawer.commitWidth}
+            focusSection={drawerFocus}
             onClose={() => {
               setSelectedProjectId(null)
+              setDrawerFocus(null)
             }}
           >
             <ProjectDetail
@@ -411,6 +586,7 @@ export default function App(): React.JSX.Element {
               busyKind={busyProjectId === selectedProject.id ? busyKind : null}
               building={projectBuilding}
               queuedVariants={currentItem?.variants ?? null}
+              outputRoot={settings.settings?.outputRoot ?? null}
               onToggleVariant={handleToggleVariant}
               onSetVariants={(names) => {
                 void setVariants(selectedProject.id, names)
@@ -471,35 +647,42 @@ export default function App(): React.JSX.Element {
           setPendingRemove(null)
         }}
       />
+
+      {/* 取消会中断正在跑的构建，重新跑要再等一遍：先确认再动手 */}
+      <ConfirmDialog
+        open={pendingCancelAll}
+        title="取消全部构建？"
+        tone="destructive"
+        confirmLabel="全部取消"
+        message={`将取消 ${
+          queue.items.filter((item) => item.state === 'running' || item.state === 'pending').length
+        } 项（含正在跑的），被中断的构建要重新跑一遍。已经跑完的记录不受影响。`}
+        onCancel={() => {
+          setPendingCancelAll(false)
+        }}
+        onConfirm={() => {
+          setPendingCancelAll(false)
+          void queue.cancelAll()
+        }}
+      />
+
+      {/* 清空队列会级联删掉构建记录：这是破坏性操作，必须说清会删多少、删什么 */}
+      <ConfirmDialog
+        open={pendingClear !== null}
+        title={pendingClear === 'all' ? '清空全部队列记录？' : '清空已结束的队列记录？'}
+        tone="destructive"
+        confirmLabel="清空"
+        message={`将清空 ${clearTargetCount} 条队列记录，同时删除它们对应的构建记录（已经复制到输出目录的 APK 不会被删）。`}
+        onCancel={() => {
+          setPendingClear(null)
+        }}
+        onConfirm={() => {
+          if (pendingClear) {
+            void queue.clear(pendingClear)
+          }
+          setPendingClear(null)
+        }}
+      />
     </div>
   )
-}
-
-/** 单项目按钮禁用时要说清原因，而不是让用户猜 */
-function blockedReason(input: {
-  /** 抽屉开着 = 有一个「当前项目」 */
-  drawerOpen: boolean
-  hasProjects: boolean
-  variantCount: number
-  busy: boolean
-  alreadyQueued: boolean
-  envIssue: string | null
-}): string | null {
-  if (input.busy) {
-    return '正在处理上一个操作…'
-  }
-  if (!input.drawerOpen) {
-    // 有项目但没打开：这个按钮指的是「抽屉里那个项目」，没打开就没有对象
-    return input.hasProjects ? '先在左侧选一个项目' : '先添加一个项目'
-  }
-  if (input.envIssue) {
-    return `构建环境有问题：${input.envIssue}`
-  }
-  if (input.variantCount === 0) {
-    return '先在发布变体里勾选至少一个'
-  }
-  if (input.alreadyQueued) {
-    return '这个项目已经在队列里了'
-  }
-  return null
 }

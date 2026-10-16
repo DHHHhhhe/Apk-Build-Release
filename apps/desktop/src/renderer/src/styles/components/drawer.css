@@ -25,6 +25,60 @@
   margin-right: var(--drawer-width, 560px);
 }
 
+/*
+ * 空间连抽屉下限都放不下时的覆盖模式（窄窗口、或侧栏被拖得很宽）。
+ *
+ * 抽屉仍然盖在右侧，但主列里那些「靠右对齐」的操作会整排压到抽屉底下，表现为
+ * 「点了没反应」这种最难自诊断的失败。所以覆盖模式下把动作组整行换到左边：
+ * 只把 margin-left:auto 去掉是不够的 —— 组头里那个项目路径是 flex:1 的，
+ * 它会继续把按钮顶到右边（实测就是这样，按钮仍被挡）。所以让动作组独占一行、从左排起。
+ *
+ * 判定与宽度由 resolveDrawerLayout 给出（lib/layout.ts）。
+ */
+.app-content--drawer-overlap .summary__group-head,
+.app-content--drawer-overlap .queue-panel__head,
+.app-content--drawer-overlap .build-picker__bar,
+.app-content--drawer-overlap .build-picker__foot,
+.app-content--drawer-overlap .summary__head {
+  flex-wrap: wrap;
+}
+
+.app-content--drawer-overlap .build-picker__group-actions,
+.app-content--drawer-overlap .queue-panel__actions {
+  margin-left: 0;
+  width: 100%;
+}
+
+.app-content--drawer-overlap .build-picker__count,
+.app-content--drawer-overlap .summary__scope,
+.app-content--drawer-overlap .queue-list__project,
+.app-content--drawer-overlap .run-list__variant {
+  margin-right: 0;
+}
+
+/* 「查看日志」跳过来之后闪一下：告诉用户定位到的就是这一段 */
+.drawer-section--flash {
+  animation: drawer-section-flash 1.4s ease;
+}
+
+@keyframes drawer-section-flash {
+  0%,
+  40% {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  100% {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer-section--flash {
+    animation: none;
+  }
+}
+
 .drawer__head {
   flex: 0 0 auto;
   display: flex;

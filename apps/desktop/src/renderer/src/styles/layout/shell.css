@@ -143,3 +143,37 @@ body.is-resizing-sidebar {
   scrollbar-gutter: stable;
 }
 
+/* ── 拖入项目文件夹时的全窗口反馈 ──
+ * 拖拽监听挂在根元素上，所以高亮也要覆盖整窗 —— 以前只有空状态那张引导卡会变，
+ * 已经有项目时拖进来毫无反应，用户会以为这里不支持拖拽。
+ */
+.app-shell--dragging {
+  outline: 2px dashed var(--primary);
+  outline-offset: -4px;
+}
+
+.drop-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 48px;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 20px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: var(--shadow-float);
+  font-size: 13px;
+  /* 关键：不能接走拖拽事件，否则它会挡住自己的落点 */
+  pointer-events: none;
+}
+
+.drop-hint__note {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+

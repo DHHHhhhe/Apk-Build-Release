@@ -98,6 +98,8 @@ export function ensureSchema(): void {
   ensureColumn('build_runs', 'failure_hint', 'TEXT')
   ensureColumn('queue_items', 'variants', "TEXT NOT NULL DEFAULT '[]'")
   ensureColumn('queue_items', 'note', 'TEXT')
+  // 「最近一批」要按批次汇总，老库补上这一列后，老数据为 NULL 走回退分支
+  ensureColumn('queue_items', 'batch_id', 'TEXT')
 
   logger.info('数据库就绪', { path: dbPath })
 }

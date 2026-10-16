@@ -4,20 +4,25 @@ import type { EnqueueTarget, QueueItem } from '@shared/types/queue'
 export interface UseQueueResult {
   items: QueueItem[]
   concurrency: number
+  /** 队列停在暂停态（启动时有上次没跑的项），要用户点「继续上次队列」 */
+  paused: boolean
   loading: boolean
   error: string | null
   enqueue: (targets: EnqueueTarget[]) => Promise<void>
   setConcurrency: (limit: number) => Promise<void>
   cancel: (itemId: string) => Promise<void>
   cancelAll: () => Promise<void>
-  retry: (itemId: string) => Promise<void>
+  /** 重试；给出 variants 时只重跑这些变体 */
+  retry: (itemId: string, variants?: string[]) => Promise<void>
   clear: (scope: 'finished' | 'all') => Promise<void>
+  resume: () => Promise<void>
   refresh: () => void
 }
 
 export function useQueue(): UseQueueResult {
   const [items, setItems] = useState<QueueItem[]>([])
   const [concurrency, setConcurrencyState] = useState(1)
+  const [paused, setPaused] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [reloadToken, setReloadToken] = useState(0)
@@ -43,6 +48,7 @@ export function useQueue(): UseQueueResult {
         setError(null)
         setItems(result.items)
         setConcurrencyState(result.concurrency)
+        setPaused(result.paused)
       })
       .catch((caught: unknown) => {
         if (!cancelled) {
@@ -117,7 +123,8 @@ export function useQueue(): UseQueueResult {
   )
 
   const retry = useCallback(
-    (itemId: string) => runMutation(() => window.api.queue.retry(itemId)),
+    (itemId: string, variants?: string[]) =>
+      runMutation(() => window.api.queue.retry(itemId, variants)),
     [runMutation]
   )
 
@@ -126,9 +133,27 @@ export function useQueue(): UseQueueResult {
     [runMutation]
   )
 
+  /** 继续上次队列：恢复调度后重新读一次，paused 会跟着变成 false */
+  const resume = useCallback(async (): Promise<void> => {
+    try {
+      const result = await window.api.queue.resume()
+      if (!result.success) {
+        setError(result.error ?? '恢复队列失败')
+        return
+      }
+      setError(null)
+      setItems(result.items)
+      setConcurrencyState(result.concurrency)
+      setPaused(result.paused)
+    } catch (caught: unknown) {
+      setError(caught instanceof Error ? caught.message : '恢复队列失败')
+    }
+  }, [])
+
   return {
     items,
     concurrency,
+    paused,
     loading,
     error,
     enqueue,
@@ -137,6 +162,7 @@ export function useQueue(): UseQueueResult {
     cancelAll,
     retry,
     clear,
+    resume,
     refresh
   }
 }

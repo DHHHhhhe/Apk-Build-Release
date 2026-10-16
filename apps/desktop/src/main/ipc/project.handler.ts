@@ -3,6 +3,7 @@ import { IPC_CHANNELS } from '@shared/constants/channels'
 import { addProject } from '../services/project/procedures/add'
 import { listProjects } from '../services/project/procedures/list'
 import { pickProjectDirectory } from '../services/project/procedures/pick-directory'
+import { preflightProjectList } from '../services/project/procedures/preflight'
 import { refreshProjectVariants } from '../services/project/procedures/refresh-variants'
 import { removeProject } from '../services/project/procedures/remove'
 import { reorderProjects } from '../services/project/procedures/reorder'
@@ -22,4 +23,7 @@ export function setupProjectHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.PROJECT.SET_ALIAS, (_event, input: unknown) => setProjectAlias(input))
   ipcMain.handle(IPC_CHANNELS.PROJECT.REORDER, (_event, input: unknown) => reorderProjects(input))
   ipcMain.handle(IPC_CHANNELS.PROJECT.PICK_DIRECTORY, () => pickProjectDirectory())
+  ipcMain.handle(IPC_CHANNELS.PROJECT.PREFLIGHT, (_event, input: unknown) =>
+    preflightProjectList(input)
+  )
 }

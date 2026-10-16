@@ -5,6 +5,7 @@ import { cancelAllQueueItems } from '../services/queue/procedures/cancel-all'
 import { clearQueueItems } from '../services/queue/procedures/clear'
 import { enqueueProjects } from '../services/queue/procedures/enqueue'
 import { listQueueItems } from '../services/queue/procedures/list'
+import { resumeQueue } from '../services/queue/lib/scheduler'
 import { retryQueueItem } from '../services/queue/procedures/retry'
 import { updateConcurrency } from '../services/queue/procedures/set-concurrency'
 
@@ -18,4 +19,8 @@ export function setupQueueHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.QUEUE.CANCEL_ALL, () => cancelAllQueueItems())
   ipcMain.handle(IPC_CHANNELS.QUEUE.RETRY, (_event, input: unknown) => retryQueueItem(input))
   ipcMain.handle(IPC_CHANNELS.QUEUE.CLEAR, (_event, input: unknown) => clearQueueItems(input))
+  ipcMain.handle(IPC_CHANNELS.QUEUE.RESUME, () => {
+    resumeQueue()
+    return listQueueItems()
+  })
 }

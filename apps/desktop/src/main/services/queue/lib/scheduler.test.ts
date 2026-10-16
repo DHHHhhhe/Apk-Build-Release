@@ -203,7 +203,7 @@ describe('取消 / 重试 / 清空', () => {
 })
 
 describe('异常退出收尾', () => {
-  it('把残留的 running / pending 标成 failed 并写明原因', async () => {
+  it('只把残留的 running 标成 failed，pending 保留下来等用户决定是否续跑', async () => {
     scheduler.setExecutorForTest(async () => {
       await delay(50)
       return 'success'
@@ -213,9 +213,50 @@ describe('异常退出收尾', () => {
     const pending = items.createItem(projectId2, ['freeDebug'])
 
     const recovered = scheduler.recoverStale()
-    expect(recovered).toBe(2)
+    // 只有 running 那一项要收尾
+    expect(recovered).toBe(1)
     expect(items.findItemRow(running.id)?.state).toBe('failed')
     expect(items.findItemRow(running.id)?.note).toContain('异常退出')
-    expect(items.findItemRow(pending.id)?.state).toBe('failed')
+    // pending 还能跑：重启不该把用户排的队白排掉（以前这里会被一起标成 failed）
+    expect(items.findItemRow(pending.id)?.state).toBe('pending')
+  })
+})
+
+describe('重试', () => {
+  it('只重跑指定的变体：多个渠道挂一个时不用整项重打', async () => {
+    const item = items.createItem(projectId, ['freeRelease', 'paidRelease', 'demoRelease'])
+    items.updateItem(item.id, { state: 'failed', finishedAt: new Date() })
+
+    const result = scheduler.retryItem(item.id, ['paidRelease'])
+
+    expect(result.success).toBe(true)
+    expect(result.item?.variants).toEqual(['paidRelease'])
+    expect(result.item?.attempt).toBe(2)
+
+    releaseOne()
+    await scheduler.waitForIdle(2000)
+  })
+
+  it('重试沿用原来的批次：汇总里这一批仍然看全，而不是只剩补跑的那一个', async () => {
+    const item = items.createItem(projectId, ['freeRelease'], 1, 'batch-x')
+    items.updateItem(item.id, { state: 'failed', finishedAt: new Date() })
+
+    const result = scheduler.retryItem(item.id)
+
+    expect(result.item?.variants).toEqual(['freeRelease'])
+    expect(items.findItemRow(result.item?.id ?? '')?.batchId).toBe('batch-x')
+
+    releaseOne()
+    await scheduler.waitForIdle(2000)
+  })
+
+  it('要重跑的变体不在这一项里时拒绝，并说明可能的原因', () => {
+    const item = items.createItem(projectId, ['freeRelease'])
+    items.updateItem(item.id, { state: 'failed', finishedAt: new Date() })
+
+    const result = scheduler.retryItem(item.id, ['removedVariant'])
+
+    expect(result.success).toBe(false)
+    expect(result.error).toContain('改名或删除')
   })
 })

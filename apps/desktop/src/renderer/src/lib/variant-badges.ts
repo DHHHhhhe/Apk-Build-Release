@@ -13,6 +13,17 @@ export interface VariantBadgeVisibility {
   buildType: boolean
 }
 
+export interface VariantBadgeOptions {
+  /**
+   * 强制显示 buildType。
+   *
+   * 用在「项目没有 release 变体、列表回退成全部变体」的时候：那种情况下列表里只有
+   * debug 一种 buildType，「不统一才显示」的规则会把唯一的区分依据藏掉，
+   * 用户就看不出自己在打 debug 包（见 isPackagingFallback）。
+   */
+  forceBuildType?: boolean
+}
+
 /**
  * 变体行里哪些类型标签值得显示。
  *
@@ -22,10 +33,16 @@ export interface VariantBadgeVisibility {
  *
  * 反过来，多 flavor（free / paid）或多 buildType 的项目里，这些标签是区分行的唯一依据，必须显示。
  */
-export function variantBadgeVisibility(variants: BadgeInput[]): VariantBadgeVisibility {
+export function variantBadgeVisibility(
+  variants: BadgeInput[],
+  options: VariantBadgeOptions = {}
+): VariantBadgeVisibility {
   const flavors = new Set(
     variants.map((variant) => variant.flavor).filter((flavor): flavor is string => Boolean(flavor))
   )
   const buildTypes = new Set(variants.map((variant) => variant.buildType))
-  return { flavor: flavors.size > 1, buildType: buildTypes.size > 1 }
+  return {
+    flavor: flavors.size > 1,
+    buildType: buildTypes.size > 1 || options.forceBuildType === true
+  }
 }

@@ -7,7 +7,7 @@ import type {
   SummaryScope
 } from './build'
 import type { EnvProbeResult } from './env'
-import type { Project, ProjectListResult, ProjectResult } from './project'
+import type { Project, ProjectListResult, ProjectPreflightResult, ProjectResult } from './project'
 import type {
   EnqueueTarget,
   QueueItem,
@@ -42,6 +42,8 @@ export interface AppApi {
     setAlias: (projectId: string, alias: string | null) => Promise<ProjectResult>
     reorder: (projectIds: string[]) => Promise<ProjectListResult>
     pickDirectory: () => Promise<PickDirectoryResult>
+    /** 入队前的廉价预检：只查文件系统（项目目录、gradlew、输出目录），结果只用于提示 */
+    preflight: (projectIds: string[]) => Promise<ProjectPreflightResult>
   }
   queue: {
     list: () => Promise<QueueListResult>
@@ -49,8 +51,11 @@ export interface AppApi {
     setConcurrency: (limit: number) => Promise<QueueMutationResult>
     cancel: (itemId: string) => Promise<QueueMutationResult>
     cancelAll: () => Promise<QueueMutationResult>
-    retry: (itemId: string) => Promise<QueueMutationResult>
+    /** 重试一条队列项；给出 variants 时只重跑这些变体 */
+    retry: (itemId: string, variants?: string[]) => Promise<QueueMutationResult>
     clear: (scope: 'finished' | 'all') => Promise<QueueMutationResult>
+    /** 恢复启动时暂停的队列（上次退出留下的 pending 项） */
+    resume: () => Promise<QueueListResult>
     onState: (handler: (event: QueueStateEvent) => void) => Unsubscribe
   }
   build: {
@@ -101,6 +106,7 @@ export type {
   BuildSummaryResult,
   Project,
   ProjectListResult,
+  ProjectPreflightResult,
   ProjectResult,
   QueueItem,
   QueueListResult,

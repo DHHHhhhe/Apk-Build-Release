@@ -22,6 +22,22 @@ export function filterVariantsForPackaging<T extends { buildType: string }>(vari
 }
 
 /**
+ * 列表是不是「回退成全部变体」了。
+ *
+ * 回退本身是体贴（不然用户面对空列表），但**必须说出来**：回退后列表里只有 debug，
+ * 而 buildType 徽章在「只有一种类型」时默认不显示，两个体贴叠在一起的结果是
+ * 用户完全看不出自己在打 debug 包，包发出去了才知道没签名。
+ *
+ * 判据与 filterVariantsForPackaging 的回退条件严格对应：有变体、且一个 release 都没有。
+ */
+export function isPackagingFallback<T extends { buildType: string }>(variants: T[]): boolean {
+  return variants.length > 0 && !variants.some((variant) => isReleaseBuildType(variant.buildType))
+}
+
+/** 回退时列表上方那句说明；三处列表（勾选表 / 项目详情 / 侧栏计数）共用同一份措辞 */
+export const PACKAGING_FALLBACK_NOTE = '这个项目没有 release 变体，下面列的是全部变体（debug 包不能上架）'
+
+/**
  * 勾了变体、但一个都出不了包时的说明（例如旧版本留下的 debug 勾选）。
  * 主进程跳过该项目时用它，措辞与界面上的提示保持一致。
  */

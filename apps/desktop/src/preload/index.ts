@@ -33,7 +33,10 @@ const api: AppApi = {
       ipcRenderer.invoke(IPC_CHANNELS.PROJECT.SET_ALIAS, { projectId, alias }),
     reorder: (projectIds: string[]) =>
       ipcRenderer.invoke(IPC_CHANNELS.PROJECT.REORDER, { projectIds }),
-    pickDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.PROJECT.PICK_DIRECTORY)
+    pickDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.PROJECT.PICK_DIRECTORY),
+    /** 入队前的廉价预检：只查文件系统，结果只用于提示 */
+    preflight: (projectIds: string[]) =>
+      ipcRenderer.invoke(IPC_CHANNELS.PROJECT.PREFLIGHT, { projectIds })
   },
   queue: {
     list: () => ipcRenderer.invoke(IPC_CHANNELS.QUEUE.LIST),
@@ -42,8 +45,11 @@ const api: AppApi = {
       ipcRenderer.invoke(IPC_CHANNELS.QUEUE.SET_CONCURRENCY, { limit }),
     cancel: (itemId: string) => ipcRenderer.invoke(IPC_CHANNELS.QUEUE.CANCEL, { itemId }),
     cancelAll: () => ipcRenderer.invoke(IPC_CHANNELS.QUEUE.CANCEL_ALL),
-    retry: (itemId: string) => ipcRenderer.invoke(IPC_CHANNELS.QUEUE.RETRY, { itemId }),
+    retry: (itemId: string, variants?: string[]) =>
+      ipcRenderer.invoke(IPC_CHANNELS.QUEUE.RETRY, { itemId, variants }),
     clear: (scope: 'finished' | 'all') => ipcRenderer.invoke(IPC_CHANNELS.QUEUE.CLEAR, { scope }),
+    /** 恢复启动时暂停的队列（上次退出留下的 pending 项） */
+    resume: () => ipcRenderer.invoke(IPC_CHANNELS.QUEUE.RESUME),
     onState: (handler: (event: QueueStateEvent) => void) =>
       subscribe(IPC_CHANNELS.QUEUE.STATE, handler)
   },

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { logger as baseLogger } from '../../logger'
 import { QUEUE_CONCURRENCY } from '@shared/constants/queue'
 import { getSettingNumber, setSettingNumber } from '../../build/lib/settings'
@@ -6,6 +7,7 @@ import { requestCancel } from './cancel'
 import { executeQueueItem } from './executor'
 import {
   clearItems,
+  countPending,
   createItem,
   findItemRow,
   isFinished,
@@ -18,6 +20,7 @@ import {
   updateItem
 } from './items'
 import { broadcastItem } from './executor'
+import { syncTaskbarProgress } from './progress'
 
 const logger = baseLogger.scope('queue:scheduler')
 
@@ -31,6 +34,32 @@ let executor: Executor = executeQueueItem
 let ticking = false
 const running = new Set<string>()
 const idleWaiters: Array<() => void> = []
+
+/**
+ * 队列是否处于暂停态。
+ *
+ * 只在启动时可能为 true：上一次退出留下了没跑的 pending 项。这时不自动开跑，
+ * 等用户点「继续上次队列」——一开应用就自己占满 CPU 不是用户要的。
+ */
+let paused = false
+
+export function pauseQueue(): void {
+  paused = true
+}
+
+export function isQueuePaused(): boolean {
+  return paused
+}
+
+/** 「继续上次队列」：恢复调度并立刻跑起来 */
+export function resumeQueue(): void {
+  if (!paused) {
+    return
+  }
+  paused = false
+  logger.info('队列已恢复', { pending: countPending() })
+  tick()
+}
 
 /** 测试用：替换真正的执行器，避免真的去跑 Gradle */
 export function setExecutorForTest(next: Executor | null): void {
@@ -57,10 +86,15 @@ function clampConcurrency(value: number): number {
   return Math.min(MAX_CONCURRENCY, Math.max(QUEUE_CONCURRENCY.MIN, Math.round(value)))
 }
 
-export function enqueueItem(projectId: string, variants: string[]): QueueItem {
-  const row = createItem(projectId, variants)
+export function enqueueItem(
+  projectId: string,
+  variants: string[],
+  batchId: string | null = null
+): QueueItem {
+  const row = createItem(projectId, variants, 1, batchId)
   logger.info('队列项入队', { itemId: row.id, projectId, variants: variants.join(',') })
   broadcastItem(row.id)
+  syncTaskbarProgress()
   queueMicrotask(() => {
     tick()
   })
@@ -69,7 +103,7 @@ export function enqueueItem(projectId: string, variants: string[]): QueueItem {
 
 /** 有空位就取 pending 项来跑；一条项内部的多个变体是顺序执行的 */
 export function tick(): void {
-  if (ticking) {
+  if (ticking || paused) {
     return
   }
   ticking = true
@@ -100,6 +134,7 @@ export function tick(): void {
     }
   } finally {
     ticking = false
+    syncTaskbarProgress()
   }
 }
 
@@ -138,7 +173,19 @@ export function cancelAllItems(): number {
   return canceled
 }
 
-export function retryItem(itemId: string): { success: boolean; error?: string; item?: QueueItem } {
+/**
+ * 重试一条队列项。
+ *
+ * `onlyVariants` 给出时只重跑这些变体：一个项目有 8 个渠道、挂掉 1 个时，
+ * 整项重跑等于把另外 7 个也白打一遍。不传就是整项重跑（老行为）。
+ *
+ * 批次沿用原项：重试是同一批的补跑，汇总里的「最近一批」应当把这一批看全，
+ * 而不是只剩刚补的那一个变体。原项没有批次（老数据）时才新开一个。
+ */
+export function retryItem(
+  itemId: string,
+  onlyVariants?: string[]
+): { success: boolean; error?: string; item?: QueueItem } {
   const row = findItemRow(itemId)
   if (!row) {
     return { success: false, error: '找不到这个队列项' }
@@ -147,23 +194,39 @@ export function retryItem(itemId: string): { success: boolean; error?: string; i
     return { success: false, error: '这一项还在队列里，等它跑完再重试' }
   }
 
-  const variants = parseVariants(row.variants)
+  const recorded = parseVariants(row.variants)
+  const variants =
+    onlyVariants && onlyVariants.length > 0
+      ? recorded.filter((name) => onlyVariants.includes(name))
+      : recorded
   if (variants.length === 0) {
-    return { success: false, error: '这一项没有记录变体，重新入队时请先选变体' }
+    return {
+      success: false,
+      error:
+        onlyVariants && onlyVariants.length > 0
+          ? '要重跑的变体不在这一项里，可能变体已经改名或删除'
+          : '这一项没有记录变体，重新入队时请先选变体'
+    }
   }
 
-  const created = createItem(row.projectId, variants, row.attempt + 1)
+  const created = createItem(row.projectId, variants, row.attempt + 1, row.batchId ?? randomUUID())
   broadcastItem(created.id)
   queueMicrotask(() => {
     tick()
   })
-  logger.info('重试队列项', { itemId: created.id, from: itemId, attempt: created.attempt })
+  logger.info('重试队列项', {
+    itemId: created.id,
+    from: itemId,
+    attempt: created.attempt,
+    variants: variants.join(',')
+  })
   return { success: true, item: toQueueItemDto(created) }
 }
 
 export function clearQueue(scope: 'finished' | 'all'): number {
   const removed = clearItems(scope)
   logger.info('清空队列', { scope, removed })
+  syncTaskbarProgress()
   return removed
 }
 

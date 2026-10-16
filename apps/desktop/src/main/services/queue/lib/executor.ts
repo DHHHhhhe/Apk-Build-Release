@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { basename, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { app } from 'electron'
 import { IPC_CHANNELS } from '@shared/constants/channels'
 import type { BuildRunState } from '@shared/types/build'
@@ -9,6 +9,7 @@ import { locateGradlew } from '../../../lib/gradle-paths'
 import { logger as baseLogger } from '../../logger'
 import { copyArtifactToOutput, findApkArtifacts, resolveOutputFolderName } from '../../build/lib/artifacts'
 import { classifyFailure } from '../../build/lib/failure'
+import { recordArtifact } from '../../build/lib/manifest'
 import {
   createBuildRun,
   getBuildRun,
@@ -138,6 +139,18 @@ export async function executeQueueItem(itemId: string): Promise<QueueItemState> 
           : (classification?.hint ?? null)
 
       const state: BuildRunState = canceled ? 'canceled' : succeeded ? 'success' : 'failed'
+
+      // 归档目录里记一份「这个变体最新的包是哪个」：同名产物只加时间戳不覆盖，
+      // 光看目录分不出该发哪个（见 build/lib/manifest.ts）
+      if (succeeded && artifact && copiedPath) {
+        recordArtifact(dirname(copiedPath), {
+          variant,
+          apkName: artifact.apkName,
+          apkPath: copiedPath,
+          signed: signature?.signed ?? null,
+          copiedAt: Date.now()
+        })
+      }
       const updated = updateBuildRun(runRow.id, {
         state,
         exitCode: result.exitCode,

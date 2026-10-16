@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { logger as baseLogger } from '../../logger'
 import { NO_BUILDABLE_VARIANT_REASON, resolveBuildableVariants } from '@shared/lib/variants'
 import { findProjectRow, listVariants } from '../../project/lib/mapper'
@@ -24,6 +25,9 @@ export function enqueueProjects(input: unknown): QueueMutationResult {
 
   const created: QueueItem[] = []
   const skipped: string[] = []
+  // 这一次调用建的所有队列项共用一个批次：汇总的「最近一批」要覆盖这次入队的全部项目，
+  // 而不是只看到最后跑完的那一个
+  const batchId = randomUUID()
 
   for (const target of parsed.data.targets) {
     const project = findProjectRow(target.projectId)
@@ -51,8 +55,8 @@ export function enqueueProjects(input: unknown): QueueMutationResult {
       continue
     }
 
-    created.push(enqueueItem(project.id, buildable))
-    logger.info('项目已入队', { projectId: project.id, variants: buildable.join(',') })
+    created.push(enqueueItem(project.id, buildable, batchId))
+    logger.info('项目已入队', { projectId: project.id, variants: buildable.join(','), batchId })
   }
 
   if (created.length === 0) {

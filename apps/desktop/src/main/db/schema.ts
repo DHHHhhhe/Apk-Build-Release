@@ -62,6 +62,13 @@ export const queueItems = sqliteTable(
       .default('pending'),
     /** 入队时冻结的变体列表（JSON）；重试时沿用同一份，不受之后改选影响 */
     variants: text('variants').notNull().default('[]'),
+    /**
+     * 批次 id：同一次「构建勾选项」入队的所有项目共用一个值。
+     *
+     * 一次跨项目入队会建 N 条队列项，而汇总的「最近一批」要的是**这一次**的全部项目，
+     * 不是最后一条。老数据没有这个字段（null），汇总会按它自己那一条回退。
+     */
+    batchId: text('batch_id'),
     attempt: integer('attempt').notNull().default(1),
     enqueuedAt: integer('enqueued_at', { mode: 'timestamp_ms' }).notNull().default(nowMs),
     startedAt: integer('started_at', { mode: 'timestamp_ms' }),

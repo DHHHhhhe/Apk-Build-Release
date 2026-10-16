@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { buildBlockedReason, enqueueTargets, queuedExclusionHint } from './build-guard'
-import type { BuildGuardInput } from './build-guard'
+import {
+  buildBlockedReason,
+  currentProjectBlockedReason,
+  enqueueTargets,
+  queuedExclusionHint
+} from './build-guard'
+import type { BuildGuardInput, CurrentProjectGuardInput } from './build-guard'
 
 function input(patch: Partial<BuildGuardInput> = {}): BuildGuardInput {
   return {
@@ -109,5 +114,51 @@ describe('enqueueTargets', () => {
 
   it('结果里没有该项目的解析时按不可入队处理，不抛异常', () => {
     expect(enqueueTargets([{ id: 'missing' }], resolutions, new Set())).toEqual([])
+  })
+})
+
+describe('currentProjectBlockedReason', () => {
+  function current(patch: Partial<CurrentProjectGuardInput> = {}): CurrentProjectGuardInput {
+    return {
+      variantCount: 0,
+      busy: false,
+      alreadyQueued: false,
+      envIssue: null,
+      ...patch
+    }
+  }
+
+  it('环境有问题时优先说明环境，而不是让用户白等一次构建', () => {
+    expect(currentProjectBlockedReason(current({ variantCount: 2, envIssue: 'SDK 不可用' }))).toBe(
+      '构建环境有问题：SDK 不可用'
+    )
+  })
+
+  it('主进程忙时用与勾选表同一句措辞', () => {
+    expect(currentProjectBlockedReason(current({ variantCount: 2, busy: true }))).toBe(
+      '正在处理上一个操作…'
+    )
+  })
+
+  it('没勾变体时给出原因', () => {
+    expect(currentProjectBlockedReason(current({ variantCount: 0 }))).toBe(
+      '先在发布变体里勾选至少一个'
+    )
+  })
+
+  it('已在队列里时说明原因', () => {
+    expect(currentProjectBlockedReason(current({ variantCount: 1, alreadyQueued: true }))).toBe(
+      '这个项目已经在队列里了'
+    )
+  })
+
+  it('可构建时返回 null', () => {
+    expect(currentProjectBlockedReason(current({ variantCount: 3 }))).toBeNull()
+  })
+
+  it('忙优先于环境问题：先解释为什么点不动', () => {
+    expect(
+      currentProjectBlockedReason(current({ variantCount: 3, busy: true, envIssue: 'SDK 不可用' }))
+    ).toBe('正在处理上一个操作…')
   })
 })

@@ -119,6 +119,12 @@
   color: var(--muted-foreground);
 }
 
+/* 未保存提示：说的是「关掉这一页就丢」，所以比普通 hint 显眼一档 */
+.dialog__dirty {
+  font-size: 12px;
+  color: var(--warning);
+}
+
 .dialog__message,
 .dialog__error {
   margin: 0;

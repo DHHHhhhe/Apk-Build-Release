@@ -64,6 +64,26 @@ export const basicResultSchema = z.object({
   error: z.string().optional()
 })
 
+// ── 入队前的廉价预检 ──
+// 只查文件系统的几项（项目目录、gradlew、输出目录），毫秒级；
+// 完整环境探测要起 java 进程，那仍是抽屉里逐项目手动触发的事。
+
+export const projectPreflightInputSchema = z.object({
+  projectIds: z.array(z.string().min(1)).min(1, '至少要查一个项目')
+})
+
+export const projectPreflightItemSchema = z.object({
+  projectId: z.string(),
+  /** 一眼能看出的缺项；空数组表示没发现问题 */
+  issues: z.array(z.string())
+})
+
+export const projectPreflightResultSchema = z.object({
+  success: z.boolean(),
+  error: z.string().optional(),
+  projects: z.array(projectPreflightItemSchema)
+})
+
 export type VariantSource = z.infer<typeof variantSourceSchema>
 export type ProjectVariant = z.infer<typeof projectVariantSchema>
 export type Project = z.infer<typeof projectSchema>
@@ -74,3 +94,6 @@ export type RefreshVariantsInput = z.infer<typeof refreshVariantsInputSchema>
 export type ProjectListResult = z.infer<typeof projectListResultSchema>
 export type ProjectResult = z.infer<typeof projectResultSchema>
 export type BasicResult = z.infer<typeof basicResultSchema>
+export type ProjectPreflightInput = z.infer<typeof projectPreflightInputSchema>
+export type ProjectPreflightItem = z.infer<typeof projectPreflightItemSchema>
+export type ProjectPreflightResult = z.infer<typeof projectPreflightResultSchema>

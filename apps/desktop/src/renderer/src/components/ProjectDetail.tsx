@@ -2,9 +2,16 @@ import { useEffect, useState } from 'react'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { RefreshCw, TerminalSquare } from 'lucide-react'
-import { filterVariantsForPackaging } from '@shared/lib/variants'
+import {
+  filterVariantsForPackaging,
+  isPackagingFallback,
+  isReleaseBuildType,
+  PACKAGING_FALLBACK_NOTE
+} from '@shared/lib/variants'
+import { resolveOutputFolderName } from '@shared/lib/output-folder'
 import type { Project } from '@shared/types/project'
 import type { ProjectBusyKind } from '../hooks/useProjects'
+import { joinDisplayPath } from '../lib/path-display'
 import { variantBadgeVisibility } from '../lib/variant-badges'
 
 /** 变体来源徽章：静态解析是正常默认路径，不该用警告色；只有真的缺项才提示 */
@@ -23,6 +30,7 @@ export function ProjectDetail({
   busyKind,
   building,
   queuedVariants,
+  outputRoot,
   onToggleVariant,
   onSetVariants,
   onRefreshVariants,
@@ -34,6 +42,8 @@ export function ProjectDetail({
   building: boolean
   /** 正在跑的那条队列项用的变体快照 */
   queuedVariants: string[] | null
+  /** 统一输出目录；null = 还没读到设置，这时不显示归档预览 */
+  outputRoot: string | null
   onToggleVariant: (variantName: string) => void
   onSetVariants: (names: string[]) => void
   onRefreshVariants: (force: boolean) => void
@@ -44,6 +54,7 @@ export function ProjectDetail({
   const badge = sourceBadge(project)
   const busy = busyKind !== null
   const [aliasDraft, setAliasDraft] = useState(project.alias ?? '')
+  const [aliasSaved, setAliasSaved] = useState(false)
 
   // 切换项目时把草稿同步过来，否则会把上一个项目的别名显示成当前项目的
   useEffect(() => {
@@ -57,21 +68,44 @@ export function ProjectDetail({
       return
     }
     onSetAlias(next.length === 0 ? null : next)
+    setAliasSaved(true)
   }
+
+  // 「已保存」只闪一下：它是确认而不是状态，长期挂着反而让人以为还需要再保存一次
+  useEffect(() => {
+    if (!aliasSaved) {
+      return
+    }
+    const timer = window.setTimeout(() => {
+      setAliasSaved(false)
+    }, 2000)
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [aliasSaved])
 
   // 只列发布变体；项目连 release 变体都没有时回退到全部，不能让用户面对空列表
   const visibleVariants = filterVariantsForPackaging(project.variants)
+  const fallback = isPackagingFallback(project.variants)
   const mixedBuildTypes = new Set(visibleVariants.map((variant) => variant.buildType)).size > 1
-  const badgeVisibility = variantBadgeVisibility(visibleVariants)
+  // 回退时强制显示 buildType：那时列表里只有一种类型，不显示就等于把唯一的线索藏了
+  const badgeVisibility = variantBadgeVisibility(visibleVariants, { forceBuildType: fallback })
 
   const buildTypes = Array.from(new Set(visibleVariants.map((variant) => variant.buildType)))
   const allVisibleSelected = visibleVariants.every((variant) => selected.has(variant.name))
+
+  // 别名改完还没提交时，预览要跟着草稿走：用户看到的就是「保存后会变成什么」
+  const archiveFolder = resolveOutputFolderName({
+    alias: aliasDraft.trim() === '' ? null : aliasDraft.trim(),
+    name: project.name
+  })
+  const archivePath = outputRoot ? joinDisplayPath(outputRoot, archiveFolder) : null
 
   const namesOfBuildType = (buildType: string): string[] =>
     visibleVariants.filter((variant) => variant.buildType === buildType).map((variant) => variant.name)
 
   return (
-    <section className="card-shell">
+    <section className="card-shell" data-drawer-section="variants">
       <div className="card-core card-core--pad project-detail">
         <header className="project-detail__head">
           <div>
@@ -96,7 +130,17 @@ export function ProjectDetail({
                   }
                 }}
               />
+              {aliasSaved ? (
+                <span className="project-detail__alias-saved" role="status" aria-live="polite">
+                  已保存
+                </span>
+              ) : null}
             </label>
+            {archivePath ? (
+              <p className="project-detail__archive tabular" title={archivePath}>
+                产物会归档到 {archivePath}
+              </p>
+            ) : null}
           </div>
           <span className={badge.className}>{badge.label}</span>
           <Button
@@ -130,7 +174,9 @@ export function ProjectDetail({
           </div>
           <div>
             <dt>已选变体</dt>
-            <dd className="tabular">{selected.size}</dd>
+            <dd className="tabular" title="含不在当前列表里的历史勾选（例如被规则挡下的旧选择）">
+              {selected.size}
+            </dd>
           </div>
         </dl>
 
@@ -150,9 +196,16 @@ export function ProjectDetail({
           </p>
         ) : (
           <>
+            {/* 回退必须说出来：不然用户以为列表里的是发布变体，包打出来才知道是 debug */}
+            {fallback ? (
+              <p className="project-detail__fallback" role="status" aria-live="polite">
+                {PACKAGING_FALLBACK_NOTE}
+              </p>
+            ) : null}
+
             <div className="variant-quick">
               <Button
-                 variant="ghost"
+                variant="ghost"
                 disabled={busy || allVisibleSelected}
                 onClick={() => {
                   // 与构建中心一致：全选是**并集**，不会把看不见的勾选（旧的 debug 残留）抹掉
@@ -180,7 +233,7 @@ export function ProjectDetail({
                 ? buildTypes.map((buildType) => (
                     <Button
                       key={buildType}
-                       variant="ghost"
+                      variant="ghost"
                       disabled={busy}
                       onClick={() => {
                         // 同样只重排可见的那部分，保留看不见的勾选
@@ -207,7 +260,9 @@ export function ProjectDetail({
                         onToggleVariant(variant.name)
                       }}
                     />
-                    <span className="variant-list__name tabular">{variant.name}</span>
+                    <span className="variant-list__name tabular" title={variant.name}>
+                      {variant.name}
+                    </span>
                   </label>
                   <span className="variant-list__parts">
                     {badgeVisibility.flavor && variant.flavor ? (
@@ -215,6 +270,12 @@ export function ProjectDetail({
                     ) : null}
                     {badgeVisibility.buildType ? (
                       <Badge variant="muted">{variant.buildType}</Badge>
+                    ) : null}
+                    {/* 非 release 变体由调试密钥签名、不能上架：这是后果，不是分类，用警告色说清 */}
+                    {!isReleaseBuildType(variant.buildType) ? (
+                      <Badge variant="warning" title="非 release 变体通常用调试密钥签名，不能上架">
+                        不能上架
+                      </Badge>
                     ) : null}
                     {/* 列表里只有 release 时不必逐行重复，说明放在列表上方一次 */}
                     {mixedBuildTypes && variant.buildType === 'release' ? (

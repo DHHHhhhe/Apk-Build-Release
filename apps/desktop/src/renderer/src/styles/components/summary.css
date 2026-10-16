@@ -31,6 +31,29 @@
   padding: 0 10px;
 }
 
+/* 筛选：纯前端过滤，不动主进程的查询 */
+.summary__filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted-foreground);
+}
+
+.summary__filter-input {
+  height: 28px;
+  width: 150px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+.summary__filter-select {
+  height: 28px;
+  width: auto;
+  padding: 0 8px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+}
+
 .summary__metrics {
   list-style: none;
   margin: 0;
@@ -122,13 +145,26 @@
 
 .summary__row {
   /* 文字列一律 minmax(0,…)：网格项默认 min-width:auto，
-     写死最小值会让长变体名把整行撑宽，进而挤出横向滚动条 */
+     写死最小值会让长变体名把整行撑宽，进而挤出横向滚动条。
+     最后一列是每行的「打开产物目录」按钮（以前整行 0 个按钮，只能开整个输出目录再自己翻）。 */
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) auto minmax(0, 2fr) 88px auto minmax(0, 1.2fr);
+  grid-template-columns: minmax(0, 1.4fr) auto minmax(0, 2fr) 88px auto minmax(0, 1.2fr) auto;
   align-items: center;
   gap: 12px;
   font-size: 12px;
   min-width: 0;
+}
+
+.summary__row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.summary__row-open {
+  height: 24px;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
 }
 
 .summary__row > * {
@@ -143,6 +179,16 @@
 }
 
 .summary__row-file {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 文件名下面一行版本信息：交付前要核对版本号，数据本来就在契约里 */
+.summary__row-meta {
+  display: block;
+  font-size: 11px;
+  color: var(--muted-foreground);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -172,7 +218,7 @@
 /* 窗口窄的时候把网格折成两列，别把文件名挤没 */
 @media (max-width: 1180px) {
   .summary__row {
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.6fr);
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.6fr) auto;
     row-gap: 4px;
   }
 }

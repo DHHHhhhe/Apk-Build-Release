@@ -96,16 +96,30 @@ export function ProjectList({
                       onSelect(project.id)
                     }}
                   >
-                    <span className="project-list__name">{project.name}</span>
+                    <span className="project-list__name" title={project.name}>
+                      {project.name}
+                    </span>
                     <span className="project-list__meta">
                       {/* 数与右侧实际能构建的变体对齐：这里以前数的是全部变体（含 debug），
                           于是侧栏写「2 个变体」、点进去只有一个可构建的 */}
                       <Badge variant="muted" className="tabular">
                         {filterVariantsForPackaging(project.variants).length} 个变体
                       </Badge>
+                      {/* 别名决定产物落到哪个文件夹：以前只有进抽屉才看得到 */}
+                      {project.alias ? (
+                        <Badge variant="muted" title={`产物会归档到「${project.alias}」文件夹`}>
+                          归档 {project.alias}
+                        </Badge>
+                      ) : null}
                       {project.selectedVariants.length > 0 ? (
                         <Badge variant="success" className="tabular">
                           已选 {project.selectedVariants.length}
+                        </Badge>
+                      ) : null}
+                      {/* 静态解析有已知限制（比如 flavor 动态生成）时标出来，别让用户以为变体就这么几个 */}
+                      {project.limitations.length > 0 ? (
+                        <Badge variant="warning" title={project.limitations.join('；')}>
+                          解析受限
                         </Badge>
                       ) : null}
                       {inQueue ? <Badge variant="info">队列中</Badge> : null}

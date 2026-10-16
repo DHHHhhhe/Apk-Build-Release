@@ -1,13 +1,20 @@
-import { useState } from 'react'
+import { useMemo } from 'react'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { ChevronDown, ChevronRight, TerminalSquare } from 'lucide-react'
-import { filterVariantsForPackaging } from '@shared/lib/variants'
+import {
+  filterVariantsForPackaging,
+  isPackagingFallback,
+  isReleaseBuildType,
+  PACKAGING_FALLBACK_NOTE
+} from '@shared/lib/variants'
+import { resolveOutputFolderName } from '@shared/lib/output-folder'
 import type { Project, ProjectVariant } from '@shared/types/project'
 import { variantBadgeVisibility } from '../lib/variant-badges'
 
 interface BuildPickerProps {
   projects: Project[]
+  /** 正在解析变体的那个项目；只禁用它的那一行，别把整张表锁住 */
   busyProjectId: string | null
   /** 已在队列中的项目 id：这些项目本次会被跳过，但仍允许为下一批改勾选 */
   queuedProjectIds: Set<string>
@@ -15,6 +22,13 @@ interface BuildPickerProps {
   buildableVariantCount: number
   blockedReason: string | null
   queuedHint: string | null
+  /** 统一输出目录；null 表示还没读到设置，这时不显示归档路径 */
+  outputRoot: string | null
+  /** 入队前的廉价预检结果：项目 id → 一眼能看出的缺项（只提示，不拦） */
+  preflightIssues: Record<string, string[]>
+  /** 折叠状态由构建中心持有：视图切走再回来不该重置 */
+  collapsed: Set<string>
+  onToggleCollapsed: (projectId: string) => void
   onSetVariants: (projectId: string, names: string[]) => void
   onRefreshVariants: (projectId: string) => void
   onBuild: () => void
@@ -26,6 +40,21 @@ interface BuildPickerProps {
  */
 function visibleVariantsOf(project: Project): ProjectVariant[] {
   return filterVariantsForPackaging(project.variants)
+}
+
+/** 按 flavor（渠道）分组，保持原有顺序；没有 flavor 的归到一个空 key 下 */
+function groupByFlavor(variants: ProjectVariant[]): Array<{ flavor: string; variants: ProjectVariant[] }> {
+  const map = new Map<string, ProjectVariant[]>()
+  for (const variant of variants) {
+    const key = variant.flavor ?? ''
+    const list = map.get(key)
+    if (list) {
+      list.push(variant)
+    } else {
+      map.set(key, [variant])
+    }
+  }
+  return Array.from(map.entries()).map(([flavor, list]) => ({ flavor, variants: list }))
 }
 
 /**
@@ -40,24 +69,30 @@ export function BuildPicker({
   buildableVariantCount,
   blockedReason,
   queuedHint,
+  outputRoot,
+  preflightIssues,
+  collapsed,
+  onToggleCollapsed,
   onSetVariants,
   onRefreshVariants,
   onBuild
 }: BuildPickerProps): React.JSX.Element {
-  // 默认全展开；折叠状态只存在界面里，不影响勾选
-  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set())
 
-  const toggleCollapsed = (projectId: string): void => {
-    setCollapsed((current) => {
-      const next = new Set(current)
-      if (next.has(projectId)) {
-        next.delete(projectId)
-      } else {
-        next.add(projectId)
-      }
-      return next
-    })
-  }
+  /*
+   * 归档文件夹名按别名优先，而别名是在抽屉里设的 —— 勾选表这边以前完全看不到。
+   * 同一个文件夹名被两个项目用上时，两边的产物会混进同一个目录，这件事必须当场说出来。
+   */
+  const folderNames = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const project of projects) {
+      map.set(project.id, resolveOutputFolderName(project))
+    }
+    const seen = new Map<string, number>()
+    for (const name of map.values()) {
+      seen.set(name, (seen.get(name) ?? 0) + 1)
+    }
+    return { byProject: map, duplicated: new Set([...seen].filter(([, count]) => count > 1).map(([name]) => name)) }
+  }, [projects])
 
   const selectedCount = projects.reduce(
     (total, project) => total + project.selectedVariants.length,
@@ -89,6 +124,15 @@ export function BuildPicker({
     }
   }
 
+  /** 只选某个渠道（flavor）：保留看不见的勾选，只重排这个渠道的可见变体 */
+  const onlyFlavorOf = (project: Project, flavor: string): void => {
+    const visible = visibleVariantsOf(project)
+    const visibleNames = new Set(visible.map((variant) => variant.name))
+    const kept = project.selectedVariants.filter((name) => !visibleNames.has(name))
+    const picked = visible.filter((variant) => (variant.flavor ?? '') === flavor).map((variant) => variant.name)
+    onSetVariants(project.id, [...kept, ...picked])
+  }
+
   const onlyBuildTypeOf = (project: Project, buildType: string): void => {
     // 保留隐藏的勾选，只重排可见的那部分
     const hidden = project.selectedVariants.filter(
@@ -101,16 +145,15 @@ export function BuildPicker({
   }
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
+    /*
+     * 只保留 Ctrl/Cmd+A 全选。
+     *
+     * Esc 以前在这里是「清空所有勾选」并且立即写库 —— 与「Esc = 关闭 / 取消」的通用语义相反，
+     * 用户想关掉抽屉却把一整批勾选清掉了。清空仍然有按钮，不必占用这个键。
+     */
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a') {
       event.preventDefault()
       selectAll()
-      return
-    }
-    if (event.key === 'Escape') {
-      // 焦点在勾选表里时，Esc 归勾选表（清空）；stopPropagation 挡住抽屉的同名快捷键，
-      // 否则一次 Esc 会既清空勾选又关掉抽屉
-      event.stopPropagation()
-      clearAll()
     }
   }
 
@@ -121,7 +164,12 @@ export function BuildPicker({
   return (
     <div className="build-picker" onKeyDown={handleKeyDown}>
       <div className="build-picker__bar">
-        <span className="build-picker__count tabular" role="status" aria-live="polite">
+        <span
+          className="build-picker__count tabular"
+          role="status"
+          aria-live="polite"
+          title="已选包含不在列表里的历史勾选，所以可能大于可构建数"
+        >
           已选 {selectedCount} / 可构建 {buildableVariantCount}
         </span>
         <Button
@@ -131,7 +179,7 @@ export function BuildPicker({
         >
           全选全部项目（{visibleCount} 个变体）
         </Button>
-        <Button  variant="ghost" disabled={selectedCount === 0} onClick={clearAll}>
+        <Button variant="ghost" disabled={selectedCount === 0} onClick={clearAll}>
           清空
         </Button>
       </div>
@@ -142,8 +190,51 @@ export function BuildPicker({
           const selected = new Set(project.selectedVariants)
           const isCollapsed = collapsed.has(project.id)
           const queued = queuedProjectIds.has(project.id)
+          // 忙只锁这一个项目：别的项目在解析变体时，本项目的勾选照样能改
+          const projectBusy = busyProjectId === project.id
           const buildTypes = Array.from(new Set(visible.map((variant) => variant.buildType)))
-          const badgeVisibility = variantBadgeVisibility(visible)
+          const fallback = isPackagingFallback(project.variants)
+          const badgeVisibility = variantBadgeVisibility(visible, { forceBuildType: fallback })
+          const flavorGroups = groupByFlavor(visible)
+          const folderName = folderNames.byProject.get(project.id) ?? project.name
+          const folderClash = folderNames.duplicated.has(folderName)
+          const issues = preflightIssues[project.id] ?? []
+
+          /** 一行变体：分组与不分组两种排布共用 */
+          const renderRow = (variant: ProjectVariant): React.JSX.Element => (
+            <li key={variant.name} className="build-picker__row">
+              <label className="build-picker__label">
+                <input
+                  type="checkbox"
+                  checked={selected.has(variant.name)}
+                  disabled={projectBusy}
+                  onChange={() => {
+                    const next = new Set(project.selectedVariants)
+                    if (next.has(variant.name)) {
+                      next.delete(variant.name)
+                    } else {
+                      next.add(variant.name)
+                    }
+                    onSetVariants(project.id, Array.from(next))
+                  }}
+                />
+                <span className="build-picker__variant tabular" title={variant.name}>
+                  {variant.name}
+                </span>
+              </label>
+              {badgeVisibility.flavor && variant.flavor ? (
+                <Badge variant="muted">{variant.flavor}</Badge>
+              ) : null}
+              {badgeVisibility.buildType ? (
+                <Badge variant="muted">{variant.buildType}</Badge>
+              ) : null}
+              {!isReleaseBuildType(variant.buildType) ? (
+                <Badge variant="warning" title="非 release 变体通常用调试密钥签名，不能上架">
+                  不能上架
+                </Badge>
+              ) : null}
+            </li>
+          )
 
           return (
             <li key={project.id} className="summary__group build-picker__group">
@@ -154,7 +245,7 @@ export function BuildPicker({
                   aria-expanded={!isCollapsed}
                   aria-label={isCollapsed ? `展开 ${project.name}` : `收起 ${project.name}`}
                   onClick={() => {
-                    toggleCollapsed(project.id)
+                    onToggleCollapsed(project.id)
                   }}
                 >
                   {isCollapsed ? (
@@ -167,6 +258,19 @@ export function BuildPicker({
                 <span className="summary__group-path tabular" title={project.path}>
                   {project.path}
                 </span>
+                {/* 别名决定归档目录：勾选时就得看见，而不是等出包后去抽屉里查 */}
+                <Badge
+                  variant={folderClash ? 'warning' : 'muted'}
+                  title={
+                    folderClash
+                      ? `有多个项目都用「${folderName}」这个归档名，产物会混在同一个目录里`
+                      : outputRoot
+                        ? `产物会归档到 ${outputRoot}\\${folderName}`
+                        : `产物会归档到「${folderName}」文件夹`
+                  }
+                >
+                  {folderClash ? `归档名冲突：${folderName}` : `归档：${folderName}`}
+                </Badge>
                 {queued ? <Badge variant="info">队列中</Badge> : null}
                 {project.variants.length === 0 ? (
                   <Badge variant="muted">无变体</Badge>
@@ -174,7 +278,7 @@ export function BuildPicker({
                 <span className="build-picker__group-actions">
                   <Button
                     variant="ghost"
-                    disabled={busyProjectId !== null || visible.length === 0}
+                    disabled={projectBusy || visible.length === 0}
                     onClick={() => {
                       selectAllOf(project)
                     }}
@@ -183,7 +287,7 @@ export function BuildPicker({
                   </Button>
                   <Button
                     variant="ghost"
-                    disabled={busyProjectId !== null || project.selectedVariants.length === 0}
+                    disabled={projectBusy || project.selectedVariants.length === 0}
                     onClick={() => {
                       onSetVariants(project.id, [])
                     }}
@@ -196,7 +300,7 @@ export function BuildPicker({
                         <Button
                           key={buildType}
                           variant="ghost"
-                          disabled={busyProjectId !== null}
+                          disabled={projectBusy}
                           onClick={() => {
                             onlyBuildTypeOf(project, buildType)
                           }}
@@ -208,51 +312,70 @@ export function BuildPicker({
                 </span>
               </div>
 
+              {/* 预检只提示不拦：用户可能就想先把队排上，边修环境边等 */}
+              {issues.length > 0 ? (
+                <p className="build-picker__preflight" role="status" aria-live="polite">
+                  入队前检查：{issues.join('；')}
+                </p>
+              ) : null}
+
               {isCollapsed ? null : project.variants.length === 0 ? (
                 <p className="build-picker__hint">
                   没解析出变体。点右侧「用 Gradle 解析」跑一遍真实配置，或者先在项目详情里刷新变体。
                   <Button
                     variant="ghost"
                     className="build-picker__inline-action"
-                    disabled={busyProjectId !== null}
+                    disabled={projectBusy}
                     onClick={() => {
                       onRefreshVariants(project.id)
                     }}
                   >
                     <TerminalSquare size={14} aria-hidden="true" />
-                    {busyProjectId === project.id ? 'Gradle 解析中…' : '用 Gradle 解析（较慢）'}
+                    {projectBusy ? 'Gradle 解析中…' : '用 Gradle 解析（较慢）'}
                   </Button>
                 </p>
               ) : (
-                <ul className="build-picker__rows">
-                  {visible.map((variant) => (
-                    <li key={variant.name} className="build-picker__row">
-                      <label className="build-picker__label">
-                        <input
-                          type="checkbox"
-                          checked={selected.has(variant.name)}
-                          disabled={busyProjectId !== null}
-                          onChange={() => {
-                            const next = new Set(project.selectedVariants)
-                            if (next.has(variant.name)) {
-                              next.delete(variant.name)
-                            } else {
-                              next.add(variant.name)
-                            }
-                            onSetVariants(project.id, Array.from(next))
-                          }}
-                        />
-                        <span className="build-picker__variant tabular">{variant.name}</span>
-                      </label>
-                      {badgeVisibility.flavor && variant.flavor ? (
-                        <Badge variant="muted">{variant.flavor}</Badge>
-                      ) : null}
-                      {badgeVisibility.buildType ? (
-                        <Badge variant="muted">{variant.buildType}</Badge>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
+                <>
+                  {/* 回退必须说出来：这些不是发布变体，包打出来也上不了架 */}
+                  {fallback ? (
+                    <p className="build-picker__fallback" role="status" aria-live="polite">
+                      {PACKAGING_FALLBACK_NOTE}
+                    </p>
+                  ) : null}
+                  {/*
+                   * 多渠道项目按 flavor 分组：出包的单位是渠道，
+                   * 而以前只有一个「只选 release」的维度，选某个渠道得逐个勾。
+                   */}
+                  {flavorGroups.length > 1 ? (
+                    <ul className="build-picker__flavors">
+                      {flavorGroups.map((group) => (
+                        <li key={group.flavor || '__none'} className="build-picker__flavor">
+                          <div className="build-picker__flavor-head">
+                            <span className="build-picker__flavor-name">
+                              {group.flavor === '' ? '（无渠道）' : group.flavor}
+                            </span>
+                            <span className="tabular build-picker__flavor-count">
+                              {group.variants.length} 个变体
+                            </span>
+                            <Button
+                              variant="ghost"
+                              className="build-picker__inline-action"
+                              disabled={projectBusy}
+                              onClick={() => {
+                                onlyFlavorOf(project, group.flavor)
+                              }}
+                            >
+                              只选本渠道
+                            </Button>
+                          </div>
+                          <ul className="build-picker__rows">{group.variants.map(renderRow)}</ul>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <ul className="build-picker__rows">{visible.map(renderRow)}</ul>
+                  )}
+                </>
               )}
             </li>
           )
@@ -260,7 +383,7 @@ export function BuildPicker({
       </ul>
 
       <div className="build-picker__foot">
-        <Button  variant="outline" disabled={blockedReason !== null} onClick={onBuild}>
+        <Button variant="outline" disabled={blockedReason !== null} onClick={onBuild}>
           构建勾选项（{buildableVariantCount}）
         </Button>
         {blockedReason ? (
