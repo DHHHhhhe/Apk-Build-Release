@@ -73,6 +73,13 @@ export function ProjectList({
   /** FLIP 的 First：上一次渲染后各行的位置 */
   const lastRects = useRef(new Map<string, DOMRect>())
   const edgeTimer = useRef<number | null>(null)
+  /** 供定时器与 window 监听读取最新值，避免闭包拿到旧的 */
+  const dragRef = useRef<DragState | null>(null)
+  const projectsRef = useRef<Project[]>(projects)
+  const onReorderRef = useRef(onReorder)
+  dragRef.current = drag
+  projectsRef.current = projects
+  onReorderRef.current = onReorder
 
   // 拖动中的顺序：被拖的项已经站到落点上，其余项据此让位
   const ordered = drag === null ? projects : moveItemTo(projects, drag.fromIndex, drag.toIndex)
@@ -122,7 +129,29 @@ export function ProjectList({
 
   /** 落位：先播 200ms 动画，动画结束再提交顺序 */
   const drop = (): void => {
-    setDrag((current) => (current === null ? null : { ...current, settled: true }))
+    const current = dragRef.current
+    if (current === null || current.settled) {
+      return
+    }
+    const ids = moveItemTo(projectsRef.current, current.fromIndex, current.toIndex).map((item) => item.id)
+    setDrag({ ...current, settled: true })
+    // 定时器直接开在这里，不放进 useEffect：
+    // 那个 effect 的依赖里有 projects 与 onReorder，二者每次渲染都换新身份，
+    // 于是每次渲染都会把定时器清掉重建，200ms 永远走不完 —— 拖拽会卡在拾起态出不来。
+    window.setTimeout(() => {
+      setDrag(null)
+      document.body.style.overflow = ''
+      onReorderRef.current(ids)
+    }, FLIP_MS)
+  }
+
+  /** 取消拖拽（窗口失焦、指针被系统收走）：不提交顺序，只把状态清干净 */
+  const cancelDrag = (): void => {
+    if (dragRef.current === null) {
+      return
+    }
+    setDrag(null)
+    document.body.style.overflow = ''
   }
 
   // 指针移动/松手挂在 window 上：手指移出列表甚至移出窗口也要继续跟
@@ -153,31 +182,25 @@ export function ProjectList({
     const onUp = (): void => {
       drop()
     }
+    // 在窗口外松手收不到 pointerup；切走窗口时浏览器也可能不发 pointercancel ——
+    // 这两种情况都会让拖拽卡在拾起态，所以补上失焦与页面隐藏的兜底。
+    const onCancel = (): void => {
+      cancelDrag()
+    }
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
     window.addEventListener('pointercancel', onUp)
+    window.addEventListener('blur', onCancel)
+    document.addEventListener('visibilitychange', onCancel)
     return () => {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', onUp)
+      window.removeEventListener('blur', onCancel)
+      document.removeEventListener('visibilitychange', onCancel)
     }
   }, [drag === null, projects])
 
-  // 落位动画播完再提交，并把页面滚动放开
-  useEffect(() => {
-    if (drag === null || !drag.settled) {
-      return
-    }
-    const timer = window.setTimeout(() => {
-      const ids = moveItemTo(projects, drag.fromIndex, drag.toIndex).map((project) => project.id)
-      setDrag(null)
-      document.body.style.overflow = ''
-      onReorder(ids)
-    }, FLIP_MS)
-    return () => {
-      window.clearTimeout(timer)
-    }
-  }, [drag, projects, onReorder])
 
   // 卸载或异常时别把页面滚动留在禁用状态
   useEffect(() => {
