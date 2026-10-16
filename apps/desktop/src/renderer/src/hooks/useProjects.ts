@@ -18,6 +18,13 @@ export interface UseProjectsResult {
    */
   pendingWrites: number
   refresh: () => void
+  /**
+   * 按给定 id 顺序就地重排本地列表（乐观更新）。
+   *
+   * 拖动排序松手时必须先调它：否则「清掉拖拽态」与「请求返回后重新拉取」之间
+   * 会有一段时间列表仍是旧顺序，卡片会先弹回原位、再跳到新位置 —— 就是用户看到的闪烁。
+   */
+  reorderLocally: (ids: string[]) => void
   addProject: (path: string) => Promise<string | null>
   removeProject: (projectId: string) => Promise<void>
   refreshVariants: (projectId: string, force?: boolean) => Promise<void>
@@ -35,6 +42,27 @@ export function useProjects(): UseProjectsResult {
 
   const refresh = useCallback(() => {
     setReloadToken((token) => token + 1)
+  }, [])
+
+  const reorderLocally = useCallback((ids: string[]) => {
+    setProjects((previous) => {
+      const byId = new Map(previous.map((project) => [project.id, project]))
+      const next: Project[] = []
+      for (const id of ids) {
+        const found = byId.get(id)
+        if (found !== undefined) {
+          next.push(found)
+          byId.delete(id)
+        }
+      }
+      // ids 里没出现的（理论上不会有）按原有相对顺序接在后面，避免丢项
+      for (const project of previous) {
+        if (byId.has(project.id)) {
+          next.push(project)
+        }
+      }
+      return next
+    })
   }, [])
 
   useEffect(() => {
@@ -160,6 +188,7 @@ export function useProjects(): UseProjectsResult {
 
   return {
     projects,
+    reorderLocally,
     loading,
     error,
     busyProjectId,

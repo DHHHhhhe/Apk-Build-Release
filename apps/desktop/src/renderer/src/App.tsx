@@ -64,7 +64,7 @@ export default function App(): React.JSX.Element {
     addProject,
     removeProject,
     refreshVariants,
-    setVariants, refresh } = useProjects()
+    setVariants, refresh, reorderLocally } = useProjects()
 
   // 抽屉当前展示的项目。刻意不回退到「第一个项目」：没打开任何项目时，
   // 主列就该只有全局内容，不该凭空出现一个项目的详情
@@ -403,7 +403,12 @@ export default function App(): React.JSX.Element {
             onAdd={handleAdd}
             onRemove={setPendingRemove}
             onReorder={(ids) => {
-              // 顺序落库后重取列表：侧栏与抽屉读同一份数据，别各留一份旧顺序
+              // 先乐观更新本地顺序，再发请求。
+              //
+              // 只做「请求 → 重取」的话，从松手到请求返回这段时间列表仍是旧顺序：
+              // 拖拽态一清，卡片就弹回原位，等重取回来才跳到新位置 —— 用户看到的就是闪烁。
+              // 顺序落库后仍要重取：侧栏与抽屉读同一份数据，别各留一份旧顺序。
+              reorderLocally(ids)
               void window.api.project.reorder(ids).then(() => {
                 refresh()
               })
