@@ -85,6 +85,8 @@ export function ProjectList({
   /** FLIP 的 First：上一次渲染后各行的位置 */
   const lastRects = useRef(new Map<string, DOMRect>())
   const edgeTimer = useRef<number | null>(null)
+  /** 滚动锁：容器与它原来的行内 overflow（解锁时按它恢复，不重新查找） */
+  const scrollLockRef = useRef<{ el: HTMLElement; previous: string } | null>(null)
   /** 供定时器与 window 监听读取最新值，避免闭包拿到旧的 */
   const dragRef = useRef<DragState | null>(null)
   const projectsRef = useRef<Project[]>(projects)
@@ -115,6 +117,34 @@ export function ProjectList({
       el = el.parentElement
     }
     return null
+  }
+
+  /**
+   * 滚动锁：记住**容器本身**与它原来的行内 overflow，恢复时不再重新查找。
+   *
+   * 原来是「解锁时再调一次 scrollerOf()」—— 而那个函数的判据要求 overflow-y 是 auto/scroll，
+   * 锁上之后它已经是 hidden，于是解锁时找不到容器、拿到 null 直接跳过，
+   * overflow: hidden 就永久留在了列表上（实测：拖一次之后整个侧栏再也滚不动）。
+   */
+  const lockScroll = (): void => {
+    if (scrollLockRef.current !== null) {
+      return
+    }
+    const el = scrollerOf()
+    if (el === null) {
+      return
+    }
+    scrollLockRef.current = { el, previous: el.style.overflow }
+    el.style.overflow = 'hidden'
+  }
+
+  const unlockScroll = (): void => {
+    const lock = scrollLockRef.current
+    if (lock === null) {
+      return
+    }
+    lock.el.style.overflow = lock.previous
+    scrollLockRef.current = null
   }
 
   const clearLongPress = (): void => {
@@ -157,10 +187,7 @@ export function ProjectList({
     // 给 body 设 overflow 会连带影响整个应用的外层布局（实测这类写法会让内部滚动条错乱、
     // 甚至让某些元素消失），而拖拽本身不需要动 body —— 手柄上有 touch-action: none，
     // 鼠标拖动也不会让页面滚动。
-    const scroller = scrollerOf()
-    if (scroller !== null) {
-      scroller.style.overflow = 'hidden'
-    }
+    lockScroll()
   }
 
   /** 落位：先播 200ms 动画，动画结束再提交顺序 */
@@ -180,10 +207,7 @@ export function ProjectList({
     setDrag(null)
     // 立即提交并解锁滚动。提交放在状态清空之后，顺序落库后会重取列表，
     // 卡片此时已经在目标位置，不会有回弹或闪烁。
-    const scroller = scrollerOf()
-    if (scroller !== null) {
-      scroller.style.overflow = ''
-    }
+    unlockScroll()
     onReorderRef.current(ids)
   }
 
@@ -193,10 +217,7 @@ export function ProjectList({
       return
     }
     setDrag(null)
-    const scroller = scrollerOf()
-    if (scroller !== null) {
-      scroller.style.overflow = ''
-    }
+    unlockScroll()
   }
 
   // 指针移动/松手挂在 window 上：手指移出列表甚至移出窗口也要继续跟
@@ -254,10 +275,7 @@ export function ProjectList({
   // 卸载或异常时别把页面滚动留在禁用状态
   useEffect(() => {
     return () => {
-      const scroller = scrollerOf()
-      if (scroller !== null) {
-        scroller.style.overflow = ''
-      }
+      unlockScroll()
       clearLongPress()
       if (edgeTimer.current !== null) {
         window.cancelAnimationFrame(edgeTimer.current)
