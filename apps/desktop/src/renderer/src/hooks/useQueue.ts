@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { EnqueueTarget, QueueItem } from '@shared/types/queue'
-import { mergeQueueItems } from '../lib/queue-merge'
+import { mergeQueueItems, isStaleResponse } from '../lib/queue-merge'
 import { sortQueueItems } from '@shared/lib/queue-order'
 
 export interface UseQueueResult {
@@ -33,16 +33,29 @@ export function useQueue(): UseQueueResult {
     setReloadToken((token) => token + 1)
   }, [])
 
+  /**
+   * 请求序号。
+   *
+   * 连续操作（先构建一批、没跑完再构建一批）会同时有多个请求在飞，响应可能乱序回来：
+   * 后发的先回、先发的后回。先发的那份带的是更旧的快照，无条件 setItems 就会把
+   * 刚入队、正在构建的那一项抹掉 —— 症状是「项目在构建，队列里却没有它，
+   * 侧栏也没有队列徽章」，而且不会自己恢复，直到那一项下次状态变化。
+   */
+  const requestSeq = useRef(0)
+  const appliedSeq = useRef(0)
+
   useEffect(() => {
     let cancelled = false
+    const seq = (requestSeq.current += 1)
     setLoading(true)
 
     void window.api.queue
       .list()
       .then((result) => {
-        if (cancelled) {
+        if (cancelled || isStaleResponse(seq, appliedSeq.current)) {
           return
         }
+        appliedSeq.current = seq
         if (!result.success) {
           setError(result.error ?? '读取队列失败')
           return
@@ -89,8 +102,17 @@ export function useQueue(): UseQueueResult {
     async (operation: () => Promise<{ success: boolean; error?: string; items?: QueueItem[] }>) => {
       // 记下请求发出时的序号：响应回来后，只对「这期间没被事件更新过」的项采用响应里的版本
       const seqAtRequest = eventSeq.current
+      const reqSeq = (requestSeq.current += 1)
       try {
         const result = await operation()
+        // 乱序回来的旧响应：数据丢掉，但失败照说，别把「其实没成功」瞒过去
+        if (isStaleResponse(reqSeq, appliedSeq.current)) {
+          if (!result.success) {
+            setError(result.error ?? '操作失败')
+          }
+          return
+        }
+        appliedSeq.current = reqSeq
         if (!result.success) {
           setError(result.error ?? '操作失败')
           return
@@ -153,7 +175,13 @@ export function useQueue(): UseQueueResult {
   /** 继续上次队列：恢复调度后重新读一次，paused 会跟着变成 false */
   const resume = useCallback(async (): Promise<void> => {
     try {
+      const reqSeq = (requestSeq.current += 1)
       const result = await window.api.queue.resume()
+      // 与其它队列请求共用序号：恢复队列的响应也不能把更晚到的状态盖回去
+      if (reqSeq < appliedSeq.current) {
+        return
+      }
+      appliedSeq.current = reqSeq
       if (!result.success) {
         setError(result.error ?? '恢复队列失败')
         return

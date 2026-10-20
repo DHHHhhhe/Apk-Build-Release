@@ -3,7 +3,8 @@ import {
   buildBlockedReason,
   currentProjectBlockedReason,
   enqueueTargets,
-  queuedExclusionHint
+  queuedExclusionHint,
+  queuedVariantMap
 } from './build-guard'
 import type { BuildGuardInput, CurrentProjectGuardInput } from './build-guard'
 
@@ -11,8 +12,8 @@ function input(patch: Partial<BuildGuardInput> = {}): BuildGuardInput {
   return {
     pendingWrites: 0,
     buildableVariantCount: 0,
+    queuedVariantCount: 0,
     pendingProjectCount: 0,
-    queuedProjectCount: 0,
     unknownSelectedCount: 0,
     ...patch
   }
@@ -35,26 +36,16 @@ describe('buildBlockedReason', () => {
     )
   })
 
-  it('有可构建变体但项目都在队列里时说明原因', () => {
+  it('勾的变体全都已经在队列里时，说清是「等它跑完」而不是「没勾」', () => {
     expect(
-      buildBlockedReason(
-        input({ buildableVariantCount: 2, pendingProjectCount: 0, queuedProjectCount: 2 })
-      )
-    ).toBe('勾选的项目都在队列里了')
-  })
-
-  it('变体数与项目数不能混着比：变体 2 个、待入队 1 个项目时不该被拦', () => {
-    expect(
-      buildBlockedReason(
-        input({ buildableVariantCount: 2, pendingProjectCount: 1, queuedProjectCount: 1 })
-      )
-    ).toBeNull()
+      buildBlockedReason(input({ buildableVariantCount: 0, queuedVariantCount: 2 }))
+    ).toBe('勾选的变体都已经在队列里了，等它们跑完再试')
   })
 
   it('有可构建变体且没在保存时返回 null（按钮可点）', () => {
     expect(
       buildBlockedReason(
-        input({ buildableVariantCount: 3, pendingProjectCount: 2, queuedProjectCount: 1 })
+        input({ buildableVariantCount: 1, queuedVariantCount: 2, pendingProjectCount: 1 })
       )
     ).toBeNull()
   })
@@ -67,22 +58,32 @@ describe('buildBlockedReason', () => {
 })
 
 describe('queuedExclusionHint', () => {
-  it('有项目会被跳过时给出数量', () => {
+  it('有变体被跳过时给出数量，并说明是追加', () => {
     expect(
       queuedExclusionHint(
-        input({ buildableVariantCount: 4, pendingProjectCount: 2, queuedProjectCount: 1 })
+        input({ buildableVariantCount: 3, queuedVariantCount: 2, pendingProjectCount: 2 })
       )
-    ).toBe('另有 1 个项目已在队列中，本次会跳过')
+    ).toBe('其中 2 个变体已在队列里，本次只追加其余')
   })
 
-  it('没有队列中项目时不提示', () => {
+  it('没有队列中变体时不提示', () => {
     expect(queuedExclusionHint(input({ buildableVariantCount: 4, pendingProjectCount: 2 }))).toBeNull()
   })
 
-  it('一个项目都入不了队时不补这句（原因已经说清了）', () => {
-    expect(
-      queuedExclusionHint(input({ pendingProjectCount: 0, queuedProjectCount: 2 }))
-    ).toBeNull()
+  it('一个都入不了队时不补这句（原因已经说清了）', () => {
+    expect(queuedExclusionHint(input({ pendingProjectCount: 0, queuedVariantCount: 2 }))).toBeNull()
+  })
+})
+
+describe('queuedVariantMap', () => {
+  it('只统计没结束的项；已结束的项释放它的变体', () => {
+    const map = queuedVariantMap([
+      { projectId: 'p1', state: 'running', variants: ['demoRelease', 'paidRelease'] },
+      { projectId: 'p1', state: 'success', variants: ['freeRelease'] },
+      { projectId: 'p2', state: 'pending', variants: ['paidDebug'] }
+    ])
+    expect(Array.from(map.get('p1') ?? []).sort()).toEqual(['demoRelease', 'paidRelease'])
+    expect(Array.from(map.get('p2') ?? [])).toEqual(['paidDebug'])
   })
 })
 
@@ -90,30 +91,35 @@ describe('enqueueTargets', () => {
   const projects = [{ id: 'p1' }, { id: 'p2' }, { id: 'p3' }]
   const resolutions = new Map([
     ['p1', { buildable: ['demoRelease'] }],
-    ['p2', { buildable: ['paidRelease'] }],
+    ['p2', { buildable: ['paidRelease', 'paidDebug'] }],
     ['p3', { buildable: [] }]
   ])
 
   it('带上这次要打的变体，并排除没有可构建变体的项目', () => {
-    expect(enqueueTargets(projects, resolutions, new Set())).toEqual([
+    expect(enqueueTargets(projects, resolutions, new Map())).toEqual([
       { projectId: 'p1', variants: ['demoRelease'] },
-      { projectId: 'p2', variants: ['paidRelease'] }
+      { projectId: 'p2', variants: ['paidRelease', 'paidDebug'] }
     ])
   })
 
-  it('排除已在队列中的项目 —— 点了不该没反应', () => {
-    expect(enqueueTargets(projects, resolutions, new Set(['p2']))).toEqual([
-      { projectId: 'p1', variants: ['demoRelease'] }
+  it('只剔掉已在队列里的变体，其余照常追加', () => {
+    const occupied = new Map([['p2', new Set(['paidRelease'])]])
+    expect(enqueueTargets(projects, resolutions, occupied)).toEqual([
+      { projectId: 'p1', variants: ['demoRelease'] },
+      { projectId: 'p2', variants: ['paidDebug'] }
     ])
   })
 
-  it('全都不可入队时返回空数组', () => {
-    expect(enqueueTargets(projects, resolutions, new Set(['p1', 'p2']))).toEqual([])
-    expect(enqueueTargets([], resolutions, new Set())).toEqual([])
+  it('一个项目的变体全在队列里时，整个项目不出现', () => {
+    const occupied = new Map([
+      ['p1', new Set(['demoRelease'])],
+      ['p2', new Set(['paidRelease', 'paidDebug'])]
+    ])
+    expect(enqueueTargets(projects, resolutions, occupied)).toEqual([])
   })
 
   it('结果里没有该项目的解析时按不可入队处理，不抛异常', () => {
-    expect(enqueueTargets([{ id: 'missing' }], resolutions, new Set())).toEqual([])
+    expect(enqueueTargets([{ id: 'missing' }], resolutions, new Map())).toEqual([])
   })
 })
 
@@ -122,7 +128,7 @@ describe('currentProjectBlockedReason', () => {
     return {
       variantCount: 0,
       busy: false,
-      alreadyQueued: false,
+      queuedVariantCount: 0,
       envIssue: null,
       ...patch
     }
@@ -146,10 +152,16 @@ describe('currentProjectBlockedReason', () => {
     )
   })
 
-  it('已在队列里时说明原因', () => {
-    expect(currentProjectBlockedReason(current({ variantCount: 1, alreadyQueued: true }))).toBe(
-      '这个项目已经在队列里了'
-    )
+  it('勾的变体全在队列里时，说清是「等它跑完」', () => {
+    expect(
+      currentProjectBlockedReason(current({ variantCount: 0, queuedVariantCount: 1 }))
+    ).toBe('勾选的变体都已经在队列里了，等它们跑完再试')
+  })
+
+  it('项目在跑一个变体、另一个变体还能入队时不拦（追加）', () => {
+    expect(
+      currentProjectBlockedReason(current({ variantCount: 1, queuedVariantCount: 1 }))
+    ).toBeNull()
   })
 
   it('可构建时返回 null', () => {

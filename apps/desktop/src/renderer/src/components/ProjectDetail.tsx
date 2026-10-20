@@ -29,7 +29,7 @@ export function ProjectDetail({
   project,
   busyKind,
   building,
-  queuedVariants,
+  occupiedVariants,
   outputRoot,
   onToggleVariant,
   onSetVariants,
@@ -40,8 +40,8 @@ export function ProjectDetail({
   busyKind: ProjectBusyKind | null
   /** 这个项目当前在队列里跑着 */
   building: boolean
-  /** 正在跑的那条队列项用的变体快照 */
-  queuedVariants: string[] | null
+  /** 已经在队列里的变体：不能再入队，勾选框禁用并标出来 */
+  occupiedVariants: string[]
   /** 统一输出目录；null = 还没读到设置，这时不显示归档预览 */
   outputRoot: string | null
   onToggleVariant: (variantName: string) => void
@@ -51,6 +51,8 @@ export function ProjectDetail({
   onSetAlias: (alias: string | null) => void
 }): React.JSX.Element {
   const selected = new Set(project.selectedVariants)
+  /** 已在队列里的变体：勾选框禁用，否则按下去会被主进程剔除，看着像没反应 */
+  const occupied = new Set(occupiedVariants)
   const badge = sourceBadge(project)
   const busy = busyKind !== null
   const [aliasDraft, setAliasDraft] = useState(project.alias ?? '')
@@ -92,7 +94,10 @@ export function ProjectDetail({
   const badgeVisibility = variantBadgeVisibility(visibleVariants, { forceBuildType: fallback })
 
   const buildTypes = Array.from(new Set(visibleVariants.map((variant) => variant.buildType)))
-  const allVisibleSelected = visibleVariants.every((variant) => selected.has(variant.name))
+  // 「全选」只选还能入队的：已占用的变体选上也构建不了
+  const selectableVisible = visibleVariants.filter((variant) => !occupied.has(variant.name))
+  const allVisibleSelected =
+    selectableVisible.length > 0 && selectableVisible.every((variant) => selected.has(variant.name))
 
   // 别名改完还没提交时，预览要跟着草稿走：用户看到的就是「保存后会变成什么」
   const archiveFolder = resolveOutputFolderName({
@@ -189,9 +194,9 @@ export function ProjectDetail({
 
         {building ? (
           <p className="project-detail__building" role="status" aria-live="polite">
-            这个项目正在构建中，用的是入队时的 {queuedVariants?.length ?? 0} 个变体
-            {queuedVariants && queuedVariants.length > 0 ? `（${queuedVariants.join('、')}）` : ''}
-            。现在改选不会影响正在跑的这一项。
+            这个项目正在构建中
+            {occupied.size > 0 ? `，队列里的变体：${Array.from(occupied).join('、')}` : ''}
+            。新勾选的变体会追加到队列，不影响已经在跑的那一项。
           </p>
         ) : null}
 
@@ -215,9 +220,10 @@ export function ProjectDetail({
                 variant="ghost"
                 disabled={busy || allVisibleSelected}
                 onClick={() => {
-                  // 与构建中心一致：全选是**并集**，不会把看不见的勾选（旧的 debug 残留）抹掉
+                  // 与构建中心一致：全选是**并集**，不会把看不见的勾选（旧的 debug 残留）抹掉；
+                  // 已在队列里的变体选不上，选上也会在入队时被剔除
                   const merged = new Set(project.selectedVariants)
-                  for (const variant of visibleVariants) {
+                  for (const variant of selectableVisible) {
                     merged.add(variant.name)
                   }
                   onSetVariants(Array.from(merged))
@@ -256,45 +262,54 @@ export function ProjectDetail({
             </div>
 
             <ul className="variant-list">
-              {visibleVariants.map((variant) => (
-                <li key={variant.name} className="variant-list__item">
-                  <label className="variant-list__label">
-                    <input
-                      type="checkbox"
-                      checked={selected.has(variant.name)}
-                      disabled={busy}
-                      onChange={() => {
-                        onToggleVariant(variant.name)
-                      }}
-                    />
-                    <span className="variant-list__name tabular" title={variant.name}>
-                      {variant.name}
+              {visibleVariants.map((variant) => {
+                const isOccupied = occupied.has(variant.name)
+                return (
+                  <li key={variant.name} className="variant-list__item">
+                    <label className="variant-list__label">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(variant.name)}
+                        // 已在队列里的变体禁用：勾上再入队会被剔除，不如直接不让勾
+                        disabled={busy || isOccupied}
+                        onChange={() => {
+                          onToggleVariant(variant.name)
+                        }}
+                      />
+                      <span className="variant-list__name tabular" title={variant.name}>
+                        {variant.name}
+                      </span>
+                    </label>
+                    <span className="variant-list__parts">
+                      {isOccupied ? (
+                        <Badge variant="info" title="这个变体已经在队列里，等它跑完才能再入队">
+                          队列中
+                        </Badge>
+                      ) : null}
+                      {badgeVisibility.flavor && variant.flavor ? (
+                        <Badge variant="muted">{variant.flavor}</Badge>
+                      ) : null}
+                      {badgeVisibility.buildType ? (
+                        <Badge variant="muted">{variant.buildType}</Badge>
+                      ) : null}
+                      {/* 非 release 变体由调试密钥签名、不能上架：这是后果，不是分类，用警告色说清 */}
+                      {!isReleaseBuildType(variant.buildType) ? (
+                        <Badge variant="warning" title="非 release 变体通常用调试密钥签名，不能上架">
+                          不能上架
+                        </Badge>
+                      ) : null}
+                      {/* 列表里只有 release 时不必逐行重复，说明放在列表上方一次 */}
+                      {mixedBuildTypes && variant.buildType === 'release' ? (
+                        <Badge variant="muted"
+                          title="release 变体通常没有配签名，工具只标注签名状态、不代签"
+                        >
+                          通常未签名
+                        </Badge>
+                      ) : null}
                     </span>
-                  </label>
-                  <span className="variant-list__parts">
-                    {badgeVisibility.flavor && variant.flavor ? (
-                      <Badge variant="muted">{variant.flavor}</Badge>
-                    ) : null}
-                    {badgeVisibility.buildType ? (
-                      <Badge variant="muted">{variant.buildType}</Badge>
-                    ) : null}
-                    {/* 非 release 变体由调试密钥签名、不能上架：这是后果，不是分类，用警告色说清 */}
-                    {!isReleaseBuildType(variant.buildType) ? (
-                      <Badge variant="warning" title="非 release 变体通常用调试密钥签名，不能上架">
-                        不能上架
-                      </Badge>
-                    ) : null}
-                    {/* 列表里只有 release 时不必逐行重复，说明放在列表上方一次 */}
-                    {mixedBuildTypes && variant.buildType === 'release' ? (
-                      <Badge variant="muted"
-                        title="release 变体通常没有配签名，工具只标注签名状态、不代签"
-                      >
-                        通常未签名
-                      </Badge>
-                    ) : null}
-                  </span>
-                </li>
-              ))}
+                  </li>
+                )
+              })}
             </ul>
           </>
         )}

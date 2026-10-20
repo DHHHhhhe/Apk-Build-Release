@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { QueueItem } from '@shared/types/queue'
-import { mergeQueueItems } from './queue-merge'
+import { mergeQueueItems, isStaleResponse } from './queue-merge'
 
 function item(id: string, state: QueueItem['state'], enqueuedAt: number): QueueItem {
   return {
@@ -9,6 +9,7 @@ function item(id: string, state: QueueItem['state'], enqueuedAt: number): QueueI
     projectName: '示例',
     projectPath: 'C:/projects/sample-a',
     state,
+    batchId: null,
     variants: ['demoDebug'],
     attempt: 1,
     enqueuedAt,
@@ -18,6 +19,18 @@ function item(id: string, state: QueueItem['state'], enqueuedAt: number): QueueI
     runs: []
   }
 }
+
+describe('乱序响应', () => {
+  /**
+   * 用户实测：先构建一批、没跑完再构建一批，第二项在队列里消失、侧栏也没徽章。
+   * 根因是两个入队请求同时在飞，先发的响应带着更旧的快照后到，把后发的结果覆盖了。
+   */
+  it('比已应用的序号更旧＝过期响应，数据不能采用', () => {
+    expect(isStaleResponse(1, 2)).toBe(true)
+    expect(isStaleResponse(2, 2)).toBe(false)
+    expect(isStaleResponse(3, 2)).toBe(false)
+  })
+})
 
 describe('变更响应与事件推送的合并', () => {
   it('没有事件更新过时，直接用响应里的列表', () => {

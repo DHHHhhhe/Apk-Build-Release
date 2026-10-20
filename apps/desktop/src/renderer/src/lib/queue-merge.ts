@@ -2,6 +2,16 @@ import type { QueueItem } from '@shared/types/queue'
 import { sortQueueItems } from '@shared/lib/queue-order'
 
 /**
+ * 响应是否已经过期。
+ *
+ * 连续点两次「构建」时两个请求同时在飞，响应可能乱序：先发的后回，带着更旧的快照。
+ * 判据只用序号大小，不比较内容 —— 内容比较在并发下反而容易误判。
+ */
+export function isStaleResponse(seq: number, appliedSeq: number): boolean {
+  return seq < appliedSeq
+}
+
+/**
  * 变更响应与事件推送合并。
  *
  * 踩过的坑：入队/取消这类操作返回的是**服务端那一刻的全量列表**，它是异步回来的。

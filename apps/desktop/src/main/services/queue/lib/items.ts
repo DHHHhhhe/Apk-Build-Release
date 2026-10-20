@@ -105,6 +105,7 @@ export function toQueueItemDto(row: QueueItemRow): QueueItem {
     projectName: project?.name ?? '（项目已移除）',
     projectPath: project?.path ?? '',
     state: row.state,
+    batchId: row.batchId ?? null,
     variants,
     attempt: row.attempt,
     enqueuedAt: row.enqueuedAt.getTime(),
@@ -125,6 +126,7 @@ export function listRunsForItem(itemId: string): QueueRunDetail[] {
     .all()
 
   return rows.map((row) => ({
+    id: row.id,
     variant: row.variant,
     state: row.state,
     startedAt: row.startedAt.getTime(),

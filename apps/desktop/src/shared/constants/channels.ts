@@ -32,7 +32,9 @@ export const IPC_CHANNELS = {
     LIST_RUNS: 'build:listRuns',
     SUMMARY: 'build:summary',
     LOG: 'build:log',
-    STATE: 'build:state'
+    STATE: 'build:state',
+    /** 构建阶段进度（Gradle 输出解析 + 执行器节点），与日志分开以免高频互相挤占 */
+    PROGRESS: 'build:progress'
   },
   APP: {
     /** 渲染层在 file:// 下拿不到 navigator.clipboard，走主进程 */

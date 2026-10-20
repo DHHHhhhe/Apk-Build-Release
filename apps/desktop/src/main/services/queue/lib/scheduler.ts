@@ -102,6 +102,18 @@ export function enqueueItem(
   return toQueueItemDto(row)
 }
 
+/**
+ * 同一工程的队列项不并发。
+ *
+ * 追加变体让「同一个项目有两条队列项」成了常态（跑着 demoRelease 时追加 paidRelease）。
+ * 并发上限大于 1 时这两项会同时对着一个工程跑 Gradle：争 .gradle 锁、互相拖慢，
+ * 严重时直接失败。所以按项目去重，同一个工程一次只跑一条。
+ *
+ * 记录放在这张表里而不是查库：执行器把项标成 running 之前有一小段窗口，
+ * 靠数据库状态判断会在那个窗口里重复放行同一个工程。
+ */
+const runningProjects = new Map<string, string>()
+
 /** 有空位就取 pending 项来跑；一条项内部的多个变体是顺序执行的 */
 export function tick(): void {
   if (ticking || paused) {
@@ -114,11 +126,17 @@ export function tick(): void {
       return
     }
 
+    const busyProjects = new Set(runningProjects.values())
     for (const row of listPendingItems()) {
       if (available <= 0) {
         break
       }
+      if (busyProjects.has(row.projectId)) {
+        continue
+      }
       running.add(row.id)
+      runningProjects.set(row.id, row.projectId)
+      busyProjects.add(row.projectId)
       available -= 1
       void executor(row.id)
         .catch((error: unknown) => {
@@ -129,6 +147,7 @@ export function tick(): void {
         })
         .finally(() => {
           running.delete(row.id)
+          runningProjects.delete(row.id)
           maybeResolveIdle()
           tick()
         })

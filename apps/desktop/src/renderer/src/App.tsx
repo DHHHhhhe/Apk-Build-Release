@@ -22,13 +22,16 @@ import { UpdateBanner } from './components/UpdateBanner'
 import { UpdateResultToast } from './components/UpdateResultToast'
 import { Toaster, toast } from 'sonner'
 import {
+  EMPTY_VARIANTS,
   buildBlockedReason,
   currentProjectBlockedReason,
   enqueueTargets,
-  queuedExclusionHint
+  queuedExclusionHint,
+  queuedVariantMap
 } from './lib/build-guard'
 import { resolveBuildableVariants } from '@shared/lib/variants'
 import { useBuild } from './hooks/useBuild'
+import { useBuildProgress } from './hooks/useBuildProgress'
 import { useDragAndDrop } from './hooks/useDragAndDrop'
 import { useDrawerWidth } from './hooks/useDrawerWidth'
 import { useEnvProbe } from './hooks/useEnvProbe'
@@ -77,6 +80,8 @@ export default function App(): React.JSX.Element {
 
   const queue = useQueue()
   const build = useBuild(selectedProject?.id ?? null)
+  // 进度只在主进程运行期间有意义：界面这一层订阅一次，队列面板与构建记录共用
+  const buildProgress = useBuildProgress()
   const env = useEnvProbe(selectedProject?.path ?? '')
   const sidebar = useSidebarWidth()
   const drawer = useDrawerWidth()
@@ -169,18 +174,32 @@ export default function App(): React.JSX.Element {
     ? resolveBuildableVariants({ variants: selectedProject.variants, selected: selectedVariants })
     : { buildable: [], unknownSelected: [] }
   const buildableVariants = resolvedVariants.buildable
-  const currentItem = queue.items.find(
-    (item) =>
-      item.projectId === selectedProject?.id && (item.state === 'running' || item.state === 'pending')
-  )
-  const projectBuilding = currentItem?.state === 'running'
+
+  /**
+   * 未结束队列项占用的变体。
+   *
+   * 口径从「项目」改成「变体」：项目跑着 v1 时再勾 v2，应当追加到当前批次，
+   * 只有同一个变体重复才拦。所以这里按变体收集，不再用「项目在队列里」一刀切。
+   */
+  const occupiedVariants = queuedVariantMap(queue.items)
+  const occupiedOf = (projectId: string | undefined): ReadonlySet<string> =>
+    projectId === undefined ? EMPTY_VARIANTS : (occupiedVariants.get(projectId) ?? EMPTY_VARIANTS)
+
+  const occupiedForSelected = occupiedOf(selectedProject?.id)
+  // 这一次真正会入队的变体：已经排上的剔掉
+  const freshVariants = buildableVariants.filter((name) => !occupiedForSelected.has(name))
+  const queuedVariantCount = buildableVariants.length - freshVariants.length
+
+  const projectBuilding = selectedProject
+    ? queue.items.some((item) => item.projectId === selectedProject.id && item.state === 'running')
+    : false
   // 环境缺失（比如 SDK 没找到）时不该让用户白等一次构建
   const envBlocking = env.result?.items.find((item) => item.state === 'error') ?? null
   // 单项目按钮的原因与勾选表那条共用同一份实现（build-guard），措辞不会走散
   const enqueueBlocked = currentProjectBlockedReason({
-    variantCount: buildableVariants.length,
+    variantCount: freshVariants.length,
     busy: busyProjectId !== null,
-    alreadyQueued: Boolean(currentItem),
+    queuedVariantCount,
     envIssue: envBlocking ? `${envBlocking.label}${envBlocking.detail ? `：${envBlocking.detail}` : ' 不可用'}` : null
   })
 
@@ -229,8 +248,7 @@ export default function App(): React.JSX.Element {
       ? queue.items.filter((item) => item.state !== 'pending' && item.state !== 'running').length
       : queue.items.length
 
-  // 跨项目的构建判断基准。注意单位：变体数用于按钮上的 N，项目数用于「都被队列占了」的判断，
-  // 两者混着比会在某些巧合下得出看似正确的结果。
+  // 侧栏徽章仍按项目显示：这个项目有没跑完的项
   const queuedProjectIds = new Set(
     queue.items
       .filter((item) => item.state === 'running' || item.state === 'pending')
@@ -245,10 +263,15 @@ export default function App(): React.JSX.Element {
       })
     ])
   )
+  /*
+   * 跨项目口径同样换成变体级：
+   * buildableVariantCount 数的是「这次真正会入队」的变体（已剔除队列里占用的），
+   * queuedVariantCount 是被剔掉的数量 —— 两者加起来才是用户勾选的总数。
+   */
   const crossProject = {
     buildableVariantCount: 0,
+    queuedVariantCount: 0,
     pendingProjectCount: 0,
-    queuedProjectCount: 0,
     unknownSelectedCount: 0
   }
   for (const project of projects) {
@@ -256,14 +279,13 @@ export default function App(): React.JSX.Element {
     if (!resolved) {
       continue
     }
-    crossProject.buildableVariantCount += resolved.buildable.length
+    const occupied = occupiedOf(project.id)
+    const fresh = resolved.buildable.filter((name) => !occupied.has(name))
+    crossProject.buildableVariantCount += fresh.length
+    crossProject.queuedVariantCount += resolved.buildable.length - fresh.length
     crossProject.unknownSelectedCount += resolved.unknownSelected.length
-    if (resolved.buildable.length > 0) {
-      if (queuedProjectIds.has(project.id)) {
-        crossProject.queuedProjectCount += 1
-      } else {
-        crossProject.pendingProjectCount += 1
-      }
+    if (fresh.length > 0) {
+      crossProject.pendingProjectCount += 1
     }
   }
   // 顶栏按钮与表内按钮共用同一份判断：同一个动作的两个位置，禁用条件必须字字相同
@@ -271,9 +293,9 @@ export default function App(): React.JSX.Element {
   const crossBlocked = buildBlockedReason(buildGuard)
   const crossHint = queuedExclusionHint(buildGuard)
 
-  /** 入队勾选的项目：排除已在队列里的，并把要打的变体一并带上 */
+  /** 入队勾选的项目：只带上还没排上的变体，已占用的由主进程再筛一次 */
   const buildCheckedProjects = (): void => {
-    const targets = enqueueTargets(projects, projectResolutions, queuedProjectIds)
+    const targets = enqueueTargets(projects, projectResolutions, occupiedVariants)
     if (targets.length > 0) {
       void queue.enqueue(targets)
     }
@@ -369,12 +391,14 @@ export default function App(): React.JSX.Element {
             title={enqueueBlocked ?? undefined}
             onClick={() => {
               if (selectedProject) {
-                // 带上抽屉里这个项目当前可构建的变体，主进程不再回读数据库
-                void queue.enqueue([{ projectId: selectedProject.id, variants: buildableVariants }])
+                // 只带这次真正要入队的变体：已在队列里的那些会被主进程再筛一次
+                void queue.enqueue([{ projectId: selectedProject.id, variants: freshVariants }])
               }
             }}
           >
-            {projectBuilding ? '构建中…' : `构建当前项目（${buildableVariants.length}）`}
+            {projectBuilding && freshVariants.length === 0
+              ? '构建中…'
+              : `构建当前项目（${freshVariants.length}）`}
           </Button>
         ) : null}
       </header>
@@ -531,7 +555,7 @@ export default function App(): React.JSX.Element {
               <BuildCenter
                 projects={projects}
                 busyProjectId={busyProjectId}
-                queuedProjectIds={queuedProjectIds}
+                queuedVariants={occupiedVariants}
                 buildableVariantCount={crossProject.buildableVariantCount}
                 blockedReason={crossBlocked}
                 queuedHint={crossHint}
@@ -550,6 +574,7 @@ export default function App(): React.JSX.Element {
                 items={queue.items}
                 concurrency={queue.concurrency}
                 paused={queue.paused}
+                progress={buildProgress}
                 onCancel={(itemId) => {
                   void queue.cancel(itemId)
                 }}
@@ -590,7 +615,7 @@ export default function App(): React.JSX.Element {
               project={selectedProject}
               busyKind={busyProjectId === selectedProject.id ? busyKind : null}
               building={projectBuilding}
-              queuedVariants={currentItem?.variants ?? null}
+              occupiedVariants={Array.from(occupiedForSelected)}
               outputRoot={settings.settings?.outputRoot ?? null}
               onToggleVariant={handleToggleVariant}
               onSetVariants={(names) => {
@@ -623,6 +648,7 @@ export default function App(): React.JSX.Element {
               activeRunId={build.activeRunId}
               building={projectBuilding}
               hasMore={build.hasMore}
+              progress={buildProgress}
               onLoadMore={build.loadMore}
             />
           </ProjectDrawer>

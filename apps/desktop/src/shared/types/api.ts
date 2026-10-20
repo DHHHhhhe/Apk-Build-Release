@@ -1,6 +1,7 @@
 import type {
   BuildListResult,
   BuildLogEvent,
+  BuildProgressEvent,
   BuildRun,
   BuildStateEvent,
   BuildSummaryResult,
@@ -63,6 +64,8 @@ export interface AppApi {
     summary: (scope: SummaryScope, projectId?: string) => Promise<BuildSummaryResult>
     onLog: (handler: (event: BuildLogEvent) => void) => Unsubscribe
     onState: (handler: (event: BuildStateEvent) => void) => Unsubscribe
+    /** 构建阶段进度；与日志分开订阅，界面不必解析日志正文 */
+    onProgress: (handler: (event: BuildProgressEvent) => void) => Unsubscribe
   }
   app: {
     /** 复制文本；渲染层在 file:// 下没有 navigator.clipboard */

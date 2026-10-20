@@ -369,20 +369,6 @@ export function ProjectList({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderKey])
 
-  /** 把某个项目往前/往后挪一位，然后整份顺序交出去 */
-  const move = (projectId: string, delta: -1 | 1): void => {
-    const ids = projects.map((project) => project.id)
-    const at = ids.indexOf(projectId)
-    const current = ids[at]
-    const swapped = ids[at + delta]
-    if (at < 0 || current === undefined || swapped === undefined) {
-      return
-    }
-    ids[at] = swapped
-    ids[at + delta] = current
-    onReorder(ids)
-  }
-
   return (
     <div className="project-list">
       <div className="project-list__head">
@@ -454,7 +440,7 @@ export function ProjectList({
                    * 原来热区是整行，结果用户想选文字时长按就触发了拖拽（实测：三个项目名与徽章
                    * 都是蓝色选中态，说明当时正在选文字）。把拖拽收敛到手柄上，行内其余部分
                    * 仍可点选、文字仍可选中 —— 两个动作分开。
-                   * 对读屏用户是装饰：键盘走下面那对 ↑↓ 按钮（WCAG 2.5.7）。
+                   * 排序只剩这条路：手柄挂在 aria-hidden 上，键盘与读屏用户拿不到排序入口。
                    */}
                   <span
                     className="project-list__grip"
@@ -504,62 +490,40 @@ export function ProjectList({
                       {project.name}
                     </span>
                     <span className="project-list__meta">
-                      {/* 数与右侧实际能构建的变体对齐：这里以前数的是全部变体（含 debug），
-                          于是侧栏写「2 个变体」、点进去只有一个可构建的 */}
-                      <Badge variant="muted" className="tabular">
-                        {filterVariantsForPackaging(project.variants).length} 个变体
-                      </Badge>
-                      {/* 别名决定产物落到哪个文件夹：以前只有进抽屉才看得到 */}
+                      {/*
+                       * 归档名单独一行：它自带「归档」前缀，和「1 个变体 / 已选 1」排在一起时
+                       * 会被读成一串标签，扫列表时看不出哪个是文件夹名。
+                       */}
                       {project.alias ? (
-                        <Badge variant="muted" title={'产物会归档到「' + project.alias + '」文件夹'}>
-                          归档 {project.alias}
-                        </Badge>
+                        <span className="project-list__meta-line">
+                          <Badge variant="muted" title={'产物会归档到「' + project.alias + '」文件夹'}>
+                            归档 {project.alias}
+                          </Badge>
+                        </span>
                       ) : null}
-                      {project.selectedVariants.length > 0 ? (
-                        <Badge variant="success" className="tabular">
-                          已选 {project.selectedVariants.length}
+                      <span className="project-list__meta-line">
+                        {/* 数与右侧实际能构建的变体对齐：这里以前数的是全部变体（含 debug），
+                            于是侧栏写「2 个变体」、点进去只有一个可构建的 */}
+                        <Badge variant="muted" className="tabular">
+                          {filterVariantsForPackaging(project.variants).length} 个变体
                         </Badge>
-                      ) : null}
-                      {/* 解析受限只在**没解析出变体**时才提示：已经拿到变体了还挂着这个标签，
-                          会让人以为当前这些变体是残缺的，而实际上能构建的就是这些 */}
-                      {project.limitations.length > 0 &&
-                      filterVariantsForPackaging(project.variants).length === 0 ? (
-                        <Badge variant="warning" title={project.limitations.join('；')}>
-                          解析受限
-                        </Badge>
-                      ) : null}
-                      {inQueue ? <Badge variant="info">队列中</Badge> : null}
+                        {project.selectedVariants.length > 0 ? (
+                          <Badge variant="success" className="tabular">
+                            已选 {project.selectedVariants.length}
+                          </Badge>
+                        ) : null}
+                        {/* 解析受限只在**没解析出变体**时才提示：已经拿到变体了还挂着这个标签，
+                            会让人以为当前这些变体是残缺的，而实际上能构建的就是这些 */}
+                        {project.limitations.length > 0 &&
+                        filterVariantsForPackaging(project.variants).length === 0 ? (
+                          <Badge variant="warning" title={project.limitations.join('；')}>
+                            解析受限
+                          </Badge>
+                        ) : null}
+                        {inQueue ? <Badge variant="info">队列中</Badge> : null}
+                      </span>
                     </span>
                   </button>
-
-                  {/*
-                   * 手工排序的两个按钮：拖拽对键盘与读屏用户等于不存在，
-                   * 有一对能点的按钮才算两种输入方式都能用（WCAG 2.5.7）。
-                   */}
-                  <span className="project-list__order">
-                    <Button
-                      variant="ghost"
-                      className="project-list__order-btn"
-                      aria-label={'把 ' + project.name + ' 上移'}
-                      disabled={index === 0}
-                      onClick={() => {
-                        move(project.id, -1)
-                      }}
-                    >
-                      ↑
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className="project-list__order-btn"
-                      aria-label={'把 ' + project.name + ' 下移'}
-                      disabled={index === projects.length - 1}
-                      onClick={() => {
-                        move(project.id, 1)
-                      }}
-                    >
-                      ↓
-                    </Button>
-                  </span>
 
                   <Button
                     variant="ghost"

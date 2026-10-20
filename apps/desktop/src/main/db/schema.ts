@@ -105,6 +105,8 @@ export const buildRuns = sqliteTable(
     }),
     /** 给用户看的一行失败原因 */
     failureHint: text('failure_hint'),
+    /** 阶段切换点（JSON 数组）：历史记录也能「只看关键节点」，不依赖日志文件 */
+    stagePoints: text('stage_points'),
     startedAt: integer('started_at', { mode: 'timestamp_ms' }).notNull().default(nowMs),
     finishedAt: integer('finished_at', { mode: 'timestamp_ms' })
   },

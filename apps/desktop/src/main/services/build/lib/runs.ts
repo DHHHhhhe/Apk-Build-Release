@@ -3,7 +3,29 @@ import { desc, eq } from 'drizzle-orm'
 import { db } from '../../../db/client'
 import { buildRuns, queueItems } from '../../../db/schema'
 import type { BuildRunRow, QueueItemRow } from '../../../db/schema'
-import type { BuildRun, BuildRunState } from '@shared/types/build'
+import type { BuildRun, BuildRunState, BuildStagePoint } from '@shared/types/build'
+
+/** 阶段切换点存在库里是一段 JSON；读不出来就当作没有（老记录全是 NULL） */
+function parseStagePoints(raw: string | null): BuildStagePoint[] {
+  if (!raw) {
+    return []
+  }
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+    return parsed.filter((item): item is BuildStagePoint => {
+      if (typeof item !== 'object' || item === null) {
+        return false
+      }
+      const record = item as Partial<BuildStagePoint>
+      return typeof record.phase === 'string' && typeof record.at === 'number'
+    })
+  } catch {
+    return []
+  }
+}
 
 export function toBuildRunDto(row: BuildRunRow, projectId: string): BuildRun {
   return {
@@ -21,6 +43,7 @@ export function toBuildRunDto(row: BuildRunRow, projectId: string): BuildRun {
     signed: row.signed,
     failureKind: row.failureKind,
     failureHint: row.failureHint,
+    stages: parseStagePoints(row.stagePoints),
     startedAt: row.startedAt.getTime(),
     finishedAt: row.finishedAt ? row.finishedAt.getTime() : null
   }
@@ -65,6 +88,8 @@ export interface BuildRunPatch {
   signed?: boolean | null
   failureKind?: BuildRun['failureKind']
   failureHint?: string | null
+  /** 阶段切换点的 JSON；构建结束时写一次，供历史记录复用 */
+  stagePoints?: string | null
   finishedAt?: Date | null
 }
 

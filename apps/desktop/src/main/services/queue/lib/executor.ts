@@ -1,15 +1,15 @@
 import { existsSync } from 'node:fs'
-import { basename, dirname, join } from 'node:path'
+import { basename, join } from 'node:path'
 import { app } from 'electron'
 import { IPC_CHANNELS } from '@shared/constants/channels'
-import type { BuildRunState } from '@shared/types/build'
+import type { BuildProgressEvent, BuildRunState } from '@shared/types/build'
 import type { QueueItemState } from '@shared/types/queue'
 import { broadcast } from '../../../lib/broadcast'
 import { locateGradlew } from '../../../lib/gradle-paths'
 import { logger as baseLogger } from '../../logger'
 import { copyArtifactToOutput, findApkArtifacts, resolveOutputFolderName } from '../../build/lib/artifacts'
 import { classifyFailure } from '../../build/lib/failure'
-import { recordArtifact } from '../../build/lib/manifest'
+import { GradleProgressParser, type GradleProgress } from '../../build/lib/gradle-progress'
 import {
   createBuildRun,
   getBuildRun,
@@ -27,6 +27,14 @@ import { isCancelRequested, registerRunning, releaseRunning, setRunningPid } fro
 import { findItemRow, listRunsForItem, parseVariants, toQueueItemDto, updateItem } from './items'
 
 const logger = baseLogger.scope('queue:executor')
+
+/**
+ * 进度事件的推送节流。
+ *
+ * Gradle 一个中等工程会打出几百上千个 `> Task` 行，不节流的话进度事件会和日志抢 IPC；
+ * 200ms 一次对肉眼足够，每秒最多 5 条。
+ */
+const PROGRESS_THROTTLE_MS = 200
 
 /**
  * 执行一条队列项：项目内多个变体顺序执行（D6），单个变体失败不影响后面的变体。
@@ -81,6 +89,41 @@ export async function executeQueueItem(itemId: string): Promise<QueueItemState> 
       // （runs 是空的），三个变体一起构建时界面上全都显示「待构建」
       broadcastItem(itemId)
 
+      // 每个变体一个解析器：并发上限大于 1 时，两条构建的输出会交错，共用一份状态会互相覆盖
+      const parser = new GradleProgressParser()
+      let lastProgressKey = ''
+      let lastProgressAt = 0
+
+      const emitProgress = (progress: GradleProgress, force: boolean): void => {
+        const key = `${progress.phase}|${progress.task ?? ''}|${progress.tasksDone}`
+        const now = Date.now()
+        if (!force) {
+          // 没有变化不推；有变化但没到节流窗口也不推（最后一帧由 STATE 事件收尾）
+          if (key === lastProgressKey || now - lastProgressAt < PROGRESS_THROTTLE_MS) {
+            return
+          }
+        }
+        lastProgressKey = key
+        lastProgressAt = now
+        const event: BuildProgressEvent = {
+          runId: runRow.id,
+          projectId: project.id,
+          variant,
+          phase: progress.phase,
+          task: progress.task,
+          tasksDone: progress.tasksDone,
+          tasksSkipped: progress.tasksSkipped,
+          // 阶段序列随事件带上：界面「只看关键节点」直接用这份，不再从日志正文里找
+          stages: progress.stages,
+          updatedAt: now
+        }
+        broadcast(IPC_CHANNELS.BUILD.PROGRESS, event)
+      }
+
+      // Gradle 起来之前的那一小段（写日志文件、拼任务名）也要有状态，
+      // 否则点下构建后界面会空白几秒才跳「构建中」
+      emitProgress({ phase: 'starting', task: null, tasksDone: 0, tasksSkipped: 0, stages: [] }, true)
+
       const result = await runGradleTask({
         projectPath: project.path,
         gradlewPath,
@@ -96,16 +139,30 @@ export async function executeQueueItem(itemId: string): Promise<QueueItemState> 
             variant,
             chunk
           })
+          const next = parser.feed(chunk)
+          if (next !== null) {
+            emitProgress(next, false)
+          }
         }
       })
 
       const canceled = isCancelRequested(itemId)
       const succeeded = !canceled && !result.timedOut && result.exitCode === 0
 
+      // Gradle 退出后还有两段纯主进程的活：找产物并复制、再调 apksigner 验签。
+      // 以前这段时间日志不动、状态还是 running，看起来像卡死。
+      if (succeeded) {
+        emitProgress(parser.markPhase('archiving'), true)
+      }
+
       const artifact = succeeded
         ? (findApkArtifacts({ projectPath: project.path, moduleDirs, expectedVariant: variant })[0] ?? null)
         : null
       const copiedPath = artifact ? copyArtifactToOutput(artifact, outputRoot, resolveOutputFolderName(project)) : null
+
+      if (succeeded && artifact) {
+        emitProgress(parser.markPhase('verifying'), true)
+      }
 
       // 签名状态以 apksigner 为准：文件名只能看出 unsigned，看不出「签了但无效」
       const signature = artifact
@@ -140,16 +197,9 @@ export async function executeQueueItem(itemId: string): Promise<QueueItemState> 
 
       const state: BuildRunState = canceled ? 'canceled' : succeeded ? 'success' : 'failed'
 
-      // 归档目录里记一份「这个变体最新的包是哪个」：同名产物只加时间戳不覆盖，
-      // 光看目录分不出该发哪个（见 build/lib/manifest.ts）
-      if (succeeded && artifact && copiedPath) {
-        recordArtifact(dirname(copiedPath), {
-          variant,
-          apkName: artifact.apkName,
-          apkPath: copiedPath,
-          signed: signature?.signed ?? null,
-          copiedAt: Date.now()
-        })
+      // 先推「完成」再落库：这样落库的 stagePoints 里也带着最后这一帧
+      if (succeeded) {
+        emitProgress(parser.markPhase('done'), true)
       }
       const updated = updateBuildRun(runRow.id, {
         state,
@@ -164,6 +214,8 @@ export async function executeQueueItem(itemId: string): Promise<QueueItemState> 
         signed: signature ? signature.signed : (artifact?.signed ?? null),
         failureKind: classification?.kind ?? null,
         failureHint: hint,
+        // 阶段序列跟着结果一起落库：历史记录也能「只看关键节点」，不依赖日志文件
+        stagePoints: JSON.stringify(parser.snapshot().stages),
         finishedAt: new Date()
       })
       // 跑完也要广播：队列项那行要显示这个变体的最终状态与耗时

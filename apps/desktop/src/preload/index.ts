@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { IPC_CHANNELS } from '@shared/constants/channels'
 import type { AppApi, Unsubscribe } from '@shared/types/api'
-import type { BuildLogEvent, BuildStateEvent, SummaryScope } from '@shared/types/build'
+import type { BuildLogEvent, BuildProgressEvent, BuildStateEvent, SummaryScope } from '@shared/types/build'
 import type { EnqueueTarget, QueueStateEvent } from '@shared/types/queue'
 import type { UpdateState } from '@shared/types/update'
 
@@ -60,7 +60,9 @@ const api: AppApi = {
       ipcRenderer.invoke(IPC_CHANNELS.BUILD.SUMMARY, { scope, projectId }),
     onLog: (handler: (event: BuildLogEvent) => void) => subscribe(IPC_CHANNELS.BUILD.LOG, handler),
     onState: (handler: (event: BuildStateEvent) => void) =>
-      subscribe(IPC_CHANNELS.BUILD.STATE, handler)
+      subscribe(IPC_CHANNELS.BUILD.STATE, handler),
+    onProgress: (handler: (event: BuildProgressEvent) => void) =>
+      subscribe(IPC_CHANNELS.BUILD.PROGRESS, handler)
   },
   app: {
     copyText: (text: string) => ipcRenderer.invoke(IPC_CHANNELS.APP.COPY_TEXT, text)

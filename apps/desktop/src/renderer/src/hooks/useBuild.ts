@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { BuildRun } from '@shared/types/build'
 
-/** 单个 run 的日志上限，避免长构建把渲染进程内存吃满 */
-const LOG_LIMIT_PER_RUN = 200_000
+/**
+ * 单个 run 的日志上限，避免长构建把渲染进程内存吃满。
+ *
+ * 从 20 万提到 100 万字符：20 万只够 700 行左右，真实构建（R8 警告刷屏）里
+ * 「过滤关键字」常常一行都命中不了，因为命中的那几行早被挤出窗口了。
+ * 100 万约 4000~5000 行，仍然只是「阅读用的窗口」，完整日志始终在日志文件里。
+ */
+const LOG_LIMIT_PER_RUN = 1_000_000
 
 /** 构建记录一次取多少条；不够时界面可以「加载更多」 */
 export const RUN_PAGE_SIZE = 20

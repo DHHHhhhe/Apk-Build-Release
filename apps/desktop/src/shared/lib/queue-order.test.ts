@@ -13,6 +13,7 @@ function item(
     projectName: '示例',
     projectPath: 'C:/projects/sample-a',
     state,
+    batchId: null,
     variants: ['demoDebug'],
     attempt: 1,
     enqueuedAt: times.enqueuedAt,

@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { ArrowDown, FolderOpen, FileText, Search } from 'lucide-react'
-import type { BuildRun } from '@shared/types/build'
+import type { BuildProgress, BuildRun } from '@shared/types/build'
 import { useNow } from '../hooks/useNow'
+import { collapseToStageChanges, progressCountText, progressHeadline, stagePointText } from '@shared/lib/build-stage'
 import { elapsedMs, formatClock, formatDurationMs } from '../lib/duration'
 import { dirnameOf } from '../lib/path-display'
 import { openPathOrToast } from '../lib/open-path'
@@ -62,6 +63,7 @@ export function BuildPanel({
   activeRunId,
   building,
   hasMore,
+  progress,
   onLoadMore
 }: {
   runs: BuildRun[]
@@ -69,12 +71,16 @@ export function BuildPanel({
   activeRunId: string | null
   building: boolean
   hasMore: boolean
+  /** 正在跑的变体进度，键是构建记录 id */
+  progress: Record<string, BuildProgress>
   onLoadMore: () => void
 }): React.JSX.Element {
   const logRef = useRef<HTMLPreElement | null>(null)
   const [follow, setFollow] = useState(true)
   const [keyword, setKeyword] = useState('')
   const [errorsOnly, setErrorsOnly] = useState(false)
+  /** 只看关键节点：把几千行任务输出压成十几个阶段切换点 */
+  const [stagesOnly, setStagesOnly] = useState(false)
   /**
    * 手动点选的那一条。
    *
@@ -86,27 +92,49 @@ export function BuildPanel({
   const pickedRun = pickedRunId === null ? null : (runs.find((run) => run.id === pickedRunId) ?? null)
   const activeRun = pickedRun ?? runs.find((run) => run.id === activeRunId) ?? runs[0] ?? null
   const activeLog = activeRun ? (logs[activeRun.id] ?? '') : ''
+  // 进度只对正在跑的变体有意义；跑完的条目已被 useBuildProgress 清掉
+  const activeProgress = activeRun ? progress[activeRun.id] : undefined
+  const stageCount = activeProgress ? progressCountText(activeProgress) : null
   const now = useNow(runs.some((run) => run.state === 'running'))
 
-  const logLines = useMemo(() => {
+  /**
+   * 阶段切换点：运行中的来自进度事件，历史记录来自库里的 stage_points。
+   *
+   * 「只看关键节点」优先用这份数据，而不是从日志正文里压 —— 日志只保留尾部窗口，
+   * 大工程的关键节点早被挤出窗口，于是勾了之后常常是空的。
+   */
+  const stagePoints = activeProgress?.stages ?? activeRun?.stages ?? []
+  const usingStagePoints = stagesOnly && stagePoints.length > 0
+
+  const logView = useMemo(() => {
     if (activeLog === '') {
-      return []
+      return { lines: [] as string[], matched: 0 }
     }
     const lines = activeLog.split(/\r?\n/)
-    const trimmed = lines.length > LOG_RENDER_LIMIT ? lines.slice(-LOG_RENDER_LIMIT) : lines
+    // 老记录没有阶段序列时才回退到文本压缩
+    const base = stagesOnly && stagePoints.length === 0 ? collapseToStageChanges(lines) : lines
     const needle = keyword.trim().toLowerCase()
-    if (needle === '' && !errorsOnly) {
-      return trimmed
-    }
-    return trimmed.filter((line) => {
-      if (errorsOnly && !ERROR_LINE.test(line)) {
-        return false
-      }
-      return needle === '' || line.toLowerCase().includes(needle)
-    })
-  }, [activeLog, keyword, errorsOnly])
+    const filteredLines =
+      needle === '' && !errorsOnly
+        ? base
+        : base.filter((line) => {
+            if (errorsOnly && !ERROR_LINE.test(line)) {
+              return false
+            }
+            return needle === '' || line.toLowerCase().includes(needle)
+          })
 
-  const filtered = keyword.trim() !== '' || errorsOnly
+    // 先过滤再截取：反过来会让「很早才出现的关键字」永远匹配不到。
+    // 渲染仍然只给尾部 LOG_RENDER_LIMIT 行 —— 几千个 React 节点会把界面拖住。
+    return {
+      lines: filteredLines.length > LOG_RENDER_LIMIT ? filteredLines.slice(-LOG_RENDER_LIMIT) : filteredLines,
+      matched: filteredLines.length
+    }
+  }, [activeLog, keyword, errorsOnly, stagesOnly, stagePoints.length])
+
+  const logLines = logView.lines
+
+  const filtered = keyword.trim() !== '' || errorsOnly || stagesOnly
 
   // 只有贴着底部时才自动跟随；用户往上翻就停下，并给出「有新日志」提示
   useEffect(() => {
@@ -131,9 +159,28 @@ export function BuildPanel({
       <div className="card-core card-core--pad build-panel">
         <header className="build-panel__head">
           <h3 className="build-panel__title">构建记录</h3>
-          {building ? <Badge variant="info">构建中</Badge> : null}
+          {/*
+           * activeRun 自己的状态徽章已经写了「构建中」：这里再来一个 info 徽章，
+           * 界面上会出现两个一模一样的「构建中」（实测截图里并排两个）。
+           * 所以只有当前选中的记录不是 running 时，才补这个「另有构建在进行」的徽章。
+           */}
+          {building && activeRun?.state !== 'running' ? <Badge variant="info">构建中</Badge> : null}
           {activeRun ? (
             <span className={buildStateBadgeClass(activeRun.state)}>{STATE_LABEL[activeRun.state]}</span>
+          ) : null}
+          {/* 不滚日志也知道现在在干嘛：阶段 + 当前任务（title）+ 已执行任务数 */}
+          {activeProgress ? (
+            <span
+              className="build-panel__stage"
+              title={
+                activeProgress.task === null
+                  ? 'Gradle 不提供任务总数，这里只表示已经执行了多少个任务'
+                  : activeProgress.task + '（Gradle 不提供任务总数，这个数字只是已执行的任务数）'
+              }
+            >
+              {progressHeadline(activeProgress)}
+              {stageCount !== null ? ' · ' + stageCount : ''}
+            </span>
           ) : null}
         </header>
 
@@ -253,8 +300,29 @@ export function BuildPanel({
                 />
                 只看报错
               </label>
-              {filtered ? (
-                <span className="build-panel__log-count tabular">{logLines.length} 行匹配</span>
+              {/* 任务行成百上千，逐行读不现实：压成阶段切换点，一眼看到走过了哪几步 */}
+              <label className="build-panel__log-toggle">
+                <input
+                  type="checkbox"
+                  checked={stagesOnly}
+                  onChange={(event) => {
+                    setStagesOnly(event.target.checked)
+                  }}
+                />
+                只看关键节点
+              </label>
+              {usingStagePoints ? (
+                <span
+                  className="build-panel__log-count tabular"
+                  title="同一阶段里的连续任务只记一条，所以节点数比「已执行任务数」少"
+                >
+                  {stagePoints.length} 个节点
+                </span>
+              ) : filtered ? (
+                <span className="build-panel__log-count tabular">
+                  {logView.matched} 行匹配
+                  {logView.matched > logLines.length ? `（只显示最后 ${LOG_RENDER_LIMIT} 行）` : ''}
+                </span>
               ) : null}
               {activeLog === '' && activeRun.logPath ? (
                 <Button
@@ -272,19 +340,31 @@ export function BuildPanel({
 
             <div className="build-panel__log-body">
               <pre className="build-panel__log" ref={logRef} onScroll={handleScroll} role="log" aria-live="polite">
-                {logLines.length === 0
-                  ? activeLog === ''
-                    ? emptyLogText(activeRun)
-                    : '（没有匹配的行）'
-                  : logLines.map((line, index) => (
+                {usingStagePoints
+                  ? stagePoints.map((point, index) => (
                       <span
-                        key={`${index}-${line.slice(0, 12)}`}
-                        className={ERROR_LINE.test(line) ? 'build-panel__log-line build-panel__log-line--error' : 'build-panel__log-line'}
+                        key={`stage-${index}-${point.at}`}
+                        className="build-panel__log-line build-panel__log-line--stage"
+                        title={`此时已执行 ${point.tasksDone} 个任务`}
                       >
-                        {line}
+                        {/* 前面的 #N 是「走到这一步时已执行多少个任务」，为 0 时不显示 */}
+                        {(point.tasksDone > 0 ? '#' + point.tasksDone + '  ' : '') + stagePointText(point)}
                         {'\n'}
                       </span>
-                    ))}
+                    ))
+                  : logLines.length === 0
+                    ? activeLog === ''
+                      ? emptyLogText(activeRun)
+                      : '（没有匹配的行）'
+                    : logLines.map((line, index) => (
+                        <span
+                          key={`${index}-${line.slice(0, 12)}`}
+                          className={ERROR_LINE.test(line) ? 'build-panel__log-line build-panel__log-line--error' : 'build-panel__log-line'}
+                        >
+                          {line}
+                          {'\n'}
+                        </span>
+                      ))}
               </pre>
               {!follow && !filtered ? (
                 <Button

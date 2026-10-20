@@ -20,6 +20,64 @@
 }
 
 /*
+ * 顶部两个计数兼筛选开关。
+ * 外观照着徽章做（浅底 + 同色深字），但它是按钮：可聚焦、可按下、按下有边框。
+ * 不用 <Badge> 是因为徽章是纯展示件，没有「已选中」这个状态。
+ */
+.queue-panel__filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 9999px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--duration-micro) ease, border-color var(--duration-micro) ease;
+}
+
+.queue-panel__filter--running {
+  background: color-mix(in srgb, var(--info) 10%, transparent);
+  color: var(--info);
+}
+
+.queue-panel__filter--pending {
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+
+.queue-panel__filter:hover {
+  background: color-mix(in srgb, currentColor 16%, transparent);
+}
+
+/*
+ * 选中态要一眼看得出来。
+ *
+ * 之前只加了一圈 1px 同色边框：浅底上几乎看不出差别（用户反馈「状态不太明显」）。
+ * 现在三件事一起：底色加深、描边加实、字重加粗。
+ * 不加图标是因为加图标会改变按钮宽度，切换时同一排按钮会跟着跳。
+ */
+.queue-panel__filter--on {
+  border-color: currentColor;
+  background: color-mix(in srgb, currentColor 26%, transparent);
+  font-weight: 600;
+}
+
+.queue-panel__filter--on:hover {
+  background: color-mix(in srgb, currentColor 32%, transparent);
+}
+
+.queue-panel__filter:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+/*
  * 并发上限是设置，不是动作：它跟着标题与计数排，动作按钮单独成组靠右。
  * 以前它自己 margin-left:auto 顶到最右，与「取消 / 清空」混成一排，看不出哪个是设置。
  */
@@ -154,6 +212,63 @@
 .run-detail__time {
   margin-left: auto;
   color: var(--muted-foreground);
+}
+
+/*
+ * 正在跑的变体显示「在哪一步」。
+ * 给 ellipsis 是因为任务名和「已执行 N 个任务」加起来可能比这一行还长，
+ * 截断比换行好：换行会让同一个变体占两行，列表高度跳来跳去。
+ */
+.run-detail__stage {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--info);
+}
+
+.run-detail__stage-count {
+  color: var(--muted-foreground);
+}
+
+/* 更早的批次：默认收起，只留一个展开按钮 */
+.queue-panel__older {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+/* 折叠区里的项略淡：视觉上退到历史里，但内容与当前批完全一致 */
+.queue-list--older {
+  width: 100%;
+  opacity: 0.75;
+}
+
+/* 本批进度：分母是这次还要打的变体数，这一批跑完就整块消失 */
+.queue-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.queue-progress__text {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.queue-progress__track {
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--muted);
+  overflow: hidden;
+}
+
+.queue-progress__fill {
+  height: 100%;
+  background: var(--primary);
+  transition: width var(--duration-base) ease;
 }
 
 /* 还没轮到的变体：灰一点，但必须在列表里，否则看不出还剩几个 */

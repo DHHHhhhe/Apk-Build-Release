@@ -115,6 +115,33 @@ describe('并发上限', () => {
     expect(scheduler.setConcurrency(0)).toBe(1)
     expect(scheduler.setConcurrency(2)).toBe(2)
   })
+
+  /**
+   * 追加变体让「同一个项目有两条队列项」成了常态。
+   * 并发上限大于 1 时这两条不能同时跑：一个工程不能同时跑两个 Gradle 构建（争 .gradle 锁）。
+   */
+  it('同一个项目的两条队列项不会同时开跑', async () => {
+    scheduler.setConcurrency(2)
+    scheduler.enqueueItem(projectId, ['freeDemo'])
+    scheduler.enqueueItem(projectId, ['freeRelease'])
+    scheduler.enqueueItem(projectId2, ['freeDemo'])
+    await delay(40)
+
+    // 上限 2：跑起来的是「项目 A 的第一条」与「项目 B」，不是 A 的两条
+    expect(started).toHaveLength(2)
+    const runningProjects = started.map((id) => items.findItemRow(id)?.projectId)
+    expect(new Set(runningProjects).size).toBe(runningProjects.length)
+
+    // 放掉前两条后，A 的第二条才轮到（三条都要放，否则会挂在 running 上拖累后面的用例）
+    releaseOne()
+    await delay(20)
+    releaseOne()
+    await delay(20)
+    releaseOne()
+    await scheduler.waitForIdle(2000)
+    expect(scheduler.runningItemIds()).toHaveLength(0)
+    expect(started).toHaveLength(3)
+  })
 })
 
 describe('取消 / 重试 / 清空', () => {

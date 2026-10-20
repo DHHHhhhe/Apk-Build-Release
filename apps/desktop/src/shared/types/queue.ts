@@ -8,6 +8,8 @@ export const queueItemStateSchema = z.enum(['pending', 'running', 'success', 'fa
 
 /** 队列项里单个变体的构建情况：界面要显示每个变体自己的耗时与失败原因 */
 export const queueRunDetailSchema = z.object({
+  /** 构建记录 id：界面靠它把 build:progress 事件对到具体的变体行 */
+  id: z.string(),
   variant: z.string(),
   state: z.enum(['running', 'success', 'failed', 'canceled']),
   /** 还没开始就是 null */
@@ -29,6 +31,11 @@ export const queueItemSchema = z.object({
   projectName: z.string(),
   projectPath: z.string(),
   state: queueItemStateSchema,
+  /**
+   * 入队批次：一次「构建勾选项」建的所有项共用一个值，追加的变体也沿用当前批次。
+   * 界面用它把「当前这一批」与更早的记录分开，免得历史项一直堆在队列里。
+   */
+  batchId: z.string().nullable(),
   /** 入队时冻结的变体列表 */
   variants: z.array(z.string()),
   attempt: z.number(),

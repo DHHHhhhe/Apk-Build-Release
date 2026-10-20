@@ -82,6 +82,7 @@ export function ensureSchema(): void {
       signed INTEGER,
       failure_kind TEXT,
       failure_hint TEXT,
+      stage_points TEXT,
       started_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
       finished_at INTEGER
     );
@@ -100,6 +101,8 @@ export function ensureSchema(): void {
   ensureColumn('projects', 'alias', 'TEXT')
   ensureColumn('projects', 'sort_order', 'INTEGER')
   ensureColumn('build_runs', 'failure_hint', 'TEXT')
+  // 阶段切换点：老记录没有这一列，读出来是 NULL，界面回退到从日志正文压缩
+  ensureColumn('build_runs', 'stage_points', 'TEXT')
   ensureColumn('queue_items', 'variants', "TEXT NOT NULL DEFAULT '[]'")
   ensureColumn('queue_items', 'note', 'TEXT')
   // 「最近一批」要按批次汇总，老库补上这一列后，老数据为 NULL 走回退分支

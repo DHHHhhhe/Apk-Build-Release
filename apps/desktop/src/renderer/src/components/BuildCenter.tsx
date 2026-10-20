@@ -27,7 +27,8 @@ function rememberView(view: CenterView): void {
 interface BuildCenterProps {
   projects: Project[]
   busyProjectId: string | null
-  queuedProjectIds: Set<string>
+  /** 已在队列里的变体：项目 id → 变体名集合 */
+  queuedVariants: Map<string, Set<string>>
   /** 会被构建的变体总数（按钮上的 N） */
   buildableVariantCount: number
   /** 未勾选 / 正在保存 / 都在队列里 时给出的原因 */
@@ -55,7 +56,7 @@ interface BuildCenterProps {
 export function BuildCenter({
   projects,
   busyProjectId,
-  queuedProjectIds,
+  queuedVariants,
   buildableVariantCount,
   blockedReason,
   queuedHint,
@@ -122,7 +123,7 @@ export function BuildCenter({
           <BuildPicker
             projects={projects}
             busyProjectId={busyProjectId}
-            queuedProjectIds={queuedProjectIds}
+            queuedVariants={queuedVariants}
             buildableVariantCount={buildableVariantCount}
             blockedReason={blockedReason}
             queuedHint={queuedHint}

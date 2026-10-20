@@ -148,6 +148,19 @@
 
 .project-list__meta {
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  /*
+   * 与 .project-list__select 的 gap 保持一致（6px）：名称→归档、归档→变体数这两段
+   * 是同一组文字的换行，间距不相等时看起来像两组不相干的信息（实测 6px vs 4px）。
+   */
+  gap: 6px;
+}
+
+/* 一行标签：归档单独占一行，变体数与已选在下一行，扫列表时各行含义不会混在一起 */
+.project-list__meta-line {
+  display: flex;
+  align-items: center;
   gap: 6px;
   flex-wrap: wrap;
 }
@@ -360,30 +373,4 @@
 .app-errors__close:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 1px;
-}
-
-/* ── 手工排序按钮 ──
- * 与拖拽并列的那条路：键盘、读屏、单手操作都靠它。命中区按 24px 给，不做成难点的小箭头。
- * 平时不显形：每行都挂两个箭头会让列表看起来很吵；hover 或键盘聚焦时才出现（仍在布局里占位，
- * 所以行宽不会因为鼠标移入移出而跳动）。
- */
-.project-list__order {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  opacity: 0;
-  transition: opacity var(--duration-micro);
-}
-
-.project-list__item:hover .project-list__order,
-.project-list__item:focus-within .project-list__order {
-  opacity: 1;
-}
-
-.project-list__order-btn {
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  font-size: 12px;
-  line-height: 1;
 }
