@@ -61,6 +61,29 @@ export function stagePointText(point: Pick<BuildStagePoint, 'phase' | 'task' | '
 }
 
 /**
+ * 每个关键节点的耗时：这个节点到下一个节点的间隔。
+ *
+ * 节点本身就是「阶段切换点」，所以两个节点之间的差就是这一段持续了多久 ——
+ * 「编译源码」吃掉大半时间这种事，一眼能看出来。
+ * 最后一个节点没有下一个节点，用 `finishedAt`（跑完）或 `now`（还在跑）兜底，
+ * 否则末尾那一段永远没有数。
+ *
+ * 时间倒退（时钟回拨、落库顺序异常）时给 null，不编一个负数出来。
+ */
+export function stageDurations(
+  points: ReadonlyArray<Pick<BuildStagePoint, 'at'>>,
+  span: { finishedAt: number | null },
+  now: number
+): Array<number | null> {
+  const end = span.finishedAt ?? now
+  return points.map((point, index) => {
+    const nextAt = points[index + 1]?.at ?? end
+    const delta = nextAt - point.at
+    return Number.isFinite(delta) && delta >= 0 ? delta : null
+  })
+}
+
+/**
  * 日志行 → 阶段标识。返回 null 表示这行不属于任何阶段节点（普通任务输出）。
  *
  * 只用于「旧记录没有阶段序列」时从日志正文里回退压缩。

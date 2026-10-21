@@ -389,6 +389,18 @@ await win.loadURL(url + '?theme=dark&t=' + Date.now())   // 时间戳穿透缓�
 看着像提交没生效。查下去发现 mock 的 `reorder` 是空实现（`async () => ({ success: true, projects: [] })`），
 而真机是 `reorder(ids).then(() => refresh())`，顺序落库后重新拉取，链路本来就是对的。
 判据：探针里「操作之后状态回退」时，先看 mock 那个接口是不是空壳 —— 尤其是 reorder / save / set 这类写操作。
+
+**还有一条：`show: false` 的窗口，`capturePage()` 停在「加载完成那一帧」。**
+实测核对队列进度条时，DOM 读数（文本、`aria-valuemax`、条宽）全对，但截图连续五次都是首屏的构建中心 ——
+滚动、改 inline style、注入 CSS 全都没反映进去，看起来像「元素根本没显示」。
+判据：**截图内容与 DOM 读数对不上时，先 `win.showInactive()` 再截**，不要怀疑 DOM 或布局。
+两个配套条件：`showInactive()` 后留 ~300ms 再截；`capturePage()` 之前调一次 `win.webContents.invalidate()` 更稳。
+另外 inline style 会被每秒心跳触发的重渲染覆盖，要临时改样式就注入一条 `<style>` 规则。
+
+**还有一条：元素自己的 `position: fixed` 未必相对视口。**
+祖先带 `transform` / `filter` / `contain` 时，fixed 相对那个祖先定位，于是「设了 top:90px」的块跑到页面别处去了。
+要核对首屏之外的某一块，`cloneNode(true)` 挂到 `body` 顶层（body 没有 transform）再截，比算滚动偏移可靠。
+
 ### 要验证「构建相关」的改动：用合成 Android 工程，离线跑真 Gradle
 
 不必找真实业务工程，也不必联网。本机已有可复用的缓存（AGP 7.4.2 在

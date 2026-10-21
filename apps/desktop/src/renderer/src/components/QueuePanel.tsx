@@ -8,6 +8,8 @@ import type { QueueItem, QueueItemState, QueueRunDetail } from '@shared/types/qu
 import { useNow } from '../hooks/useNow'
 import { progressCountText, progressHeadline } from '@shared/lib/build-stage'
 import { splitByCurrentBatch } from '../lib/queue-batch'
+import { computeBatchProgress } from '../lib/queue-progress'
+import { groupAttempts, type AttemptGroupSummary } from '../lib/queue-attempts'
 import { formatDateTime, formatDurationMs } from '../lib/duration'
 import { dirnameOf } from '../lib/path-display'
 import { openPathOrToast } from '../lib/open-path'
@@ -109,6 +111,8 @@ export function QueuePanel({
   const finished = items.filter((item) => item.state !== 'pending' && item.state !== 'running')
   const failedItems = items.filter((item) => item.state === 'failed')
   const hasRunning = running.length > 0
+  /** 队列里还有没跑完的项：进度条只在有活可干时显示，跑完之后由「本批用时」接手 */
+  const hasActiveItems = hasRunning || pending.length > 0
   const now = useNow(hasRunning)
 
   // 取消请求发出后进程要过一会儿才退出，先本地标记「取消中」，别让用户以为没点上
@@ -122,6 +126,9 @@ export function QueuePanel({
 
   /** 更早批次的展开状态：默认收起，看一眼历史再展开 */
   const [showOlder, setShowOlder] = useState(false)
+
+  /** 同一项目更早几次尝试的展开状态：同样默认收起 */
+  const [showSuperseded, setShowSuperseded] = useState(false)
 
   useEffect(() => {
     setCanceling((previous) => {
@@ -154,23 +161,17 @@ export function QueuePanel({
   }, [items])
 
   /**
-   * 本批进度：只算还没结束的项。
+   * 本批进度：分母是本批变体总数（跑完的项仍留在分母里），分子是本批已结束的变体数。
    *
-   * 已结束的项不进分母，否则全部跑完后进度条会停在某处（或 100%）不消失；
-   * 一只分子分母都是「这次还在路上的活」，收工即归零、整块不显示。
+   * 以前分母只算「还没结束的项」，一项跑完就整项退出统计 —— 分母越来越少、
+   * 分子恒为 0，看起来像卡死。整批收工时归零，进度条随之消失。
    */
-  const activeItems = [...pending, ...running]
-  const totalVariants = activeItems.reduce((sum, item) => sum + item.variants.length, 0)
-  // 已结束的 run 都算完成：一条项里前面的变体跑完了，它属于「已完成」
-  const doneVariants = activeItems.reduce(
-    (sum, item) => sum + item.runs.filter((run) => run.state !== 'running').length,
-    0
-  )
-  const runningVariants = running.reduce(
-    (sum, item) => sum + item.runs.filter((run) => run.state === 'running').length,
-    0
-  )
-  const percent = totalVariants === 0 ? 0 : Math.round((doneVariants / totalVariants) * 100)
+  const batchProgress = computeBatchProgress(items)
+  const totalVariants = batchProgress.total
+  const doneVariants = batchProgress.done
+  const runningVariants = batchProgress.running
+  const percent =
+    totalVariants === 0 ? 0 : Math.min(100, Math.round((doneVariants / totalVariants) * 100))
 
   /**
    * 按批次切一刀：当前这一批留在主列表，更早的默认折叠。
@@ -179,18 +180,26 @@ export function QueuePanel({
    * 想让它们彻底消失仍然走「清空队列记录」，那一步会明确说明连带删除构建记录。
    */
   const batches = splitByCurrentBatch(items)
+  /**
+   * 同一项目的多次重试合并成一条：重试是新建一条项（attempt + 1），
+   * 旧的留在队列里能把上一次的失败原因查到，但并排两张卡片看着像重复。
+   * 这里只合并展示，数据一条不删。
+   */
+  const attempts = groupAttempts(batches.current)
   // 筛选只影响「显示哪些」，不影响进度统计与排序规则
   const filterState = (list: QueueItem[]): QueueItem[] =>
     stateFilter === null ? list : list.filter((item) => item.state === stateFilter)
-  const visibleCurrent = filterState(batches.current)
+  const visibleCurrent = filterState(attempts.primary)
+  const visibleSuperseded = filterState(attempts.superseded)
   const visibleOlder = filterState(batches.older)
 
   /**
    * 一条队列项的完整渲染。
    *
    * 当前批与「更早的记录」共用这一份：两处各写一遍的话，按钮与状态文案迟早走散。
+   * `summary` 只给合并后的代表项：说明还有几次更早的尝试、这次是不是只补跑了部分变体。
    */
-  const renderItem = (item: QueueItem): React.JSX.Element => {
+  const renderItem = (item: QueueItem, summary?: AttemptGroupSummary): React.JSX.Element => {
     const isCanceling = canceling.has(item.id)
     const startedVariants = new Set(item.runs.map((run) => run.variant))
     const notStarted = item.variants.filter((variant) => !startedVariants.has(variant))
@@ -205,7 +214,17 @@ export function QueuePanel({
             {isCanceling ? '取消中…' : STATE_LABEL[item.state]}
           </span>
           {item.attempt > 1 ? (
-            <Badge variant="muted" className="tabular">第 {item.attempt} 次</Badge>
+            <Badge
+              variant="muted"
+              className="tabular"
+              title={
+                summary !== undefined && summary.earlierCount > 0
+                  ? `第 ${item.attempt} 次尝试；更早的 ${summary.earlierCount} 次收在下方「更早的尝试」里`
+                  : undefined
+              }
+            >
+              第 {item.attempt} 次
+            </Badge>
           ) : null}
           <span className="queue-list__duration tabular">
             {item.state === 'running'
@@ -369,6 +388,17 @@ export function QueuePanel({
           </p>
         ) : null}
 
+        {/*
+         * 只补跑了部分变体时明说：合并成一条之后，「8 个变体挂 1 个、只重跑那 1 个」
+         * 看起来会像整项重跑过一遍
+         */}
+        {summary !== undefined && summary.scopeSize > summary.rerunSize ? (
+          <p className="queue-list__attempt-note">
+            本次只补跑了 {summary.rerunSize} 个变体，另外 {summary.scopeSize - summary.rerunSize}{' '}
+            个在上一次已经完成
+          </p>
+        ) : null}
+
         {item.note ? <p className="queue-list__note">{item.note}</p> : null}
         {item.finishedAt ? (
           <p className="queue-list__finished tabular">完成 {formatDateTime(item.finishedAt)}</p>
@@ -421,6 +451,23 @@ export function QueuePanel({
           >
             排队 <span className="tabular">{pending.length}</span>
           </button>
+          {/*
+           * 本批用时：从这一批第一项入队算起，含排队等待 —— 不是各变体构建耗时的相加，
+           * 并发上限 >1 时两者会差很多。挂在标题行而不是进度条里，是因为跑完之后
+           * 进度条会收起，而这个数字恰恰是那时最想看的。
+           */}
+          {batchProgress.since !== null ? (
+            <span
+              className="queue-panel__elapsed tabular"
+              title={
+                '从这一批第一项入队算起，包含排队等待；不是各变体构建耗时的相加' +
+                (batchProgress.until === null ? '。还有项没跑完，数字会跟着走' : '')
+              }
+            >
+              本批{batchProgress.until === null ? '已用' : '用时'}{' '}
+              {formatDurationMs((batchProgress.until ?? now) - batchProgress.since)}
+            </span>
+          ) : null}
           {/* 并发上限是设置，不是动作：跟信息放一起，动作按钮留给右边的动作组 */}
           <label
             className="queue-panel__concurrency"
@@ -492,8 +539,11 @@ export function QueuePanel({
         {/*
          * 本批进度条：分母是「这次还要打的变体总数」，可靠；Gradle 内部不掺百分比，
          * 具体到哪一步看下面每个变体行里的阶段。
+         *
+         * 收工即隐藏：批次统计现在跑完后仍留着（为了「本批用时」），所以这里要自己
+         * 判断还有没有排队/构建中的项，不能只看分母是否大于 0。
          */}
-        {totalVariants > 0 ? (
+        {totalVariants > 0 && hasActiveItems ? (
           <div className="queue-progress">
             <p className="queue-progress__text tabular">
               变体 {doneVariants}/{totalVariants} 完成
@@ -542,8 +592,35 @@ export function QueuePanel({
             </Button>
           </p>
         ) : (
-          <ul className="queue-list">{visibleCurrent.map(renderItem)}</ul>
+          <ul className="queue-list">
+            {visibleCurrent.map((item) => renderItem(item, attempts.summaries.get(item.id)))}
+          </ul>
         )}
+
+        {/*
+         * 同一项目更早的尝试默认收起：重试出来的旧项留在队列里是为了能查到上次的失败原因，
+         * 不是为了让它们和这一次并排占半屏。只折叠不删除，构建记录一条不少。
+         */}
+        {visibleSuperseded.length > 0 ? (
+          <div className="queue-panel__older">
+            <Button
+              variant="ghost"
+              aria-expanded={showSuperseded}
+              onClick={() => {
+                setShowSuperseded(!showSuperseded)
+              }}
+            >
+              {showSuperseded
+                ? '收起更早的尝试'
+                : `更早的尝试（${visibleSuperseded.length}）`}
+            </Button>
+            {showSuperseded ? (
+              <ul className="queue-list queue-list--older">
+                {visibleSuperseded.map((item) => renderItem(item))}
+              </ul>
+            ) : null}
+          </div>
+        ) : null}
 
         {/*
          * 更早的批次默认收起：跑完一批再勾下一批时，前一批的完成记录不该继续占着面板。
@@ -560,7 +637,11 @@ export function QueuePanel({
             >
               {showOlder ? '收起更早的记录' : `更早的记录（${visibleOlder.length}）`}
             </Button>
-            {showOlder ? <ul className="queue-list queue-list--older">{visibleOlder.map(renderItem)}</ul> : null}
+            {showOlder ? (
+              <ul className="queue-list queue-list--older">
+                {visibleOlder.map((item) => renderItem(item))}
+              </ul>
+            ) : null}
           </div>
         ) : null}
 

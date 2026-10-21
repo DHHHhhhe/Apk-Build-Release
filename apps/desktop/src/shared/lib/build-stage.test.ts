@@ -3,6 +3,7 @@ import {
   collapseToStageChanges,
   progressCountText,
   progressHeadline,
+  stageDurations,
   stageKeyOfLine,
   stagePointText,
   taskStageLabel
@@ -82,5 +83,29 @@ describe('collapseToStageChanges', () => {
 
   it('全部是普通输出时返回空数组（过滤后界面显示「没有匹配的行」）', () => {
     expect(collapseToStageChanges(['w: warning', 'some output'])).toEqual([])
+  })
+})
+
+describe('stageDurations', () => {
+  const points = [{ at: 1000 }, { at: 4000 }, { at: 9000 }]
+
+  it('每个节点给出到下一个节点的间隔', () => {
+    expect(stageDurations(points, { finishedAt: 20000 }, 0)).toEqual([3000, 5000, 11000])
+  })
+
+  it('跑着的最后一段用 now 兜底，数字跟着心跳走', () => {
+    expect(stageDurations(points, { finishedAt: null }, 12000)).toEqual([3000, 5000, 3000])
+  })
+
+  it('时间倒退给 null，不编负数', () => {
+    // 落库顺序异常：第二个节点的时间早于第一个
+    expect(stageDurations([{ at: 9000 }, { at: 4000 }], { finishedAt: 5000 }, 0)).toEqual([
+      null,
+      1000
+    ])
+  })
+
+  it('没有节点时不产出任何耗时', () => {
+    expect(stageDurations([], { finishedAt: 5000 }, 0)).toEqual([])
   })
 })

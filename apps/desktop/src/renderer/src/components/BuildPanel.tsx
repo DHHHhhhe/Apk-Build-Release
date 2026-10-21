@@ -4,7 +4,7 @@ import { Button } from './ui/button'
 import { ArrowDown, FolderOpen, FileText, Search } from 'lucide-react'
 import type { BuildProgress, BuildRun } from '@shared/types/build'
 import { useNow } from '../hooks/useNow'
-import { collapseToStageChanges, progressCountText, progressHeadline, stagePointText } from '@shared/lib/build-stage'
+import { collapseToStageChanges, progressCountText, progressHeadline, stageDurations, stagePointText } from '@shared/lib/build-stage'
 import { elapsedMs, formatClock, formatDurationMs } from '../lib/duration'
 import { dirnameOf } from '../lib/path-display'
 import { openPathOrToast } from '../lib/open-path'
@@ -105,6 +105,13 @@ export function BuildPanel({
    */
   const stagePoints = activeProgress?.stages ?? activeRun?.stages ?? []
   const usingStagePoints = stagesOnly && stagePoints.length > 0
+  /**
+   * 每个节点到下一个节点的耗时。跑着的最后一段用 now 兜底，所以这个数会跟着心跳走，
+   * 正好是「当前这一步已经花了多久」。
+   */
+  const stageDurationsMs = usingStagePoints
+    ? stageDurations(stagePoints, { finishedAt: activeRun?.finishedAt ?? null }, now)
+    : []
 
   const logView = useMemo(() => {
     if (activeLog === '') {
@@ -341,17 +348,33 @@ export function BuildPanel({
             <div className="build-panel__log-body">
               <pre className="build-panel__log" ref={logRef} onScroll={handleScroll} role="log" aria-live="polite">
                 {usingStagePoints
-                  ? stagePoints.map((point, index) => (
-                      <span
-                        key={`stage-${index}-${point.at}`}
-                        className="build-panel__log-line build-panel__log-line--stage"
-                        title={`此时已执行 ${point.tasksDone} 个任务`}
-                      >
-                        {/* 前面的 #N 是「走到这一步时已执行多少个任务」，为 0 时不显示 */}
-                        {(point.tasksDone > 0 ? '#' + point.tasksDone + '  ' : '') + stagePointText(point)}
-                        {'\n'}
-                      </span>
-                    ))
+                  ? stagePoints.map((point, index) => {
+                      const durationMs = stageDurationsMs[index] ?? null
+                      const sinceStart =
+                        activeRun === null ? null : Math.max(0, point.at - activeRun.startedAt)
+                      return (
+                        <span
+                          key={`stage-${index}-${point.at}`}
+                          className="build-panel__log-line build-panel__log-line--stage"
+                          title={
+                            `此时已执行 ${point.tasksDone} 个任务` +
+                            (durationMs !== null ? `；这一步用了 ${formatDurationMs(durationMs)}` : '') +
+                            (sinceStart !== null ? `；距开始 ${formatDurationMs(sinceStart)}` : '')
+                          }
+                        >
+                          {/* 前面的 #N 是「走到这一步时已执行多少个任务」，为 0 时不显示 */}
+                          {(point.tasksDone > 0 ? '#' + point.tasksDone + '  ' : '') + stagePointText(point)}
+                          {/* 行尾是「这一步到下一步用了多久」：哪一段最慢，扫一眼就知道 */}
+                          {durationMs !== null ? (
+                            <span className="build-panel__log-stage-time tabular">
+                              {'  · '}
+                              {formatDurationMs(durationMs)}
+                            </span>
+                          ) : null}
+                          {'\n'}
+                        </span>
+                      )
+                    })
                   : logLines.length === 0
                     ? activeLog === ''
                       ? emptyLogText(activeRun)

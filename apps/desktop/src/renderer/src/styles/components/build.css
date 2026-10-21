@@ -257,6 +257,11 @@
   color: var(--foreground);
 }
 
+/* 关键节点行尾的耗时：弱化一档，节点名仍然是最先读到的 */
+.build-panel__log-stage-time {
+  color: var(--muted-foreground);
+}
+
 .build-panel__log {
   margin: 0;
   max-height: 320px;

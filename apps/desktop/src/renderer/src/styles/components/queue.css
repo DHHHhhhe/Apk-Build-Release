@@ -77,6 +77,13 @@
   outline-offset: 1px;
 }
 
+/* 本批用时：挨着两个计数放，弱化一档，不跟筛选按钮抢注意力 */
+.queue-panel__elapsed {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
 /*
  * 并发上限是设置，不是动作：它跟着标题与计数排，动作按钮单独成组靠右。
  * 以前它自己 margin-left:auto 顶到最右，与「取消 / 清空」混成一排，看不出哪个是设置。
@@ -310,4 +317,14 @@
   background: color-mix(in srgb, var(--warning) 10%, transparent);
   color: var(--warning);
   font-size: 12px;
+}
+
+/*
+ * 合并重试记录后的说明（「本次只补跑了 N 个变体」）。
+ * 这是中性信息，所以不走 .queue-list__note 的警示底色 —— 那个是给「上次异常退出」这类问题用的。
+ */
+.queue-list__attempt-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
 }
