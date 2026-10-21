@@ -20,7 +20,7 @@ import {
   toQueueItemDto,
   updateItem
 } from './items'
-import { broadcastItem } from './executor'
+import { broadcastItem, broadcastItemDto } from './executor'
 import { syncTaskbarProgress } from './progress'
 
 const logger = baseLogger.scope('queue:scheduler')
@@ -94,12 +94,14 @@ export function enqueueItem(
 ): QueueItem {
   const row = createItem(projectId, variants, 1, batchId)
   logger.info('队列项入队', { itemId: row.id, projectId, variants: variants.join(',') })
-  broadcastItem(row.id)
+  // 广播与返回值共用一份 DTO：构造两次会多一次估值查询，两处也可能给出不一样的字段
+  const dto = toQueueItemDto(row)
+  broadcastItemDto(dto)
   syncTaskbarProgress()
   queueMicrotask(() => {
     tick()
   })
-  return toQueueItemDto(row)
+  return dto
 }
 
 /**

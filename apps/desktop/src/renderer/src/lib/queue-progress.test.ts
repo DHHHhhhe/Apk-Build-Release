@@ -9,6 +9,7 @@ function run(variant: string, state: QueueRunDetail['state']): QueueRunDetail {
     state,
     startedAt: null,
     durationMs: null,
+    estimatedMs: null,
     failureKind: null,
     failureHint: null,
     apkName: null,

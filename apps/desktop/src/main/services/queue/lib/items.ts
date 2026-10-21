@@ -6,6 +6,8 @@ import type { QueueItemRow } from '../../../db/schema'
 import { logger as baseLogger } from '../../logger'
 import type { QueueItem, QueueItemState, QueueRunDetail } from '@shared/types/queue'
 import { sortRunsByDeclaredOrder } from './run-order'
+import { estimateKey, loadVariantEstimates } from './estimate'
+import type { VariantEstimates } from './estimate'
 
 const logger = baseLogger.scope('queue:items')
 
@@ -94,11 +96,14 @@ export function countPending(): number {
   return row?.value ?? 0
 }
 
-export function toQueueItemDto(row: QueueItemRow): QueueItem {
+export function toQueueItemDto(row: QueueItemRow, estimates?: VariantEstimates): QueueItem {
   const project = db.select().from(projects).where(eq(projects.id, row.projectId)).get()
   // 变体顺序按入队时记下的勾选顺序排：只按 started_at 排的话，同一毫秒建的 run 顺序不定，
   // 每次推送快照列表里都可能换一次位（用户看到的「顺序跳动」）
   const variants = parseVariants(row.variants)
+  // 批量场景（listItems）传预算好的表；单条场景（入队、每次变体开始/结束的推送）按需查这一项的项目。
+  // 不传就自己查，是为了让三个调用点都不必关心估值从哪来。
+  const table = estimates ?? loadVariantEstimates([row.projectId])
   return {
     id: row.id,
     projectId: row.projectId,
@@ -112,7 +117,10 @@ export function toQueueItemDto(row: QueueItemRow): QueueItem {
     startedAt: row.startedAt ? row.startedAt.getTime() : null,
     finishedAt: row.finishedAt ? row.finishedAt.getTime() : null,
     note: row.note,
-    runs: sortRunsByDeclaredOrder(listRunsForItem(row.id), variants)
+    runs: sortRunsByDeclaredOrder(listRunsForItem(row.id), variants).map((run) => ({
+      ...run,
+      estimatedMs: table.get(estimateKey(row.projectId, run.variant))?.medianMs ?? null
+    }))
   }
 }
 
@@ -132,6 +140,9 @@ export function listRunsForItem(itemId: string): QueueRunDetail[] {
     startedAt: row.startedAt.getTime(),
     // 跑完才有耗时；跑着的界面用 startedAt 自己算，避免这里给出一个会过期的数
     durationMs: row.finishedAt ? row.finishedAt.getTime() - row.startedAt.getTime() : null,
+    // 历史预估要按项目算，这一层拿不到项目 id：由 toQueueItemDto 统一补上。
+    // 单独调用它的地方（执行器写汇总文案）不需要这个值。
+    estimatedMs: null,
     failureKind: row.failureKind,
     failureHint: row.failureHint,
     apkName: row.apkName,
@@ -142,7 +153,9 @@ export function listRunsForItem(itemId: string): QueueRunDetail[] {
 
 export function listItems(limit = 50): QueueItem[] {
   const rows = db.select().from(queueItems).orderBy(desc(queueItems.enqueuedAt)).limit(limit).all()
-  return rows.map(toQueueItemDto)
+  // 估值一次查全：逐项查就是 N+1，而队列推送是构建期间的高频路径
+  const estimates = loadVariantEstimates(rows.map((row) => row.projectId))
+  return rows.map((row) => toQueueItemDto(row, estimates))
 }
 
 export function clearItems(scope: 'finished' | 'all'): number {

@@ -17,7 +17,12 @@ export const settingsSchema = z.object({
   /** 主题档位：跟随系统 / 浅色 / 深色 */
   theme: themeChoiceSchema,
   /** 启动后是否自动检查更新；关掉后只有手动点「检查更新」才会查 */
-  autoCheckUpdate: z.boolean()
+  autoCheckUpdate: z.boolean(),
+  /**
+   * 队列面板是否显示每个变体的构建进度条。
+   * 进度条是按「历史耗时中位数」估的，不是 Gradle 的真实进度，所以给一个关掉的出口。
+   */
+  showVariantProgress: z.boolean()
 })
 
 export const settingsResultSchema = z.object({
@@ -38,6 +43,10 @@ export const setAutoCheckUpdateInputSchema = z.object({
   enabled: z.boolean()
 })
 
+export const setShowVariantProgressInputSchema = z.object({
+  enabled: z.boolean()
+})
+
 export const openPathInputSchema = z.object({
   path: z.string().min(1, '缺少路径')
 })
@@ -53,5 +62,6 @@ export type SettingsResult = z.infer<typeof settingsResultSchema>
 export type SetOutputRootInput = z.infer<typeof setOutputRootInputSchema>
 export type SetThemeInput = z.infer<typeof setThemeInputSchema>
 export type SetAutoCheckUpdateInput = z.infer<typeof setAutoCheckUpdateInputSchema>
+export type SetShowVariantProgressInput = z.infer<typeof setShowVariantProgressInputSchema>
 export type OpenPathInput = z.infer<typeof openPathInputSchema>
 export type BasicResult = z.infer<typeof basicResultSchema>

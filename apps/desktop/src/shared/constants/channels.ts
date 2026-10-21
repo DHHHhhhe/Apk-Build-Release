@@ -45,6 +45,7 @@ export const IPC_CHANNELS = {
     SET_OUTPUT_ROOT: 'settings:setOutputRoot',
     SET_THEME: 'settings:setTheme',
     SET_AUTO_CHECK_UPDATE: 'settings:setAutoCheckUpdate',
+    SET_SHOW_VARIANT_PROGRESS: 'settings:setShowVariantProgress',
     PICK_OUTPUT_DIR: 'settings:pickOutputDir',
     OPEN_PATH: 'settings:openPath',
     CLEAR_LOGS: 'settings:clearLogs'

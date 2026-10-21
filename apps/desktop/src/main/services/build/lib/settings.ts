@@ -32,6 +32,21 @@ export function setAutoCheckUpdate(enabled: boolean): void {
   upsertSetting(AUTO_CHECK_UPDATE_KEY, String(enabled))
 }
 
+export const SHOW_VARIANT_PROGRESS_KEY = 'ui.showVariantProgress'
+
+/**
+ * 队列面板是否显示变体构建进度条。默认开 —— 这是功能本身，
+ * 只有明确关过的人才不显示（与 autoCheckUpdate 同一套「没写过按默认值」的判定）。
+ */
+export function getShowVariantProgress(): boolean {
+  const row = db.select().from(settings).where(eq(settings.key, SHOW_VARIANT_PROGRESS_KEY)).get()
+  return row?.value !== 'false'
+}
+
+export function setShowVariantProgress(enabled: boolean): void {
+  upsertSetting(SHOW_VARIANT_PROGRESS_KEY, String(enabled))
+}
+
 export const LAST_RUN_VERSION_KEY = 'app.lastRunVersion'
 
 /** 上次运行的版本号；从没写过就返回 null（首次安装，或从还不认识这个字段的旧版升上来） */

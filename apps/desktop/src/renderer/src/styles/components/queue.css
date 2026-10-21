@@ -204,11 +204,46 @@
   gap: 4px;
 }
 
+/*
+ * 一个变体占两行：上面是「变体名 / 状态 / 阶段 / 耗时」，下面（可选）是进度条。
+ * 进度条塞进同一行会挤掉阶段名与耗时，窄窗口下整行换行反而更乱。
+ *
+ * 行内间距取 2px、行间仍是 4px：让进度条明显属于自己那一行，而不是浮在两个变体中间。
+ */
 .run-detail__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.run-detail__main {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+}
+
+/*
+ * 变体进度条：按已用时间占历史中位数的比例画。
+ * 底色不用 var(--muted) —— 队列项本身就在 --muted 上，那样整条轨道看不见。
+ */
+.run-detail__progress {
+  height: 4px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--info) 18%, transparent);
+  overflow: hidden;
+}
+
+.run-detail__progress-fill {
+  height: 100%;
+  background: var(--info);
+  transition: width var(--duration-base) ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .run-detail__progress-fill {
+    transition: none;
+  }
 }
 
 .run-detail__variant {

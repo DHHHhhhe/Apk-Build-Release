@@ -3,7 +3,7 @@ import { basename, join } from 'node:path'
 import { app } from 'electron'
 import { IPC_CHANNELS } from '@shared/constants/channels'
 import type { BuildProgressEvent, BuildRunState } from '@shared/types/build'
-import type { QueueItemState } from '@shared/types/queue'
+import type { QueueItem, QueueItemState } from '@shared/types/queue'
 import { broadcast } from '../../../lib/broadcast'
 import { locateGradlew } from '../../../lib/gradle-paths'
 import { logger as baseLogger } from '../../logger'
@@ -304,7 +304,17 @@ export function broadcastItem(itemId: string): void {
   if (!row) {
     return
   }
-  broadcast(IPC_CHANNELS.QUEUE.STATE, { item: toQueueItemDto(row) })
+  broadcastItemDto(toQueueItemDto(row))
+}
+
+/**
+ * 直接广播已经构造好的 DTO。
+ *
+ * 入队时要既广播又把它作为返回值，两处各构造一次就会多算一遍估值查询，
+ * 还可能出现「广播里一个样、响应里另一个样」。给一条现成的 DTO 复用。
+ */
+export function broadcastItemDto(item: QueueItem): void {
+  broadcast(IPC_CHANNELS.QUEUE.STATE, { item })
 }
 
 function broadcastRunState(

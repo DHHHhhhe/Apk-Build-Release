@@ -575,6 +575,7 @@ export default function App(): React.JSX.Element {
                 concurrency={queue.concurrency}
                 paused={queue.paused}
                 progress={buildProgress}
+                showVariantProgress={settings.settings?.showVariantProgress ?? true}
                 onCancel={(itemId) => {
                   void queue.cancel(itemId)
                 }}
@@ -660,6 +661,7 @@ export default function App(): React.JSX.Element {
         onClose={() => {
           setSettingsOpen(false)
         }}
+        onSaved={settings.refresh}
       />
 
       <ConfirmDialog

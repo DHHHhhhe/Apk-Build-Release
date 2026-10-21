@@ -8,13 +8,18 @@ import { openPathOrToast } from '../lib/open-path'
 
 export function SettingsDialog({
   open,
-  onClose
+  onClose,
+  onSaved
 }: {
   open: boolean
   onClose: () => void
+  /** 设置写成功后的回调：让上层（队列面板）立刻用上新值，不必等关掉对话框再刷新 */
+  onSaved?: () => void
 }): React.JSX.Element | null {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [draft, setDraft] = useState('')
+  /** 进度条开关：null = 还没读到，按钮先禁用（别先把「关」显示出来再跳成「开」） */
+  const [showProgress, setShowProgress] = useState<boolean | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pendingClose, setPendingClose] = useState(false)
@@ -27,6 +32,7 @@ export function SettingsDialog({
       if (result.settings) {
         setSettings(result.settings)
         setDraft(result.settings.outputRoot)
+        setShowProgress(result.settings.showVariantProgress)
       }
     })
   }, [open])
@@ -77,6 +83,28 @@ export function SettingsDialog({
       setDraft(result.settings.outputRoot)
       setMessage('已保存')
     }
+  }
+
+  /**
+   * 进度条开关：拨动即写，不复用输出目录那个「保存」按钮 ——
+   * 布尔开关没有中间态，多一步保存只会让人以为刚才那一下没生效。
+   */
+  const toggleProgress = async (next: boolean): Promise<void> => {
+    setError(null)
+    setMessage(null)
+    // 先动界面再落盘：写的是本地数据库，几乎不会失败，等 IPC 回来才动开关会有一下明显迟滞
+    setShowProgress(next)
+    const result = await window.api.settings.setShowVariantProgress(next)
+    if (!result.success) {
+      setShowProgress(!next)
+      setError(result.error ?? '保存失败')
+      return
+    }
+    if (result.settings) {
+      setSettings(result.settings)
+      setShowProgress(result.settings.showVariantProgress)
+    }
+    onSaved?.()
   }
 
   const clearLogs = async (): Promise<void> => {
@@ -158,6 +186,29 @@ export function SettingsDialog({
                 <Trash2 size={14} aria-hidden="true" />
                 清理日志
               </Button>
+            </div>
+          </div>
+
+          <div className="dialog__field">
+            <span className="dialog__label">界面</span>
+            <div className="dialog__row">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={showProgress === true}
+                aria-label="显示变体构建进度条"
+                className={showProgress === true ? 'switch switch--on' : 'switch'}
+                disabled={showProgress === null}
+                onClick={() => {
+                  void toggleProgress(showProgress !== true)
+                }}
+              >
+                <span className="switch__thumb" aria-hidden="true" />
+              </button>
+              <span className="dialog__hint">
+                队列里正在构建的变体显示进度条，按该变体历史成功构建的耗时中位数预估 ——
+                不是 Gradle 的真实进度
+              </span>
             </div>
           </div>
 

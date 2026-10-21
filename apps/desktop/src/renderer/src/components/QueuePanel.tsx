@@ -11,6 +11,7 @@ import { splitByCurrentBatch } from '../lib/queue-batch'
 import { computeBatchProgress } from '../lib/queue-progress'
 import { groupAttempts, type AttemptGroupSummary } from '../lib/queue-attempts'
 import { formatDateTime, formatDurationMs } from '../lib/duration'
+import { variantProgressPercent } from '../lib/variant-progress'
 import { dirnameOf } from '../lib/path-display'
 import { openPathOrToast } from '../lib/open-path'
 import { buildStateBadgeClass } from '../lib/state-badge'
@@ -43,10 +44,18 @@ function concurrencyOptions(): Array<{ value: number; label: string }> {
 }
 
 /** 每个变体自己的构建耗时：跑着的用 startedAt 现算，跑完用落库的 durationMs */
-function runDurationText(run: QueueRunDetail, now: number): string {
+function runDurationText(run: QueueRunDetail, now: number, showEstimate: boolean): string {
   if (run.state === 'running' && run.startedAt !== null) {
     // 用「构建」而不是「已用」：这一行左边还有一项级总耗时，两个都叫「已用」会分不清是哪个
-    return `构建 ${formatDurationMs(Math.max(0, now - run.startedAt))}`
+    const elapsed = Math.max(0, now - run.startedAt)
+    const text = `构建 ${formatDurationMs(elapsed)}`
+    if (!showEstimate || run.estimatedMs === null) {
+      return text
+    }
+    // 超出预估后如实说出来，而不是让读数停在 100% 却假装一切正常
+    return elapsed > run.estimatedMs
+      ? `${text} / 已超出预计 ${formatDurationMs(run.estimatedMs)}`
+      : `${text} / 预计 ${formatDurationMs(run.estimatedMs)}`
   }
   if (run.durationMs !== null) {
     return `耗时 ${formatDurationMs(run.durationMs)}`
@@ -77,6 +86,7 @@ export function QueuePanel({
   concurrency,
   paused,
   progress,
+  showVariantProgress,
   onCancel,
   onRequestCancelAll,
   onRetry,
@@ -92,6 +102,8 @@ export function QueuePanel({
   paused: boolean
   /** 正在跑的变体进度，键是构建记录 id */
   progress: Record<string, BuildProgress>
+  /** 是否给正在构建的变体画进度条（设置项；关掉后连「预计」文案也不显示） */
+  showVariantProgress: boolean
   onCancel: (itemId: string) => void
   /** 请求全部取消；确认由上层弹（会中断正在跑的构建） */
   onRequestCancelAll: () => void
@@ -320,40 +332,62 @@ export function QueuePanel({
               const runProgress = run.state === 'running' ? progress[run.id] : undefined
               const stage = runProgress ? progressHeadline(runProgress) : null
               const count = runProgress ? progressCountText(runProgress) : null
+              const percent = variantProgressPercent(run, now, showVariantProgress)
               return (
                 <li key={run.variant} className="run-detail__item">
-                  <span className="run-detail__variant tabular" title={run.variant}>
-                    {run.variant}
-                  </span>
-                  <span className={buildStateBadgeClass(run.state)}>{RUN_STATE_LABEL[run.state]}</span>
-                  {/* 正在跑的变体给到「在哪一步」：以前只有「构建中」，看不出在编译还是卡在下载 */}
-                  {stage ? (
-                    <span
-                      className="run-detail__stage"
-                      title={runProgress?.task ?? undefined}
-                      aria-label={'当前阶段：' + stage}
-                    >
-                      {stage}
-                      {count !== null ? <span className="run-detail__stage-count tabular"> · {count}</span> : null}
+                  <div className="run-detail__main">
+                    <span className="run-detail__variant tabular" title={run.variant}>
+                      {run.variant}
                     </span>
+                    <span className={buildStateBadgeClass(run.state)}>{RUN_STATE_LABEL[run.state]}</span>
+                    {/* 正在跑的变体给到「在哪一步」：以前只有「构建中」，看不出在编译还是卡在下载 */}
+                    {stage ? (
+                      <span
+                        className="run-detail__stage"
+                        title={runProgress?.task ?? undefined}
+                        aria-label={'当前阶段：' + stage}
+                      >
+                        {stage}
+                        {count !== null ? <span className="run-detail__stage-count tabular"> · {count}</span> : null}
+                      </span>
+                    ) : null}
+                    {/* 三段计时分开给：这一项的总耗时在最上面那行，这里是这个变体的排队与构建 */}
+                    <span className="run-detail__time tabular">
+                      {run.startedAt !== null
+                        ? `排队 ${formatDurationMs(Math.max(0, run.startedAt - item.enqueuedAt))} · `
+                        : ''}
+                      {runDurationText(run, now, showVariantProgress)}
+                    </span>
+                  </div>
+                  {/*
+                   * 进度条按「已用 ÷ 该变体历史成功耗时的中位数」画，是耗时比例而非 Gradle 进度，
+                   * 所以 title 与无障碍文案都要写明依据；没有历史样本时整条不渲染，不画 0% 空条。
+                   */}
+                  {percent !== null ? (
+                    <div
+                      className="run-detail__progress"
+                      role="progressbar"
+                      aria-label={`${run.variant} 构建进度`}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={percent}
+                      title="按该变体最近几次成功构建的耗时中位数估算，不是 Gradle 的真实进度"
+                    >
+                      <div className="run-detail__progress-fill" style={{ width: percent + '%' }} />
+                    </div>
                   ) : null}
-                  {/* 三段计时分开给：这一项的总耗时在最上面那行，这里是这个变体的排队与构建 */}
-                  <span className="run-detail__time tabular">
-                    {run.startedAt !== null
-                      ? `排队 ${formatDurationMs(Math.max(0, run.startedAt - item.enqueuedAt))} · `
-                      : ''}
-                    {runDurationText(run, now)}
-                  </span>
                 </li>
               )
             })}
             {notStarted.map((variant) => (
               <li key={variant} className="run-detail__item run-detail__item--todo">
-                <span className="run-detail__variant tabular" title={variant}>
-                  {variant}
-                </span>
-                <Badge variant="muted">未开始</Badge>
-                <span className="run-detail__time tabular">—</span>
+                <div className="run-detail__main">
+                  <span className="run-detail__variant tabular" title={variant}>
+                    {variant}
+                  </span>
+                  <Badge variant="muted">未开始</Badge>
+                  <span className="run-detail__time tabular">—</span>
+                </div>
               </li>
             ))}
           </ul>

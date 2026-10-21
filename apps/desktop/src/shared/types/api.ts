@@ -78,6 +78,8 @@ export interface AppApi {
     setTheme: (theme: ThemeChoice) => Promise<SettingsResult>
     /** 启动后是否自动检查更新；关掉不影响手动检查 */
     setAutoCheckUpdate: (enabled: boolean) => Promise<SettingsResult>
+    /** 队列面板是否显示变体构建进度条（按历史耗时中位数预估） */
+    setShowVariantProgress: (enabled: boolean) => Promise<SettingsResult>
     pickOutputDir: () => Promise<SettingsResult>
     openPath: (path: string) => Promise<BasicResult>
     clearLogs: () => Promise<BasicResult & { removed?: number; freedBytes?: number }>

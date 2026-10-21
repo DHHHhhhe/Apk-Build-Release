@@ -125,6 +125,30 @@
   color: var(--warning);
 }
 
+/*
+ * 对话框里的开关用中性令牌。
+ * `.switch` 默认取的是侧栏配色（--sidebar-*），那是给左下角那块背景调的：
+ * 放到卡片底色上偏灰、对比度掉一档，关了开了一眼分不出来。
+ */
+.dialog__row .switch {
+  border-color: var(--border);
+  background: var(--muted);
+}
+
+.dialog__row .switch--on {
+  border-color: var(--foreground);
+  background: var(--foreground);
+}
+
+.dialog__row .switch__thumb {
+  background: var(--card);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--foreground) 24%, transparent);
+}
+
+.dialog__row .switch--on .switch__thumb {
+  background: var(--background);
+}
+
 .dialog__message,
 .dialog__error {
   margin: 0;

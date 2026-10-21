@@ -16,6 +16,11 @@ export const queueRunDetailSchema = z.object({
   startedAt: z.number().nullable(),
   /** 跑完才有值；跑着的由界面用 startedAt 自己算 */
   durationMs: z.number().nullable(),
+  /**
+   * 预计总耗时：同项目 + 同变体名最近几次**成功**构建耗时的中位数。
+   * 没有历史样本就是 null —— 界面据此决定要不要画进度条，不要用 0 或默认值兜底。
+   */
+  estimatedMs: z.number().nullable(),
   /** 失败原因：界面上不切项目就能看到「该改什么」 */
   failureKind: buildFailureKindSchema.nullable(),
   failureHint: z.string().nullable(),
