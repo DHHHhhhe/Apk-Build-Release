@@ -33,6 +33,33 @@ body {
   min-width: 0;
 }
 
+/*
+ * 顶栏左侧那一格是「项目」入口：按钮和计数都得看得见，否则顶栏左边像空的。
+ * 用二层选择器压过 .btn-outline（同权重下谁后加载谁赢，这里不赌加载顺序）。
+ */
+.app-topbar .app-topbar__add {
+  background: var(--secondary);
+  border-color: var(--input);
+  font-weight: 600;
+}
+
+.app-topbar .app-topbar__add:hover:not(:disabled) {
+  background: var(--muted);
+}
+
+/* 项目数：顶栏里唯一的主信息，给正文色与 600 字重 */
+.app-topbar__count {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+/* 「当前项目已选 N 个变体」是补充说明，留在次要色 */
+.app-topbar__selected {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
 .app-topbar__status {
   font-size: 12px;
   color: var(--muted-foreground);

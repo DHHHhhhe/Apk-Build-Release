@@ -351,6 +351,7 @@ export default function App(): React.JSX.Element {
          */}
         <Button
           variant="outline"
+          className="app-topbar__add"
           disabled={busyKind === 'add'}
           onClick={handleAdd}
           title="选择一个 Android 项目目录加进来"
@@ -359,10 +360,14 @@ export default function App(): React.JSX.Element {
           {busyKind === 'add' ? '添加中…' : '添加项目'}
         </Button>
         <span className="app-topbar__status">
-          {loading ? '读取项目…' : `${projects.length} 个项目`}
-          {selectedProject && buildableVariants.length > 0
-            ? ` · 当前项目已选 ${buildableVariants.length} 个变体`
-            : ''}
+          <span className="app-topbar__count">
+            {loading ? '读取项目…' : `${projects.length} 个项目`}
+          </span>
+          {selectedProject && buildableVariants.length > 0 ? (
+            <span className="app-topbar__selected">
+              {` · 当前项目已选 ${buildableVariants.length} 个变体`}
+            </span>
+          ) : null}
         </span>
         {/* 原因摆在按钮旁边，而不是只在 title 里：禁用时 hover 才能看到原因等于没解释 */}
         {selectedProject && enqueueBlocked ? (
