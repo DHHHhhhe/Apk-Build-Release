@@ -72,10 +72,15 @@ body {
 }
 
 /*
- * 「构建 <项目名>」带上了项目名，长度不再可控：项目名可以很长，
- * 不夹住就会按 max-content 撑开、把整个顶栏顶出横向溢出。完整名放在 title 里。
+ * 「构建 <项目名>」带上了项目名，长度不再可控。省略号必须加在**按钮里的 span** 上：
+ * 按钮是 flex 容器，`text-overflow` 对匿名的文本子项不生效（实测只会硬裁，不画「…」）。
  */
 .app-topbar__build-current {
+  max-width: 18em;
+}
+
+.app-topbar__build-current-text {
+  display: block;
   max-width: 16em;
   overflow: hidden;
   text-overflow: ellipsis;

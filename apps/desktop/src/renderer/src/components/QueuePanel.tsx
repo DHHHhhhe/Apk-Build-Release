@@ -12,7 +12,7 @@ import { computeBatchProgress } from '../lib/queue-progress'
 import { groupAttempts, type AttemptGroupSummary } from '../lib/queue-attempts'
 import { formatDateTime, formatDurationMs } from '../lib/duration'
 import { variantProgressPercent } from '../lib/variant-progress'
-import { isSingleVariantItem, NOT_STARTED_TEXT, variantTimingText } from '../lib/queue-row'
+import { isSingleVariantItem, itemWaitText, NOT_STARTED_TEXT, variantTimingText } from '../lib/queue-row'
 import { dirnameOf } from '../lib/path-display'
 import { openPathOrToast } from '../lib/open-path'
 import { buildStateBadgeClass } from '../lib/state-badge'
@@ -126,8 +126,14 @@ export function QueuePanel({
   const clearMenuRef = useRef<HTMLSpanElement>(null)
   const clearMenuPanelRef = useRef<HTMLDivElement>(null)
   const clearMenuTriggerRef = useRef<HTMLButtonElement>(null)
-  /** 通过菜单项关闭时不抢回焦点：紧接着会弹确认框，焦点该归它 */
-  const closedByChoosingRef = useRef(false)
+  /**
+   * 关闭原因。**只有键盘（Esc）关闭才把焦点送回触发按钮**：
+   * - 点菜单外：用户点的是别的控件，焦点该留在那儿，抢回来等于让他点不动；
+   * - 选菜单项：紧接着弹确认框，焦点归确认框。
+   */
+  const clearMenuCloseReasonRef = useRef<'escape' | 'outside' | 'choose' | null>(null)
+  /** 是否真的打开过。这个 effect 在挂载时也会跑一次（初值 false），那时不该抢焦点 */
+  const clearMenuWasOpenRef = useRef(false)
 
   useEffect(() => {
     if (!clearMenuOpen) {
@@ -142,11 +148,13 @@ export function QueuePanel({
 
     const handlePointerDown = (event: PointerEvent): void => {
       if (clearMenuRef.current !== null && !clearMenuRef.current.contains(event.target as Node)) {
+        clearMenuCloseReasonRef.current = 'outside'
         setClearMenuOpen(false)
       }
     }
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {
+        clearMenuCloseReasonRef.current = 'escape'
         setClearMenuOpen(false)
         return
       }
@@ -171,13 +179,20 @@ export function QueuePanel({
     }
   }, [clearMenuOpen])
 
-  // 关闭后把焦点还给触发按钮（选了菜单项的情况除外，那时焦点归确认框）
+  // 关闭后归还焦点：只在「键盘关闭」这一条路径上做（见 clearMenuCloseReasonRef 的说明）。
+  // 挂载时这个 effect 也会跑（初值 false），由 clearMenuWasOpenRef 挡掉。
   useEffect(() => {
-    if (!clearMenuOpen) {
-      if (closedByChoosingRef.current) {
-        closedByChoosingRef.current = false
-        return
-      }
+    if (clearMenuOpen) {
+      clearMenuWasOpenRef.current = true
+      return
+    }
+    if (!clearMenuWasOpenRef.current) {
+      return
+    }
+    clearMenuWasOpenRef.current = false
+    const reason = clearMenuCloseReasonRef.current
+    clearMenuCloseReasonRef.current = null
+    if (reason === 'escape') {
       clearMenuTriggerRef.current?.focus()
     }
   }, [clearMenuOpen])
@@ -275,6 +290,10 @@ export function QueuePanel({
     const singleCount = singleProgress ? progressCountText(singleProgress) : null
     const singlePercent = singleRun ? variantProgressPercent(singleRun, now, showVariantProgress) : null
 
+    /** 这一项从入队（或开始）到现在/结束的毫秒数：项级「等待」用它套阈值 */
+    const itemElapsedMs = (): number =>
+      Math.max(0, (item.finishedAt ?? now) - (item.startedAt ?? item.enqueuedAt))
+
     /**
      * 变体行的时间文案：`等待 x · 构建 y · 预计 z` / `耗时 z` / `未开始`。
      * 「等待」的取值是「从入队到这个变体开始」，包含前面变体的构建时间 —— 所以不叫「排队」。
@@ -333,11 +352,11 @@ export function QueuePanel({
             {single
               ? singleRun
                 ? timingOf(singleRun)
-                : `等待 ${formatItemDuration(item, now)}`
+                : itemWaitText(itemElapsedMs())
               : item.state === 'running'
                 ? `已用 ${formatItemDuration(item, now)}`
                 : item.state === 'pending'
-                  ? `等待 ${formatItemDuration(item, now)}`
+                  ? itemWaitText(itemElapsedMs())
                   : `耗时 ${formatItemDuration(item, now)}`}
           </span>
 
@@ -668,7 +687,10 @@ export function QueuePanel({
                     className="queue-menu__item"
                     disabled={finished.length === 0}
                     onClick={() => {
-                      closedByChoosingRef.current = true
+                      clearMenuCloseReasonRef.current = 'choose'
+                      // 先把焦点交回触发按钮：确认框记的是「打开时的焦点元素」作为归还目标，
+                      // 若此刻焦点还在即将卸载的菜单项上，取消后焦点会掉到 BODY
+                      clearMenuTriggerRef.current?.focus()
                       setClearMenuOpen(false)
                       onRequestClear('finished')
                     }}
@@ -681,7 +703,8 @@ export function QueuePanel({
                     className="queue-menu__item"
                     disabled={items.length === 0}
                     onClick={() => {
-                      closedByChoosingRef.current = true
+                      clearMenuCloseReasonRef.current = 'choose'
+                      clearMenuTriggerRef.current?.focus()
                       setClearMenuOpen(false)
                       onRequestClear('all')
                     }}
@@ -751,7 +774,8 @@ export function QueuePanel({
 
         {items.length === 0 ? (
           <p className="queue-panel__empty">
-            队列是空的。选好变体后点右上角的「构建勾选项」，或抽屉里的「构建 &lt;项目名&gt;」。
+            队列是空的。选好变体后点顶栏右上的「构建勾选项」；打开某个项目的抽屉时，顶栏还会出现「构建
+            &lt;项目名&gt;」。
           </p>
         ) : visibleCurrent.length === 0 ? (
           <p className="queue-panel__empty">

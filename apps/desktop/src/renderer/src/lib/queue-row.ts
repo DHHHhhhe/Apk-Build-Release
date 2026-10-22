@@ -77,6 +77,15 @@ export function variantTimingText(input: VariantTimingInput): string {
 }
 
 /**
+ * 队列项级的等待文案（还没轮到这一项时）。
+ * 与变体行走同一条规矩：不足 1s 不提「等待」，避免刚入队就显示 `等待 0s`。
+ */
+export function itemWaitText(elapsedMs: number): string {
+  const safe = Math.max(0, elapsedMs)
+  return safe < WAIT_DISPLAY_MIN_MS ? '—' : `等待 ${formatDurationMs(safe)}`
+}
+
+/**
  * 构建中心顶部的计数。
  *
  * 相等时只说一个数 —— `已选 8 / 可构建 8` 这种写法让人以为两个数总有区别；

@@ -114,15 +114,13 @@
 }
 
 /*
- * 单变体项目压成一行：只有勾选框、项目名、变体名、归档别名与路径。
+ * 单变体项目压成一行：只有勾选框、项目名、变体名、归档别名。
  * 省掉「全选本项目（1 个变体）」「清空」两个伪操作与折叠箭头（只有一个变体，折起来没意义）。
- * 目标高度 ≤ 56px，让一屏能看下 12 个以上项目。
+ * 目标高度 ≤ 56px（实测 41px），让一屏能看下 12 个以上项目。
+ * 注意：这里**不渲染可见路径** —— 加上它就会换行把卡片撑到 70px；完整路径在卡片的 title 上。
  */
 .build-picker__group--single {
   padding-block: 10px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
 }
 
 .build-picker__label--single {
@@ -139,9 +137,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-/* 路径在单变体这一行右侧：用来区分同名项目，但必须让位给名字 */
-/* 单变体卡不再渲染可见路径：它会把卡片撑成两行。完整路径在卡片 title 上（悬停可看） */
 
 .build-picker__variant {
   font-weight: 500;

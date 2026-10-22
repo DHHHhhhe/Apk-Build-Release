@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   WAIT_DISPLAY_MIN_MS,
   isSingleVariantItem,
+  itemWaitText,
   pickerCountText,
   projectStatusBadge,
   variantTimingText
@@ -80,6 +81,18 @@ describe('variantTimingText', () => {
 
   it('等待为 null 时不猜测', () => {
     expect(variantTimingText({ ...base, waitMs: null })).toBe('构建 21s · 预计 5m00s')
+  })
+})
+
+describe('itemWaitText', () => {
+  it('不足 1s 不提「等待」：刚入队不该显示「等待 0s」', () => {
+    expect(itemWaitText(0)).toBe('—')
+    expect(itemWaitText(999)).toBe('—')
+  })
+
+  it('1s 起给「等待 x」', () => {
+    expect(itemWaitText(1_000)).toBe('等待 1s')
+    expect(itemWaitText(65_000)).toBe('等待 1m05s')
   })
 })
 

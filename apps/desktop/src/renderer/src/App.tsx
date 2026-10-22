@@ -400,9 +400,14 @@ export default function App(): React.JSX.Element {
               }
             }}
           >
-            {projectBuilding && freshVariants.length === 0
-              ? '构建中…'
-              : `构建 ${selectedProject.name}（${freshVariants.length}）`}
+            {projectBuilding && freshVariants.length === 0 ? (
+              '构建中…'
+            ) : (
+              // 文本包一层 span：按钮本身是 flex 容器，text-overflow 对匿名的文本子项不生效
+              <span className="app-topbar__build-current-text">
+                {`构建 ${selectedProject.name}（${freshVariants.length}）`}
+              </span>
+            )}
           </Button>
         ) : null}
       </header>
