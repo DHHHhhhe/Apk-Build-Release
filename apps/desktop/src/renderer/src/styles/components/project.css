@@ -4,8 +4,11 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  /* 原来这一块上面还有「项目 + 添加」一行，现在那行并进顶栏了，所以顶部留白自己给足 */
-  padding: 14px 8px 12px;
+  /*
+   * 左右 20px 和顶栏、主列内容的左边距对齐 —— 三处原来是 8 / 20 / 24，看上去就是「没对齐」。
+   * 顶部 16px 也与主列一致（原来 14 vs 24，两条列的首屏起点差了一截）。
+   */
+  padding: 16px 20px 12px;
   min-height: 0;
 }
 

@@ -117,22 +117,27 @@
   gap: 12px;
   min-width: 0;
   /*
-   * 窄主列（抽屉打开时约 326px）装不下「项目名 + 路径 + 归档徽章 + 快捷按钮」，
-   * 不换行就会把徽章裁掉（实测 clientWidth 183 / scrollWidth 443）。
-   * 宽档不会触发换行，视觉无变化。
+   * 不换行，靠「先压缩路径、再压缩项目名」消化窄主列。
+   * 之前这里改成 flex-wrap: wrap，结果头行被拆成两三行（项目名一行、队列徽章一行、
+   * 全选/清空再一行），比裁掉更难读。现在每段各自带省略号，行数恒定是一行。
    */
-  flex-wrap: wrap;
-  row-gap: 4px;
+  flex-wrap: nowrap;
 }
 
 .summary__group-name {
-  flex: 0 0 auto;
+  /* 可压缩：项目名长的时候先让它和路径一起收，徽章与按钮不动 */
+  flex: 0 1 auto;
+  min-width: 3em;
   font-size: 14px;
   font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .summary__group-path {
   /* flex 子项默认 min-width:auto，不给 0 的话省略号不生效、会把整行撑宽 */
+  flex: 1 1 auto;
   min-width: 0;
   font-size: 12px;
   color: var(--muted-foreground);

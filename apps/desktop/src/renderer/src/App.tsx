@@ -345,32 +345,23 @@ export default function App(): React.JSX.Element {
     >
       <header className="app-topbar">
         {/*
-         * 顶栏左侧是一条「项目工具条」：容器本身（浅底 + 细边框 + 分隔线）撑起重量，
-         * 里面的按钮不再自带底色 —— 这样它有结构性的存在感，却不会和右侧的构建按钮抢主次。
+         * 顶栏左侧：一个实心「添加项目」+ 项目数。
+         * 不套容器、不做分段控件 —— 之前那条「按钮 │ 计数」的胶囊把两样东西包在一起，
+         * 宽度被拉长、里面又挤，反而更乱。实心按钮自己就有重量，不需要外框帮忙。
          * 顶栏也不放 logo 与应用名：任务栏、Alt+Tab、系统标题栏里都有。
          */}
-        <div className="app-topbar__project-group">
-          <Button
-            variant="default"
-            disabled={busyKind === 'add'}
-            onClick={handleAdd}
-            title="选择一个 Android 项目目录加进来"
-          >
-            <FolderPlus size={14} aria-hidden="true" />
-            {busyKind === 'add' ? '添加中…' : '添加项目'}
-          </Button>
-          <span className="app-topbar__divider" aria-hidden="true" />
-          <span className="app-topbar__status">
-            <span className="app-topbar__count">
-              {loading ? '读取项目…' : `${projects.length} 个项目`}
-            </span>
-            {selectedProject && buildableVariants.length > 0 ? (
-              <span className="app-topbar__selected">
-                {` · 当前项目已选 ${buildableVariants.length} 个变体`}
-              </span>
-            ) : null}
-          </span>
-        </div>
+        <Button
+          variant="default"
+          disabled={busyKind === 'add'}
+          onClick={handleAdd}
+          title="选择一个 Android 项目目录加进来"
+        >
+          <FolderPlus size={14} aria-hidden="true" />
+          {busyKind === 'add' ? '添加中…' : '添加项目'}
+        </Button>
+        <span className="app-topbar__status">
+          {loading ? '读取项目…' : `${projects.length} 个项目`}
+        </span>
         {/* 原因摆在按钮旁边，而不是只在 title 里：禁用时 hover 才能看到原因等于没解释 */}
         {selectedProject && enqueueBlocked ? (
           <span className="app-topbar__hint">{enqueueBlocked}</span>

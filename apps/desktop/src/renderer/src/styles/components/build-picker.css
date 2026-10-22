@@ -74,7 +74,44 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  flex-wrap: wrap;
+  /* 操作区自己不许被压缩：它是这一行的终点，压缩只会让它换行 */
+  flex: 0 0 auto;
+}
+
+/*
+ * 主列变窄（抽屉打开）时，组头改成「信息一行 + 操作一行」：
+ * 让操作区整块换到第二行并右对齐，而不是让徽章与按钮随机折行。
+ * 随机折行的结果是项目名被压到 3 个字、队列徽章和「全选」各自占一行。
+ */
+@container (max-width: 620px) {
+  .build-picker__group-head {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+
+  /* 窄列里路径最不关键（抽屉与悬停 title 都有），藏掉它，徽章才不会被挤到第二行 */
+  .build-picker__group-head .summary__group-path {
+    display: none;
+  }
+
+  .build-picker__group-actions {
+    flex: 1 0 100%;
+    margin-left: 0;
+    justify-content: flex-end;
+  }
+}
+
+/*
+ * 组头里的徽章要能各自收：归档名默认等于项目名，长名字的徽章会把
+ * 项目名与路径挤成 0 宽（窄主列时实测过）。
+ */
+.build-picker__group-head .badge {
+  flex: 0 1 auto;
+  max-width: 9em;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .build-picker__group-actions .btn-ghost {
@@ -119,6 +156,11 @@
  * 目标高度 ≤ 56px（实测 41px），让一屏能看下 12 个以上项目。
  * 注意：这里**不渲染可见路径** —— 加上它就会换行把卡片撑到 70px；完整路径在卡片的 title 上。
  */
+.build-picker {
+  /* 容器查询的锚点：组头与压缩卡都要按「这一列有多宽」降级 */
+  container-type: inline-size;
+}
+
 .build-picker__group--single {
   padding-block: 10px;
 }
@@ -131,9 +173,22 @@
 }
 
 .build-picker__label--single .summary__group-name {
-  /* 必须能被压缩：基类给的是 flex: 0 0 auto，不改就会顶出去把归档徽章挤出卡片 */
+  /* 不抢富余空间：不然变体名与徽章会被推到卡片右侧，和项目名隔一大段空白 */
   flex: 0 1 auto;
   font-weight: 600;
+  min-width: 3em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * 压缩卡的归档徽章要能自己收：别名默认等于项目名，长名字会让徽章占满整行，
+ * 项目名被压成 0 宽（实测只剩一个勾选框和一条被截断的「归档：…」）。
+ */
+.build-picker__label--single .badge {
+  flex: 0 1 auto;
+  max-width: 45%;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
