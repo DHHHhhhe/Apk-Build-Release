@@ -49,6 +49,37 @@ body {
   background: var(--muted);
 }
 
+/*
+ * 两个构建按钮之间的实心「流动」：底色/文字/边框一起走 200ms。
+ * 抽屉一开一关，实心从「构建勾选项」换到「构建 <项目名>」——
+ * 两块同步淡入淡出，眼睛看到的是实心挪过去了，而不是闪一下。
+ * 时长与 App.tsx 的 BUILD_BUTTON_FADE_MS 必须一致。
+ */
+/* 两段选择器：.btn-* 基类里已有 background 150ms 的 transition，同权重下不保证谁赢 */
+.app-topbar .app-topbar__build-all,
+.app-topbar .app-topbar__build-current {
+  transition:
+    background-color 200ms ease,
+    color 200ms ease,
+    border-color 200ms ease;
+}
+
+/* 正在淡出的那个：底色与边框退干净，只剩文字 */
+.app-topbar .app-topbar__build-current--leaving {
+  background-color: transparent;
+  border-color: transparent;
+  color: var(--muted-foreground);
+}
+
+/* 新出现的实心从「透明」起步：否则它一挂载就已经是实心，看不出流动 */
+@starting-style {
+  .app-topbar .btn-primary {
+    background-color: transparent;
+    border-color: transparent;
+    color: var(--muted-foreground);
+  }
+}
+
 /* 项目数：顶栏里唯一的主信息，给正文色与 600 字重 */
 .app-topbar__status {
   font-size: 13px;

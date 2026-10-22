@@ -43,6 +43,13 @@ import { useWindowWidth } from './hooks/useWindowWidth'
 import { trackInputMode } from './lib/input-mode'
 import { resolveDrawerLayout } from './lib/layout'
 
+/**
+ * 顶栏两个构建按钮之间「实心流动」的时长（毫秒）。
+ * 与 shell.css 里 .app-topbar__build-all / __build-current 的 transition 时长保持一致：
+ * JS 这边决定淡出的按钮留多久，CSS 那边决定底色多久变完，两边不等就会看到硬切。
+ */
+const BUILD_BUTTON_FADE_MS = 200
+
 export default function App(): React.JSX.Element {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -172,7 +179,6 @@ export default function App(): React.JSX.Element {
     ? resolveBuildableVariants({ variants: selectedProject.variants, selected: selectedVariants })
     : { buildable: [], unknownSelected: [] }
   const buildableVariants = resolvedVariants.buildable
-
   /**
    * 未结束队列项占用的变体。
    *
@@ -191,6 +197,48 @@ export default function App(): React.JSX.Element {
   const projectBuilding = selectedProject
     ? queue.items.some((item) => item.projectId === selectedProject.id && item.state === 'running')
     : false
+
+  /**
+   * 实心「流动」：顶栏只允许一个实心按钮 —— 抽屉关着是「构建勾选项」，
+   * 打开某个项目就变成「构建 <项目名>」。直接切 variant 是硬切，看着像闪一下；
+   * 所以两个按钮的底色都走 transition，正在消失的那个多留 BUILD_BUTTON_FADE_MS，
+   * 让实心块淡出而不是瞬间消失。
+   */
+  const [leavingBuild, setLeavingBuild] = useState<{ name: string; count: number } | null>(null)
+  const lastBuildRef = useRef<{ name: string; count: number } | null>(null)
+  const openProjectId = selectedProject?.id ?? null
+
+  // 抽屉开着时一直记着「这个按钮该长什么样」：关掉的瞬间拿不到 name/count 了
+  useEffect(() => {
+    if (selectedProject !== null) {
+      lastBuildRef.current = { name: selectedProject.name, count: freshVariants.length }
+    }
+  }, [selectedProject, freshVariants.length])
+
+  useEffect(() => {
+    if (openProjectId !== null) {
+      setLeavingBuild(null)
+      return
+    }
+    const last = lastBuildRef.current
+    if (last === null) {
+      return
+    }
+    lastBuildRef.current = null
+    setLeavingBuild(last)
+    const timer = setTimeout(() => {
+      setLeavingBuild(null)
+    }, BUILD_BUTTON_FADE_MS)
+    return () => {
+      clearTimeout(timer)
+    }
+  }, [openProjectId])
+
+  const buildCurrentName = selectedProject?.name ?? leavingBuild?.name ?? null
+  const buildCurrentCount =
+    selectedProject !== null ? freshVariants.length : (leavingBuild?.count ?? 0)
+  const buildCurrentLeaving = selectedProject === null && leavingBuild !== null
+
   // 环境缺失（比如 SDK 没找到）时不该让用户白等一次构建
   const envBlocking = env.result?.items.find((item) => item.state === 'error') ?? null
   // 单项目按钮的原因与勾选表那条共用同一份实现（build-guard），措辞不会走散
@@ -371,7 +419,8 @@ export default function App(): React.JSX.Element {
         ) : null}
         {projects.length > 0 ? (
           <Button
-            variant="default"
+            variant={selectedProject ? 'outline' : 'default'}
+            className="app-topbar__build-all"
             disabled={crossBlocked !== null}
             title={crossBlocked ?? '把勾选的变体加入队列并构建'}
             onClick={buildCheckedProjects}
@@ -387,14 +436,22 @@ export default function App(): React.JSX.Element {
          * 以前它灰着并配一句「先在左侧选一个项目」—— 首屏最显眼的那个按钮点不动，
          * 还要用户自己去找原因。
          */}
-        {selectedProject ? (
+        {buildCurrentName !== null ? (
           <Button
-            variant="outline"
-            className="app-topbar__build-current"
-            disabled={enqueueBlocked !== null}
+            variant={buildCurrentLeaving ? 'outline' : 'default'}
+            className={
+              buildCurrentLeaving
+                ? 'app-topbar__build-current app-topbar__build-current--leaving'
+                : 'app-topbar__build-current'
+            }
+            disabled={buildCurrentLeaving || enqueueBlocked !== null}
+            aria-hidden={buildCurrentLeaving ? true : undefined}
+            tabIndex={buildCurrentLeaving ? -1 : undefined}
             title={
-              enqueueBlocked ??
-              `构建「${selectedProject.name}」里已勾选的变体（${freshVariants.length} 个）`
+              buildCurrentLeaving
+                ? undefined
+                : (enqueueBlocked ??
+                  `构建「${buildCurrentName}」里已勾选的变体（${buildCurrentCount} 个）`)
             }
             onClick={() => {
               if (selectedProject) {
@@ -403,12 +460,12 @@ export default function App(): React.JSX.Element {
               }
             }}
           >
-            {projectBuilding && freshVariants.length === 0 ? (
+            {projectBuilding && buildCurrentCount === 0 ? (
               '构建中…'
             ) : (
               // 文本包一层 span：按钮本身是 flex 容器，text-overflow 对匿名的文本子项不生效
               <span className="app-topbar__build-current-text">
-                {`构建 ${selectedProject.name}（${freshVariants.length}）`}
+                {`构建 ${buildCurrentName}（${buildCurrentCount}）`}
               </span>
             )}
           </Button>
