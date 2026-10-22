@@ -387,18 +387,10 @@ export default function App(): React.JSX.Element {
             构建勾选项（{crossProject.buildableVariantCount}）
           </Button>
         ) : null}
-        {update.state?.phase === 'available' || update.state?.phase === 'downloaded' ? (
-          <Button
-            variant="outline"
-            title={update.state.message}
-            onClick={() => {
-              setSettingsOpen(true)
-            }}
-          >
-            有新版本
-          </Button>
-        ) : null}
         {/*
+         * 顶栏不放「有新版本」：更新提示归两处（侧栏左下的「检查更新」、右下角的提示条），
+         * 原来这里第三个入口点了只是打开设置，而设置里并没有更新区块 —— 一条死路，已删。
+         *
          * 单项目入口只在抽屉打开时出现：它是「打抽屉里这个项目」，没打开就没有对象。
          * 以前它灰着并配一句「先在左侧选一个项目」—— 首屏最显眼的那个按钮点不动，
          * 还要用户自己去找原因。
