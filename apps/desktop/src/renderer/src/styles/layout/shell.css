@@ -95,10 +95,6 @@ body {
   opacity: 0.72;
 }
 
-.app-topbar .app-topbar__seg--leaving {
-  color: var(--muted-foreground);
-  pointer-events: none;
-}
 
 .app-topbar .app-topbar__seg:hover:not(:disabled):not(.app-topbar__seg--active) {
   background: var(--muted);

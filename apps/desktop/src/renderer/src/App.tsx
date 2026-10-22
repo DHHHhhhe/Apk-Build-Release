@@ -43,11 +43,6 @@ import { useWindowWidth } from './hooks/useWindowWidth'
 import { trackInputMode } from './lib/input-mode'
 import { resolveDrawerLayout } from './lib/layout'
 
-/**
- * 关抽屉后，那个「构建 <项目名>」按钮还要留这么久让文字淡出（毫秒）。
- * 它已经不再是实心（实心是背后那块色块），留一会儿只是别让文字瞬间消失。
- */
-const BUILD_BUTTON_FADE_MS = 200
 
 export default function App(): React.JSX.Element {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
@@ -198,45 +193,12 @@ export default function App(): React.JSX.Element {
     : false
 
   /**
-   * 实心「流动」：顶栏只允许一个实心按钮 —— 抽屉关着是「构建勾选项」，
-   * 打开某个项目就变成「构建 <项目名>」。直接切 variant 是硬切，看着像闪一下；
-   * 所以两个按钮的底色都走 transition，正在消失的那个多留 BUILD_BUTTON_FADE_MS，
-   * 让实心块淡出而不是瞬间消失。
+   * 单项目那一段只在这一项真的打开时存在。
+   *
+   * 曾经为了让「实心」淡出，关抽屉后多留 200ms 一个半透明幽灵按钮 ——
+   * 结果就是左边有一小段文字残留在那儿，比硬切更难看。现在直接卸载：
+   * 位置的连续性由背后那块色块负责（它从旧位置滑回「构建勾选项」）。
    */
-  const [leavingBuild, setLeavingBuild] = useState<{ name: string; count: number } | null>(null)
-  const lastBuildRef = useRef<{ name: string; count: number } | null>(null)
-  const openProjectId = selectedProject?.id ?? null
-
-  // 抽屉开着时一直记着「这个按钮该长什么样」：关掉的瞬间拿不到 name/count 了
-  useEffect(() => {
-    if (selectedProject !== null) {
-      lastBuildRef.current = { name: selectedProject.name, count: freshVariants.length }
-    }
-  }, [selectedProject, freshVariants.length])
-
-  useEffect(() => {
-    if (openProjectId !== null) {
-      setLeavingBuild(null)
-      return
-    }
-    const last = lastBuildRef.current
-    if (last === null) {
-      return
-    }
-    lastBuildRef.current = null
-    setLeavingBuild(last)
-    const timer = setTimeout(() => {
-      setLeavingBuild(null)
-    }, BUILD_BUTTON_FADE_MS)
-    return () => {
-      clearTimeout(timer)
-    }
-  }, [openProjectId])
-
-  const buildCurrentName = selectedProject?.name ?? leavingBuild?.name ?? null
-  const buildCurrentCount =
-    selectedProject !== null ? freshVariants.length : (leavingBuild?.count ?? 0)
-  const buildCurrentLeaving = selectedProject === null && leavingBuild !== null
 
   /*
    * 液态实心：两个构建按钮做成一个分段控件，实心是背后一块自己会跑的色块。
@@ -375,7 +337,7 @@ export default function App(): React.JSX.Element {
     return () => {
       observer.disconnect()
     }
-  }, [activeSeg, buildCurrentCount, crossProject.buildableVariantCount, windowWidth])
+  }, [activeSeg, freshVariants.length, crossProject.buildableVariantCount, windowWidth])
 
   /** 入队勾选的项目：只带上还没排上的变体，已占用的由主进程再筛一次 */
   const buildCheckedProjects = (): void => {
@@ -476,37 +438,27 @@ export default function App(): React.JSX.Element {
                   : { right: `${pill.right}px`, width: `${pill.width}px` }
               }
             />
-            {buildCurrentName !== null ? (
+            {selectedProject !== null ? (
               <Button
                 ref={currentSegRef}
                 variant="ghost"
                 className={
-                  buildCurrentLeaving
-                    ? 'app-topbar__seg app-topbar__seg--leaving'
-                    : pill === null
-                      ? 'app-topbar__seg'
-                      : 'app-topbar__seg app-topbar__seg--active'
+                  pill === null ? 'app-topbar__seg' : 'app-topbar__seg app-topbar__seg--active'
                 }
-                disabled={buildCurrentLeaving || enqueueBlocked !== null}
-                aria-hidden={buildCurrentLeaving ? true : undefined}
-                tabIndex={buildCurrentLeaving ? -1 : undefined}
+                disabled={enqueueBlocked !== null}
                 title={
-                  buildCurrentLeaving
-                    ? undefined
-                    : (enqueueBlocked ??
-                      `构建「${buildCurrentName}」里已勾选的变体（${buildCurrentCount} 个）`)
+                  enqueueBlocked ??
+                  `构建「${selectedProject.name}」里已勾选的变体（${freshVariants.length} 个）`
                 }
                 onClick={() => {
-                  if (selectedProject) {
-                    // 只带这次真正要入队的变体：已在队列里的那些会被主进程再筛一次
-                    void queue.enqueue([{ projectId: selectedProject.id, variants: freshVariants }])
-                  }
+                  // 只带这次真正要入队的变体：已在队列里的那些会被主进程再筛一次
+                  void queue.enqueue([{ projectId: selectedProject.id, variants: freshVariants }])
                 }}
               >
                 <span className="app-topbar__seg-text">
-                  {projectBuilding && buildCurrentCount === 0
+                  {projectBuilding && freshVariants.length === 0
                     ? '构建中…'
-                    : `构建 ${buildCurrentName}（${buildCurrentCount}）`}
+                    : `构建 ${selectedProject.name}（${freshVariants.length}）`}
                 </span>
               </Button>
             ) : null}
