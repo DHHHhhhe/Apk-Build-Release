@@ -123,7 +123,39 @@ export const settings = sqliteTable('settings', {
     .$onUpdate(() => new Date())
 })
 
+/**
+ * 变体耗时统计：队列里那条进度条的估算依据。
+ *
+ * 刻意**不挂在 queue_items 名下**。构建记录是队列项的子表，用户一点「清空队列记录」
+ * 就级联删光，预估依据也跟着没了 —— 于是勤清记录的人永远看不到进度条。
+ * 这张表只按项目级联删除，清队列记录不动它。
+ *
+ * 只记成功构建：失败/取消的 run 大多提前退出，混进样本会把预估拉低。
+ */
+export const variantStats = sqliteTable(
+  'variant_stats',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    variant: text('variant').notNull(),
+    /** 这次构建耗时（毫秒），只存正数 */
+    durationMs: integer('duration_ms').notNull(),
+    /** 构建结束时刻：取「最近 N 条」按它排序 */
+    endedAt: integer('ended_at', { mode: 'timestamp_ms' }).notNull(),
+    /**
+     * 来源构建记录 id。老库升级时从 build_runs 搬过来，靠它的唯一约束保证重复迁移不翻倍；
+     * 运行期写入就是那一次的 run id。
+     */
+    sourceRunId: text('source_run_id').notNull().unique(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(nowMs)
+  },
+  (table) => [index('variant_stats_lookup_idx').on(table.projectId, table.variant, table.endedAt)]
+)
+
 export type ProjectRow = typeof projects.$inferSelect
 export type ProjectVariantRow = typeof projectVariants.$inferSelect
 export type QueueItemRow = typeof queueItems.$inferSelect
 export type BuildRunRow = typeof buildRuns.$inferSelect
+export type VariantStatRow = typeof variantStats.$inferSelect

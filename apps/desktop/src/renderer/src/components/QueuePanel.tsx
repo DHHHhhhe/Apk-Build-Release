@@ -548,7 +548,7 @@ export function QueuePanel({
             <Button
               variant="ghost"
               disabled={finished.length === 0}
-              title={`清空 ${finished.length} 条已结束的队列记录（同时删除它们对应的构建记录，产物文件不删）`}
+              title={`清空 ${finished.length} 条已结束的队列记录（同时删除它们对应的构建记录，产物文件不删；变体耗时统计会保留，进度条的预估不受影响）`}
               onClick={() => {
                 onRequestClear('finished')
               }}
@@ -559,7 +559,7 @@ export function QueuePanel({
             <Button
               variant="ghost"
               disabled={items.length === 0}
-              title={`清空全部 ${items.length} 条队列记录（同时删除对应的构建记录，产物文件不删）`}
+              title={`清空全部 ${items.length} 条队列记录（同时删除对应的构建记录，产物文件不删；变体耗时统计会保留，进度条的预估不受影响）`}
               onClick={() => {
                 onRequestClear('all')
               }}

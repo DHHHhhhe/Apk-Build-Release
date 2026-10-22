@@ -1,6 +1,7 @@
-import { and, desc, eq, inArray, isNotNull } from 'drizzle-orm'
-import { db } from '../../../db/client'
-import { buildRuns, queueItems } from '../../../db/schema'
+import { randomUUID } from 'node:crypto'
+import { desc, inArray } from 'drizzle-orm'
+import { db, sqlite, VARIANT_STATS_KEEP } from '../../../db/client'
+import { variantStats } from '../../../db/schema'
 import { logger as baseLogger } from '../../logger'
 
 const logger = baseLogger.scope('queue:estimate')
@@ -79,10 +80,13 @@ export function estimateFromDurations(durations: readonly number[]): VariantEsti
 /**
  * 查这些项目里每个变体的历史耗时估值。
  *
- * 只统计**成功**的构建：失败与取消的 run 大多提前退出，样本里混进它们会把预估拉低，
+ * 数据来自 `variant_stats`，**不是** `build_runs`：后者是队列项的子表，用户一「清空队列记录」
+ * 就级联删光，预估依据也跟着没了 —— 那样勤清记录的人永远看不到进度条。
+ *
+ * 只统计**成功**构建：失败与取消的 run 大多提前退出，样本里混进它们会把预估拉低，
  * 进度条就会提前跑满，反而比没有进度条更误导人。
  *
- * 一次 `innerJoin` 批量取，不在调用方循环里查：队列列表一次要算几十个项目。
+ * 一次 `inArray` 批量取，不在调用方循环里查：队列列表一次要算几十个项目。
  * 查询失败只记一条 warn 并返回空表 —— 少一条进度条不该影响队列本身能不能看。
  */
 export function loadVariantEstimates(projectIds: readonly string[]): VariantEstimates {
@@ -95,42 +99,31 @@ export function loadVariantEstimates(projectIds: readonly string[]): VariantEsti
   try {
     const rows = db
       .select({
-        projectId: queueItems.projectId,
-        variant: buildRuns.variant,
-        startedAt: buildRuns.startedAt,
-        finishedAt: buildRuns.finishedAt
+        projectId: variantStats.projectId,
+        variant: variantStats.variant,
+        durationMs: variantStats.durationMs,
+        endedAt: variantStats.endedAt
       })
-      .from(buildRuns)
-      .innerJoin(queueItems, eq(buildRuns.queueItemId, queueItems.id))
-      .where(
-        and(
-          inArray(queueItems.projectId, unique),
-          eq(buildRuns.state, 'success'),
-          isNotNull(buildRuns.finishedAt)
-        )
-      )
+      .from(variantStats)
+      .where(inArray(variantStats.projectId, unique))
       // 新的在前：每个变体分组里直接取前 ESTIMATE_SAMPLE_LIMIT 条就是「最近 N 次」
-      .orderBy(desc(buildRuns.finishedAt))
+      .orderBy(desc(variantStats.endedAt))
       .limit(SCAN_ROW_LIMIT)
       .all()
 
     const durations = new Map<string, number[]>()
     for (const row of rows) {
-      if (row.finishedAt === null) {
-        continue
-      }
-      // 正数判断要放在「占名额」之前：脏耗时（时钟回拨、同一毫秒开始并结束）不该算进
-      // 「最近 10 次」的名额里，否则它们把有效样本提前挤掉，中位数只剩七八条在算。
-      const duration = row.finishedAt.getTime() - row.startedAt.getTime()
-      if (duration <= 0) {
+      // 正数判断要放在「占名额」之前：脏耗时不该算进「最近 10 次」的名额里，
+      // 否则它们把有效样本提前挤掉，中位数只剩七八条在算。
+      if (row.durationMs <= 0) {
         continue
       }
       const key = estimateKey(row.projectId, row.variant)
       const bucket = durations.get(key)
       if (bucket === undefined) {
-        durations.set(key, [duration])
+        durations.set(key, [row.durationMs])
       } else if (bucket.length < ESTIMATE_SAMPLE_LIMIT) {
-        bucket.push(duration)
+        bucket.push(row.durationMs)
       }
     }
 
@@ -147,4 +140,58 @@ export function loadVariantEstimates(projectIds: readonly string[]): VariantEsti
   }
 
   return estimates
+}
+
+/**
+ * 记一次成功构建的耗时。
+ *
+ * 独立的统计表：清空队列记录不会影响它（这正是它存在的理由）。
+ * 任何写入错误只记 warn —— 统计失败不该让一个已经成功的构建报错。
+ */
+export function recordVariantDuration(input: {
+  projectId: string
+  variant: string
+  durationMs: number
+  endedAt: Date
+  /** 来源构建记录 id：同一次构建重复写入时靠它去重 */
+  sourceRunId: string
+}): void {
+  // 同一毫秒开始并结束、时钟回拨：算不出耗时，记进去只会把中位数拉到接近 0
+  if (!Number.isFinite(input.durationMs) || input.durationMs <= 0) {
+    return
+  }
+
+  try {
+    db.insert(variantStats)
+      .values({
+        id: randomUUID(),
+        projectId: input.projectId,
+        variant: input.variant,
+        durationMs: Math.round(input.durationMs),
+        endedAt: input.endedAt,
+        sourceRunId: input.sourceRunId
+      })
+      .onConflictDoNothing()
+      .run()
+    pruneOlderSamples(input.projectId, input.variant)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '未知错误'
+    logger.warn('记录变体耗时失败', { variant: input.variant, error: message })
+  }
+}
+
+/** 只裁这一个变体的旧样本：每次构建都做全表裁剪太贵，而新样本必然落在它自己的分组里 */
+function pruneOlderSamples(projectId: string, variant: string): void {
+  sqlite
+    .prepare(
+      `DELETE FROM variant_stats
+        WHERE project_id = ? AND variant = ?
+          AND id NOT IN (
+            SELECT id FROM variant_stats
+             WHERE project_id = ? AND variant = ?
+             ORDER BY ended_at DESC
+             LIMIT ?
+          )`
+    )
+    .run(projectId, variant, projectId, variant, VARIANT_STATS_KEEP)
 }

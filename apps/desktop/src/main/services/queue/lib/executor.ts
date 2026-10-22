@@ -25,6 +25,7 @@ import { parseProjectStatics } from '../../project/lib/parse-gradle'
 import { notifyBuildFinished } from '../../notify'
 import { isCancelRequested, registerRunning, releaseRunning, setRunningPid } from './cancel'
 import { findItemRow, listRunsForItem, parseVariants, toQueueItemDto, updateItem } from './items'
+import { recordVariantDuration } from './estimate'
 
 const logger = baseLogger.scope('queue:executor')
 
@@ -218,6 +219,18 @@ export async function executeQueueItem(itemId: string): Promise<QueueItemState> 
         stagePoints: JSON.stringify(parser.snapshot().stages),
         finishedAt: new Date()
       })
+      // 成功才算样本：失败/取消大多提前退出，混进统计会把预估拉低。
+      // 写进独立的 variant_stats，而不是等界面去翻 build_runs —— 用户清空队列记录
+      // 会把 build_runs 一起删掉，那之后进度条就再也算不出预估了。
+      if (succeeded && updated !== null && updated.finishedAt !== null) {
+        recordVariantDuration({
+          projectId: project.id,
+          variant,
+          durationMs: updated.finishedAt.getTime() - updated.startedAt.getTime(),
+          endedAt: updated.finishedAt,
+          sourceRunId: runRow.id
+        })
+      }
       // 跑完也要广播：队列项那行要显示这个变体的最终状态与耗时
       broadcastItem(itemId)
 

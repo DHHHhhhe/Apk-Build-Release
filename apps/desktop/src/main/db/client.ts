@@ -93,6 +93,18 @@ export function ensureSchema(): void {
       value TEXT NOT NULL,
       updated_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
     );
+
+    CREATE TABLE IF NOT EXISTS variant_stats (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      variant TEXT NOT NULL,
+      duration_ms INTEGER NOT NULL,
+      ended_at INTEGER NOT NULL,
+      source_run_id TEXT NOT NULL UNIQUE,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+    );
+    CREATE INDEX IF NOT EXISTS variant_stats_lookup_idx
+      ON variant_stats (project_id, variant, ended_at);
   `)
 
   // 幂等补列：CREATE TABLE IF NOT EXISTS 不会给已存在的表加新字段
@@ -108,7 +120,63 @@ export function ensureSchema(): void {
   // 「最近一批」要按批次汇总，老库补上这一列后，老数据为 NULL 走回退分支
   ensureColumn('queue_items', 'batch_id', 'TEXT')
 
+  backfillVariantStats()
+
   logger.info('数据库就绪', { path: dbPath })
+}
+
+/** 每个 (项目, 变体) 最多保留多少条耗时样本：够算中位数并留出余量，又不让表无限长 */
+export const VARIANT_STATS_KEEP = 20
+
+/**
+ * 老库升级：把已有的成功构建耗时搬进 variant_stats。
+ *
+ * 只在表为空时跑一次 —— 运行期每次成功构建都会往这张表写，所以非空就说明搬过了。
+ * 用户「清空队列记录」只清空 build_runs、这张表仍有数据，因此不会误判成没搬过。
+ * 即便判断失误，source_run_id 上的唯一约束也能保证不会翻倍。
+ */
+function backfillVariantStats(): void {
+  const existing = sqlite.prepare('SELECT COUNT(*) AS n FROM variant_stats').get() as { n: number }
+  if (existing.n > 0) {
+    return
+  }
+
+  const result = sqlite
+    .prepare(
+      `INSERT OR IGNORE INTO variant_stats
+         (id, project_id, variant, duration_ms, ended_at, source_run_id, created_at)
+       SELECT r.id, q.project_id, r.variant, (r.finished_at - r.started_at), r.finished_at, r.id,
+              (unixepoch() * 1000)
+         FROM build_runs r
+         JOIN queue_items q ON q.id = r.queue_item_id
+        WHERE r.state = 'success'
+          AND r.finished_at IS NOT NULL
+          AND (r.finished_at - r.started_at) > 0`
+    )
+    .run()
+
+  if (result.changes === 0) {
+    return
+  }
+  pruneVariantStats()
+  logger.info('已把历史构建耗时搬进变体统计', { rows: result.changes })
+}
+
+/** 裁到每变体最近 VARIANT_STATS_KEEP 条（窗口函数要 SQLite 3.25+，better-sqlite3 自带） */
+function pruneVariantStats(): void {
+  sqlite
+    .prepare(
+      `DELETE FROM variant_stats
+        WHERE id IN (
+          SELECT id FROM (
+            SELECT id,
+                   ROW_NUMBER() OVER (PARTITION BY project_id, variant ORDER BY ended_at DESC) AS rn
+              FROM variant_stats
+          )
+          WHERE rn > ?
+        )`
+    )
+    .run(VARIANT_STATS_KEEP)
 }
 
 function ensureColumn(table: string, column: string, definition: string): void {
