@@ -345,13 +345,16 @@ export default function App(): React.JSX.Element {
     >
       <header className="app-topbar">
         {/*
-         * 顶栏左侧：一个实心「添加项目」+ 项目数。
-         * 不套容器、不做分段控件 —— 之前那条「按钮 │ 计数」的胶囊把两样东西包在一起，
-         * 宽度被拉长、里面又挤，反而更乱。实心按钮自己就有重量，不需要外框帮忙。
-         * 顶栏也不放 logo 与应用名：任务栏、Alt+Tab、系统标题栏里都有。
+         * 顶栏左侧：中等重量的「添加项目」+ 项目数。
+         *
+         * 顶栏只允许**一个实心**，给当前上下文的主动作 —— 也就是右侧的「构建勾选项」。
+         * 添加项目是低频动作，用浅底 + 强边框这种中间重量：看得见、但不会盖过构建。
+         * 也不套胶囊容器（试过：「按钮 │ 计数」包成一条长条，又宽又挤）。
+         * 顶栏不放 logo 与应用名：任务栏、Alt+Tab、系统标题栏里都有。
          */}
         <Button
-          variant="default"
+          variant="outline"
+          className="app-topbar__add"
           disabled={busyKind === 'add'}
           onClick={handleAdd}
           title="选择一个 Android 项目目录加进来"
@@ -368,7 +371,7 @@ export default function App(): React.JSX.Element {
         ) : null}
         {projects.length > 0 ? (
           <Button
-            variant="outline"
+            variant="default"
             disabled={crossBlocked !== null}
             title={crossBlocked ?? '把勾选的变体加入队列并构建'}
             onClick={buildCheckedProjects}
@@ -386,7 +389,7 @@ export default function App(): React.JSX.Element {
          */}
         {selectedProject ? (
           <Button
-            variant="default"
+            variant="outline"
             className="app-topbar__build-current"
             disabled={enqueueBlocked !== null}
             title={

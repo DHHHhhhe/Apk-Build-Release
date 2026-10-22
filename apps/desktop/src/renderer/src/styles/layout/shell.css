@@ -33,6 +33,22 @@ body {
   min-width: 0;
 }
 
+/*
+ * 「添加项目」是顶栏里唯一的中间重量控件：浅底 + 强一档的边框。
+ * 顶栏只允许一个实心（右侧的「构建勾选项」），所以这里刻意不用主色。
+ * 二层选择器压过 .btn-outline —— 同权重下谁生效取决于 CSS 加载顺序，不赌那个。
+ */
+.app-topbar .app-topbar__add {
+  background: var(--secondary);
+  border-color: var(--input);
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.app-topbar .app-topbar__add:hover:not(:disabled) {
+  background: var(--muted);
+}
+
 /* 项目数：顶栏里唯一的主信息，给正文色与 600 字重 */
 .app-topbar__status {
   font-size: 13px;
