@@ -224,8 +224,12 @@ export function BuildPicker({
            *
            * 只有一个变体时，「全选本项目（1 个变体）」与「清空」跟那个勾选框完全等价（伪操作），
            * 折叠也没有意义（只有一行）。
-           * 异常形态一律不压缩 —— 无变体、预检缺项、打包回退、已折叠、正在解析，
+           * 异常形态一律不压缩 —— 无变体、预检缺项、打包回退、已折叠，
            * 它们多出来的那一行本身就是提示，压掉就丢信息了。
+           *
+           * 注意：**不要**把「这个项目正在写库」也算进来。勾选一下就会置忙，
+           * 那会让卡片在 41px 与展开态之间来回跳一次 —— 用户看到的就是「画面闪动」。
+           * 忙只用来禁用勾选框（见 renderRow 的 disabled）。
            */
           const onlyVariant = visible.length === 1 ? visible[0] : undefined
           const compactSingle =
@@ -233,8 +237,7 @@ export function BuildPicker({
             flavorGroups.length <= 1 &&
             issues.length === 0 &&
             !fallback &&
-            !isCollapsed &&
-            !projectBusy
+            !isCollapsed
 
           if (compactSingle && onlyVariant !== undefined) {
             const onlyOccupied = occupied.has(onlyVariant.name)

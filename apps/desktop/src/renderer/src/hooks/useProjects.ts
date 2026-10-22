@@ -165,6 +165,17 @@ export function useProjects(): UseProjectsResult {
 
   const setVariants = useCallback(
     async (projectId: string, variants: string[]): Promise<void> => {
+      /*
+       * 乐观更新：勾选框立刻翻转，不等写库往返。
+       * 以前只有写回后才 refresh，于是每次勾选都要等一次往返才变色 —— 手快的时候
+       * 看起来像「点了没反应，然后又闪一下」。
+       * 失败时 finally 之后仍会 refresh，用主进程的真值把界面纠正回来。
+       */
+      setProjects((previous) =>
+        previous.map((project) =>
+          project.id === projectId ? { ...project, selectedVariants: variants } : project
+        )
+      )
       setBusyProjectId(projectId)
       setBusyKind('variants')
       setPendingWrites((count) => count + 1)
