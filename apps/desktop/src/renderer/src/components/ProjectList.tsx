@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { FolderPlus, GripVertical, Trash2 } from 'lucide-react'
+import { GripVertical, Trash2 } from 'lucide-react'
 import { indexForPointer, moveItemTo } from '../lib/reorder'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
@@ -63,7 +63,6 @@ export function ProjectList({
   busyKind,
   queuedProjectIds,
   onSelect,
-  onAdd,
   onRemove,
   onReorder
 }: {
@@ -74,7 +73,6 @@ export function ProjectList({
   /** 队列里还没结束的项目：这些项目不允许移除（正在跑或即将跑） */
   queuedProjectIds: string[]
   onSelect: (projectId: string) => void
-  onAdd: () => void
   onRemove: (projectId: string) => void
   /** 手工排序：给出完整的新顺序（当前全部项目 id） */
   onReorder: (projectIds: string[]) => void
@@ -375,16 +373,8 @@ export function ProjectList({
 
   return (
     <div className="project-list">
-      <div className="project-list__head">
-        <span className="project-list__title">项目</span>
-        <Button variant="ghost" className="project-list__add" onClick={onAdd}>
-          <FolderPlus size={14} aria-hidden="true" />
-          添加
-        </Button>
-      </div>
-
       {projects.length === 0 ? (
-        <p className="project-list__empty">还没有项目，点右上角「添加」选择项目目录</p>
+        <p className="project-list__empty">还没有项目，点顶栏左上的「添加项目」选择项目目录</p>
       ) : (
         <ul className="project-list__items" ref={listRef}>
           {ordered.map((project, index) => {

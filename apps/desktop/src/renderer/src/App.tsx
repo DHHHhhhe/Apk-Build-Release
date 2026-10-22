@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from './components/ui/button'
-import { Settings } from 'lucide-react'
+import { FolderPlus, Settings } from 'lucide-react'
 import { BuildPanel } from './components/BuildPanel'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { EnvCard } from './components/EnvCard'
@@ -346,8 +346,18 @@ export default function App(): React.JSX.Element {
       <header className="app-topbar">
         {/*
          * 顶栏不放 logo 也不放应用名：任务栏、Alt+Tab、系统标题栏里都有，顶栏重复一遍没有信息量。
-         * 左侧直接从状态开始 —— 它才是这个应用里会变、值得看的东西。
+         * 左侧直接从「添加项目」和状态开始 —— 侧栏原来的「项目 + 添加」那一行因此可以整行去掉，
+         * 列表能往上提 8px，且「添加」变成了全局动作、不用先找侧栏。
          */}
+        <Button
+          variant="outline"
+          disabled={busyKind === 'add'}
+          onClick={handleAdd}
+          title="选择一个 Android 项目目录加进来"
+        >
+          <FolderPlus size={14} aria-hidden="true" />
+          {busyKind === 'add' ? '添加中…' : '添加项目'}
+        </Button>
         <span className="app-topbar__status">
           {loading ? '读取项目…' : `${projects.length} 个项目`}
           {selectedProject && buildableVariants.length > 0
@@ -434,7 +444,6 @@ export default function App(): React.JSX.Element {
             busyKind={busyKind}
             queuedProjectIds={Array.from(queuedProjectIds)}
             onSelect={setSelectedProjectId}
-            onAdd={handleAdd}
             onRemove={setPendingRemove}
             onReorder={(ids) => {
               // 先乐观更新本地顺序，再发请求。
