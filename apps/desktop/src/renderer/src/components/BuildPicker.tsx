@@ -12,6 +12,7 @@ import { resolveOutputFolderName } from '@shared/lib/output-folder'
 import type { Project, ProjectVariant } from '@shared/types/project'
 import { EMPTY_VARIANTS } from '../lib/build-guard'
 import { variantBadgeVisibility } from '../lib/variant-badges'
+import { pickerCountText } from '../lib/queue-row'
 
 interface BuildPickerProps {
   projects: Project[]
@@ -117,6 +118,17 @@ export function BuildPicker({
     onSetVariants(project.id, Array.from(merged))
   }
 
+  /** 勾/取消一个变体：单变体卡与多变体行共用同一份写入口 */
+  const toggleVariantOf = (project: Project, name: string): void => {
+    const next = new Set(project.selectedVariants)
+    if (next.has(name)) {
+      next.delete(name)
+    } else {
+      next.add(name)
+    }
+    onSetVariants(project.id, Array.from(next))
+  }
+
   const selectAll = (): void => {
     for (const project of projects) {
       selectAllOf(project)
@@ -173,9 +185,9 @@ export function BuildPicker({
           className="build-picker__count tabular"
           role="status"
           aria-live="polite"
-          title="已选包含不在列表里的历史勾选，所以可能大于可构建数"
+          title="已选包含不在列表里的历史勾选，所以可能与待入队数不同"
         >
-          已选 {selectedCount} / 可构建 {buildableVariantCount}
+          {pickerCountText(selectedCount, buildableVariantCount)}
         </span>
         <Button
           variant="ghost"
@@ -207,6 +219,74 @@ export function BuildPicker({
           const folderClash = folderNames.duplicated.has(folderName)
           const issues = preflightIssues[project.id] ?? []
 
+          /*
+           * 单变体项目压成一行。
+           *
+           * 只有一个变体时，「全选本项目（1 个变体）」与「清空」跟那个勾选框完全等价（伪操作），
+           * 折叠也没有意义（只有一行）。
+           * 异常形态一律不压缩 —— 无变体、预检缺项、打包回退、已折叠、正在解析，
+           * 它们多出来的那一行本身就是提示，压掉就丢信息了。
+           */
+          const onlyVariant = visible.length === 1 ? visible[0] : undefined
+          const compactSingle =
+            onlyVariant !== undefined &&
+            flavorGroups.length <= 1 &&
+            issues.length === 0 &&
+            !fallback &&
+            !isCollapsed &&
+            !projectBusy
+
+          if (compactSingle && onlyVariant !== undefined) {
+            const onlyOccupied = occupied.has(onlyVariant.name)
+            return (
+              <li
+                key={project.id}
+                className="summary__group build-picker__group build-picker__group--single"
+              >
+                <label className="build-picker__label build-picker__label--single">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(onlyVariant.name)}
+                    disabled={onlyOccupied}
+                    onChange={() => {
+                      toggleVariantOf(project, onlyVariant.name)
+                    }}
+                  />
+                  <span className="summary__group-name">{project.name}</span>
+                  <span className="build-picker__variant tabular" title={onlyVariant.name}>
+                    {onlyVariant.name}
+                  </span>
+                  <Badge
+                    variant={folderClash ? 'warning' : 'muted'}
+                    title={
+                      folderClash
+                        ? `有多个项目都用「${folderName}」这个归档名，产物会混在同一个目录里`
+                        : outputRoot
+                          ? `产物会归档到 ${outputRoot}\\${folderName}`
+                          : `产物会归档到「${folderName}」文件夹`
+                    }
+                  >
+                    {folderClash ? `归档名冲突：${folderName}` : `归档：${folderName}`}
+                  </Badge>
+                  {onlyOccupied ? (
+                    <Badge variant="info" title="这个变体已经在队列里，等它跑完才能再入队">
+                      队列中
+                    </Badge>
+                  ) : null}
+                  {!isReleaseBuildType(onlyVariant.buildType) ? (
+                    <Badge variant="warning" title="非 release 变体通常用调试密钥签名，不能上架">
+                      不能上架
+                    </Badge>
+                  ) : null}
+                  {/* 路径只在这一行里露出来：它区分同名项目，但不该占掉一整行 */}
+                  <span className="build-picker__single-path tabular" title={project.path}>
+                    {project.path}
+                  </span>
+                </label>
+              </li>
+            )
+          }
+
           /** 一行变体：分组与不分组两种排布共用 */
           const renderRow = (variant: ProjectVariant): React.JSX.Element => {
             // 已在队列里的变体禁用：勾上再入队会被主进程剔掉，看着像按了没反应
@@ -219,13 +299,7 @@ export function BuildPicker({
                     checked={selected.has(variant.name)}
                     disabled={projectBusy || isOccupied}
                     onChange={() => {
-                      const next = new Set(project.selectedVariants)
-                      if (next.has(variant.name)) {
-                        next.delete(variant.name)
-                      } else {
-                        next.add(variant.name)
-                      }
-                      onSetVariants(project.id, Array.from(next))
+                      toggleVariantOf(project, variant.name)
                     }}
                   />
                   <span className="build-picker__variant tabular" title={variant.name}>
@@ -403,7 +477,8 @@ export function BuildPicker({
       </ul>
 
       <div className="build-picker__foot">
-        <Button variant="outline" disabled={blockedReason !== null} onClick={onBuild}>
+        {/* 降为 ghost：顶栏那个才是主按钮，这里只是长列表滚到底时的顺手入口 */}
+        <Button variant="ghost" disabled={blockedReason !== null} onClick={onBuild}>
           构建勾选项（{buildableVariantCount}）
         </Button>
         {blockedReason ? (

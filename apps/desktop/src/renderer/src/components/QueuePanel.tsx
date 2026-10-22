@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
-import { X, RotateCcw, Trash2, FileText, FolderOpen } from 'lucide-react'
+import { X, RotateCcw, Trash2, FileText, FolderOpen, ChevronDown } from 'lucide-react'
 import { QUEUE_CONCURRENCY, QUEUE_LIST_LIMIT } from '@shared/constants/queue'
 import type { BuildProgress } from '@shared/types/build'
 import type { QueueItem, QueueItemState, QueueRunDetail } from '@shared/types/queue'
@@ -12,6 +12,7 @@ import { computeBatchProgress } from '../lib/queue-progress'
 import { groupAttempts, type AttemptGroupSummary } from '../lib/queue-attempts'
 import { formatDateTime, formatDurationMs } from '../lib/duration'
 import { variantProgressPercent } from '../lib/variant-progress'
+import { isSingleVariantItem, variantTimingText } from '../lib/queue-row'
 import { dirnameOf } from '../lib/path-display'
 import { openPathOrToast } from '../lib/open-path'
 import { buildStateBadgeClass } from '../lib/state-badge'
@@ -43,26 +44,7 @@ function concurrencyOptions(): Array<{ value: number; label: string }> {
   return options
 }
 
-/** 每个变体自己的构建耗时：跑着的用 startedAt 现算，跑完用落库的 durationMs */
-function runDurationText(run: QueueRunDetail, now: number, showEstimate: boolean): string {
-  if (run.state === 'running' && run.startedAt !== null) {
-    // 用「构建」而不是「已用」：这一行左边还有一项级总耗时，两个都叫「已用」会分不清是哪个
-    const elapsed = Math.max(0, now - run.startedAt)
-    const text = `构建 ${formatDurationMs(elapsed)}`
-    if (!showEstimate || run.estimatedMs === null) {
-      return text
-    }
-    // 超出预估后如实说出来，而不是让读数停在 100% 却假装一切正常
-    return elapsed > run.estimatedMs
-      ? `${text} / 已超出预计 ${formatDurationMs(run.estimatedMs)}`
-      : `${text} / 预计 ${formatDurationMs(run.estimatedMs)}`
-  }
-  if (run.durationMs !== null) {
-    return `耗时 ${formatDurationMs(run.durationMs)}`
-  }
-  return '未开始'
-}
-
+/** 每个变体自己的耗时文案统一走 lib/queue-row（那里可单测，规则也更复杂） */
 /**
  * 这一项从入队到现在（或到结束）的总耗时。
  *
@@ -139,6 +121,35 @@ export function QueuePanel({
   /** 更早批次的展开状态：默认收起，看一眼历史再展开 */
   const [showOlder, setShowOlder] = useState(false)
 
+  /** 「清空…」小菜单：两个破坏性动作收进去，头部就少两个常驻按钮 */
+  const [clearMenuOpen, setClearMenuOpen] = useState(false)
+  const clearMenuRef = useRef<HTMLSpanElement>(null)
+  const clearMenuFirstItemRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!clearMenuOpen) {
+      return
+    }
+    // 打开后焦点进第一项：键盘用户不必再 Tab 一次
+    clearMenuFirstItemRef.current?.focus()
+    const handlePointerDown = (event: PointerEvent): void => {
+      if (clearMenuRef.current !== null && !clearMenuRef.current.contains(event.target as Node)) {
+        setClearMenuOpen(false)
+      }
+    }
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') {
+        setClearMenuOpen(false)
+      }
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [clearMenuOpen])
+
   /** 同一项目更早几次尝试的展开状态：同样默认收起 */
   const [showSuperseded, setShowSuperseded] = useState(false)
 
@@ -181,7 +192,6 @@ export function QueuePanel({
   const batchProgress = computeBatchProgress(items)
   const totalVariants = batchProgress.total
   const doneVariants = batchProgress.done
-  const runningVariants = batchProgress.running
   const percent =
     totalVariants === 0 ? 0 : Math.min(100, Math.round((doneVariants / totalVariants) * 100))
 
@@ -218,13 +228,62 @@ export function QueuePanel({
     const failedRuns = item.runs.filter((run) => run.state === 'failed')
     const artifactPath = firstArtifactPath(item)
 
+    /*
+     * 单变体项只渲染一行：项目名、变体名、状态、阶段、时间、动作全在这一行，
+     * 进度条在下面单独一条。以前它是「项行 + 变体行」两行，8 个项目各一个变体时，
+     * 一半的垂直空间在说同一件事。
+     *
+     * 判定看 item.variants（入队时冻结的声明列表），不看 runs —— 还没开跑的项 runs 是空的。
+     */
+    const single = isSingleVariantItem(item)
+    const singleVariantName = item.variants[0] ?? ''
+    const singleRun = single ? (item.runs[0] ?? null) : null
+    const singleProgress = singleRun && singleRun.state === 'running' ? progress[singleRun.id] : undefined
+    const singleStage = singleProgress ? progressHeadline(singleProgress) : null
+    const singleCount = singleProgress ? progressCountText(singleProgress) : null
+    const singlePercent = singleRun ? variantProgressPercent(singleRun, now, showVariantProgress) : null
+
+    /**
+     * 变体行的时间文案：`等待 x · 构建 y · 预计 z` / `耗时 z` / `未开始`。
+     * 「等待」的取值是「从入队到这个变体开始」，包含前面变体的构建时间 —— 所以不叫「排队」。
+     */
+    const timingOf = (run: QueueRunDetail): string =>
+      variantTimingText({
+        state: run.state,
+        startedAt: run.startedAt,
+        durationMs: run.durationMs,
+        estimatedMs: run.estimatedMs,
+        waitMs: run.startedAt === null ? null : Math.max(0, run.startedAt - item.enqueuedAt),
+        showEstimate: showVariantProgress,
+        now
+      })
+
     return (
-      <li key={item.id} className="queue-list__item">
+      <li key={item.id} className={single ? 'queue-list__item queue-list__item--single' : 'queue-list__item'}>
         <div className="queue-list__row">
           <span className="queue-list__project">{item.projectName}</span>
+          {/* 单变体项把变体名提到这一行：它就是这一项的全部内容 */}
+          {single ? (
+            <span className="run-detail__variant tabular" title={singleVariantName}>
+              {singleVariantName}
+            </span>
+          ) : null}
           <span className={buildStateBadgeClass(item.state)}>
             {isCanceling ? '取消中…' : STATE_LABEL[item.state]}
           </span>
+          {/* 单变体项的阶段也提到这一行，与多变体项的子行同一套措辞 */}
+          {single && singleStage ? (
+            <span
+              className="run-detail__stage"
+              title={singleProgress?.task ?? undefined}
+              aria-label={'当前阶段：' + singleStage}
+            >
+              {singleStage}
+              {singleCount !== null ? (
+                <span className="run-detail__stage-count tabular"> · {singleCount}</span>
+              ) : null}
+            </span>
+          ) : null}
           {item.attempt > 1 ? (
             <Badge
               variant="muted"
@@ -239,9 +298,13 @@ export function QueuePanel({
             </Badge>
           ) : null}
           <span className="queue-list__duration tabular">
-            {item.state === 'running'
-              ? `已用 ${formatItemDuration(item, now)}`
-              : formatItemDuration(item, now)}
+            {single
+              ? singleRun
+                ? timingOf(singleRun)
+                : '待开始'
+              : item.state === 'running'
+                ? `已用 ${formatItemDuration(item, now)}`
+                : formatItemDuration(item, now)}
           </span>
 
           {item.state === 'running' || item.state === 'pending' ? (
@@ -326,7 +389,23 @@ export function QueuePanel({
           )}
         </div>
 
-        {item.runs.length > 0 ? (
+        {/* 单变体项的进度条：与多变体子行里那条同一套语义（耗时比例，不是 Gradle 进度） */}
+        {single && singlePercent !== null ? (
+          <div
+            className="run-detail__progress"
+            role="progressbar"
+            aria-label={singleVariantName + ' 构建进度'}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={singlePercent}
+            title="按该变体最近几次成功构建的耗时中位数估算，不是 Gradle 的真实进度"
+          >
+            <div className="run-detail__progress-fill" style={{ width: singlePercent + '%' }} />
+          </div>
+        ) : null}
+
+        {/* 只有多变体项才展开子行；未开跑的项也走子行，不再用「待构建：a、b」这种整句 */}
+        {single ? null : item.runs.length > 0 || notStarted.length > 0 ? (
           <ul className="run-detail">
             {item.runs.slice(0, RUN_DETAIL_LIMIT).map((run) => {
               const runProgress = run.state === 'running' ? progress[run.id] : undefined
@@ -351,13 +430,8 @@ export function QueuePanel({
                         {count !== null ? <span className="run-detail__stage-count tabular"> · {count}</span> : null}
                       </span>
                     ) : null}
-                    {/* 三段计时分开给：这一项的总耗时在最上面那行，这里是这个变体的排队与构建 */}
-                    <span className="run-detail__time tabular">
-                      {run.startedAt !== null
-                        ? `排队 ${formatDurationMs(Math.max(0, run.startedAt - item.enqueuedAt))} · `
-                        : ''}
-                      {runDurationText(run, now, showVariantProgress)}
-                    </span>
+                    {/* 这一项的总耗时在最上面那行；这里是这个变体的等待与构建 */}
+                    <span className="run-detail__time tabular">{timingOf(run)}</span>
                   </div>
                   {/*
                    * 进度条按「已用 ÷ 该变体历史成功耗时的中位数」画，是耗时比例而非 Gradle 进度，
@@ -386,14 +460,12 @@ export function QueuePanel({
                     {variant}
                   </span>
                   <Badge variant="muted">未开始</Badge>
-                  <span className="run-detail__time tabular">—</span>
+                  <span className="run-detail__time tabular">未开始</span>
                 </div>
               </li>
             ))}
           </ul>
-        ) : (
-          <p className="queue-list__variants tabular">待构建：{item.variants.join('、')}</p>
-        )}
+        ) : null}
 
         {item.runs.length + notStarted.length > RUN_DETAIL_LIMIT ? (
           <p className="queue-list__more tabular">
@@ -485,23 +557,6 @@ export function QueuePanel({
           >
             排队 <span className="tabular">{pending.length}</span>
           </button>
-          {/*
-           * 本批用时：从这一批第一项入队算起，含排队等待 —— 不是各变体构建耗时的相加，
-           * 并发上限 >1 时两者会差很多。挂在标题行而不是进度条里，是因为跑完之后
-           * 进度条会收起，而这个数字恰恰是那时最想看的。
-           */}
-          {batchProgress.since !== null ? (
-            <span
-              className="queue-panel__elapsed tabular"
-              title={
-                '从这一批第一项入队算起，包含排队等待；不是各变体构建耗时的相加' +
-                (batchProgress.until === null ? '。还有项没跑完，数字会跟着走' : '')
-              }
-            >
-              本批{batchProgress.until === null ? '已用' : '用时'}{' '}
-              {formatDurationMs((batchProgress.until ?? now) - batchProgress.since)}
-            </span>
-          ) : null}
           {/* 并发上限是设置，不是动作：跟信息放一起，动作按钮留给右边的动作组 */}
           <label
             className="queue-panel__concurrency"
@@ -545,28 +600,55 @@ export function QueuePanel({
               <X size={14} aria-hidden="true" />
               全部取消
             </Button>
-            <Button
-              variant="ghost"
-              disabled={finished.length === 0}
-              title={`清空 ${finished.length} 条已结束的队列记录（同时删除它们对应的构建记录，产物文件不删；变体耗时统计会保留，进度条的预估不受影响）`}
-              onClick={() => {
-                onRequestClear('finished')
-              }}
-            >
-              <Trash2 size={14} aria-hidden="true" />
-              清空队列记录
-            </Button>
-            <Button
-              variant="ghost"
-              disabled={items.length === 0}
-              title={`清空全部 ${items.length} 条队列记录（同时删除对应的构建记录，产物文件不删；变体耗时统计会保留，进度条的预估不受影响）`}
-              onClick={() => {
-                onRequestClear('all')
-              }}
-            >
-              <Trash2 size={14} aria-hidden="true" />
-              清空全部
-            </Button>
+            {/*
+              两个清空动作收进一个菜单：以前它们是两个常驻的破坏性按钮，与「全部取消」并排，
+              一行挤着 4 个动作，主次也分不清。菜单项仍然走同一个确认框。
+            */}
+            <span className="queue-menu" ref={clearMenuRef}>
+              <Button
+                variant="ghost"
+                aria-haspopup="menu"
+                aria-expanded={clearMenuOpen}
+                disabled={finished.length === 0 && items.length === 0}
+                onClick={() => {
+                  setClearMenuOpen(!clearMenuOpen)
+                }}
+              >
+                <Trash2 size={14} aria-hidden="true" />
+                清空…
+                <ChevronDown size={14} aria-hidden="true" />
+              </Button>
+              {clearMenuOpen ? (
+                <div className="queue-menu__panel" role="menu" aria-label="清空队列记录">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    ref={clearMenuFirstItemRef}
+                    className="queue-menu__item"
+                    disabled={finished.length === 0}
+                    onClick={() => {
+                      setClearMenuOpen(false)
+                      onRequestClear('finished')
+                    }}
+                  >
+                    清空已结束的（{finished.length} 条）
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="queue-menu__item"
+                    disabled={items.length === 0}
+                    onClick={() => {
+                      setClearMenuOpen(false)
+                      onRequestClear('all')
+                    }}
+                  >
+                    清空全部（{items.length} 条）
+                  </button>
+                  <p className="queue-menu__hint">构建记录一并删除，产物文件与耗时统计不动</p>
+                </div>
+              ) : null}
+            </span>
           </span>
         </header>
 
@@ -579,9 +661,20 @@ export function QueuePanel({
          */}
         {totalVariants > 0 && hasActiveItems ? (
           <div className="queue-progress">
-            <p className="queue-progress__text tabular">
-              变体 {doneVariants}/{totalVariants} 完成
-              {runningVariants > 0 ? ' · 正在跑 ' + runningVariants + ' 个' : ''}
+            <p
+              className="queue-progress__text tabular"
+              title={
+                batchProgress.since === null
+                  ? undefined
+                  : '用时从这一批第一项入队算起，包含排队等待；不是各变体构建耗时的相加'
+              }
+            >
+              {doneVariants}/{totalVariants} 完成
+              {batchProgress.since !== null
+                ? ` · ${batchProgress.until === null ? '已用' : '用时'} ${formatDurationMs(
+                    (batchProgress.until ?? now) - batchProgress.since
+                  )}`
+                : ''}
             </p>
             <div
               className="queue-progress__track"

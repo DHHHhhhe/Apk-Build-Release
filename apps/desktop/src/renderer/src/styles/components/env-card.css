@@ -28,6 +28,25 @@
   margin: 0;
 }
 
+/* 标题行就是展开开关：明细默认收起，结论徽章留在这一行 */
+.env-card__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.env-card__toggle:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
 .env-card__refresh {
   margin-left: auto;
 }

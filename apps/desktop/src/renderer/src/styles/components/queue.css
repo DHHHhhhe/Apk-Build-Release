@@ -77,13 +77,6 @@
   outline-offset: 1px;
 }
 
-/* 本批用时：挨着两个计数放，弱化一档，不跟筛选按钮抢注意力 */
-.queue-panel__elapsed {
-  font-size: 12px;
-  color: var(--muted-foreground);
-  white-space: nowrap;
-}
-
 /*
  * 并发上限是设置，不是动作：它跟着标题与计数排，动作按钮单独成组靠右。
  * 以前它自己 margin-left:auto 顶到最右，与「取消 / 清空」混成一排，看不出哪个是设置。
@@ -108,6 +101,64 @@
   flex-wrap: wrap;
 }
 
+/*
+ * 「清空…」小菜单：两个破坏性动作收进这里，头部不再常驻两个清空按钮。
+ * 定位用 absolute + 右对齐，父级是 inline-flex 的锚点。
+ */
+.queue-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.queue-menu__panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 15;
+  min-width: 220px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-float);
+}
+
+.queue-menu__item {
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--foreground);
+  font-family: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.queue-menu__item:hover:not(:disabled) {
+  background: var(--muted);
+}
+
+.queue-menu__item:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+.queue-menu__item:disabled {
+  color: var(--muted-foreground);
+  cursor: default;
+}
+
+.queue-menu__hint {
+  margin: 4px 8px 2px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+
+/* 两个破坏性动作已收进菜单，头部只留筛选、并发与动作组 */
 .queue-panel__select {
   height: 32px;
   width: auto;
@@ -155,6 +206,7 @@
   gap: 8px;
 }
 
+/* 队列项：给容器查询当锚点 —— 降级要按主列宽度判断，不是窗口宽度（抽屉打开时窗口宽而主列窄） */
 .queue-list__item {
   background: var(--muted);
   border-radius: var(--radius-md);
@@ -162,6 +214,30 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  container-type: inline-size;
+}
+
+/*
+ * 单变体项：整项只有一行（项目名 · 变体名 · 状态 · 阶段 · 时间 · 动作），进度条单独一条。
+ * 以前它是「项行 + 变体行」两行，8 个项目各一个变体时一半垂直空间在说同一件事。
+ */
+.queue-list__item--single .queue-list__row {
+  gap: 8px;
+}
+
+.queue-list__item--single .queue-list__duration {
+  white-space: nowrap;
+  color: var(--muted-foreground);
+}
+
+/*
+ * 窄档降级：主列被抽屉压到 420 以下时，阶段文字让位给变体名与时间。
+ * 用容器查询而不是媒体查询 —— 抽屉打开时窗口仍然很宽，媒体查询判断不出来。
+ */
+@container (max-width: 420px) {
+  .run-detail__stage {
+    display: none;
+  }
 }
 
 .queue-list__row {
@@ -186,12 +262,6 @@
 .queue-list__duration {
   font-size: 12px;
   color: var(--muted-foreground);
-}
-
-.queue-list__variants {
-  margin: 0;
-  font-size: 12px;
-  word-break: break-all;
 }
 
 /* 每个变体一行：变体名 + 状态 + 自己的构建耗时 */

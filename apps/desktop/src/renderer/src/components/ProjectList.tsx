@@ -4,6 +4,7 @@ import { indexForPointer, moveItemTo } from '../lib/reorder'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { filterVariantsForPackaging } from '@shared/lib/variants'
+import { projectStatusBadge } from '../lib/queue-row'
 import type { Project } from '@shared/types/project'
 
 /** 长按多久算「拾起」——太短会与点击选中打架，太长会觉得拖不动 */
@@ -502,16 +503,23 @@ export function ProjectList({
                         </span>
                       ) : null}
                       <span className="project-list__meta-line">
-                        {/* 数与右侧实际能构建的变体对齐：这里以前数的是全部变体（含 debug），
-                            于是侧栏写「2 个变体」、点进去只有一个可构建的 */}
-                        <Badge variant="muted" className="tabular">
-                          {filterVariantsForPackaging(project.variants).length} 个变体
-                        </Badge>
-                        {project.selectedVariants.length > 0 ? (
-                          <Badge variant="success" className="tabular">
-                            已选 {project.selectedVariants.length}
-                          </Badge>
-                        ) : null}
+                        {/*
+                         * 一个状态徽章就够：单变体项目以前恒显示「1 个变体」+「已选 1」，
+                         * 前者永远等于 1、后者与勾选同义，加起来信息量为零。
+                         * 多变体才显示比例（已选 n/m）—— 那里比例本身是信息。
+                         */}
+                        {(() => {
+                          const status = projectStatusBadge({
+                            variantCount: filterVariantsForPackaging(project.variants).length,
+                            selectedCount: project.selectedVariants.length,
+                            inQueue
+                          })
+                          return (
+                            <Badge variant={status.tone} className="tabular">
+                              {status.label}
+                            </Badge>
+                          )
+                        })()}
                         {/* 解析受限只在**没解析出变体**时才提示：已经拿到变体了还挂着这个标签，
                             会让人以为当前这些变体是残缺的，而实际上能构建的就是这些 */}
                         {project.limitations.length > 0 &&
@@ -520,7 +528,6 @@ export function ProjectList({
                             解析受限
                           </Badge>
                         ) : null}
-                        {inQueue ? <Badge variant="info">队列中</Badge> : null}
                       </span>
                     </span>
                   </button>

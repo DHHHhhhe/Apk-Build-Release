@@ -113,6 +113,44 @@
   cursor: pointer;
 }
 
+/*
+ * 单变体项目压成一行：只有勾选框、项目名、变体名、归档别名与路径。
+ * 省掉「全选本项目（1 个变体）」「清空」两个伪操作与折叠箭头（只有一个变体，折起来没意义）。
+ * 目标高度 ≤ 56px，让一屏能看下 12 个以上项目。
+ */
+.build-picker__group--single {
+  padding-block: 10px;
+  /* 给容器查询当锚点：窄档要藏掉路径，否则会换行把卡片撑到 80px 以上 */
+  container-type: inline-size;
+}
+
+.build-picker__label--single {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+.build-picker__label--single .summary__group-name {
+  font-weight: 600;
+}
+
+@container (max-width: 520px) {
+  .build-picker__single-path {
+    display: none;
+  }
+}
+
+/* 路径只在单变体这一行露出来：它用来区分同名项目，但必须让位给名字 */
+.build-picker__single-path {
+  margin-left: auto;
+  min-width: 0;
+  max-width: 42%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+
 .build-picker__variant {
   font-weight: 500;
   overflow: hidden;

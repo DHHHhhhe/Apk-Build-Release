@@ -398,7 +398,7 @@ export default function App(): React.JSX.Element {
           >
             {projectBuilding && freshVariants.length === 0
               ? '构建中…'
-              : `构建当前项目（${freshVariants.length}）`}
+              : `构建 ${selectedProject.name}（${freshVariants.length}）`}
           </Button>
         ) : null}
       </header>

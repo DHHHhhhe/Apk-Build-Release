@@ -1,4 +1,5 @@
-import { RefreshCw } from 'lucide-react'
+import { useState } from 'react'
+import { ChevronDown, ChevronRight, RefreshCw } from 'lucide-react'
 import { Button } from './ui/button'
 import type { EnvItemState, EnvProbeItem, EnvProbeResult } from '@shared/types/env'
 import { envStateBadgeClass } from '../lib/state-badge'
@@ -44,12 +45,32 @@ export function EnvCard({
   onRefresh: () => void
 }): React.JSX.Element {
   const hasBlocking = result?.items.some((item) => item.state === 'error') ?? false
+  /**
+   * 默认收起：这三项一周都不变，却要占掉抽屉里 3 行 × 3 项的高度，
+   * 把真正要看的构建记录挤到下面。结论徽章留在标题行，一眼能看出有没有问题。
+   */
+  const [expanded, setExpanded] = useState(false)
 
   return (
     <section className="card-shell" data-drawer-section="env">
       <div className="card-core card-core--pad env-card">
         <header className="env-card__head">
-          <h3 className="env-card__title">构建环境</h3>
+          <button
+            type="button"
+            className="env-card__toggle"
+            aria-expanded={expanded}
+            aria-label={expanded ? '收起构建环境明细' : '展开构建环境明细'}
+            onClick={() => {
+              setExpanded(!expanded)
+            }}
+          >
+            {expanded ? (
+              <ChevronDown size={14} aria-hidden="true" />
+            ) : (
+              <ChevronRight size={14} aria-hidden="true" />
+            )}
+            <h3 className="env-card__title">构建环境</h3>
+          </button>
           <span className={hasBlocking ? 'badge badge--destructive' : 'badge badge--success'}>
             {hasBlocking ? '有缺失项' : '可用'}
           </span>
@@ -75,7 +96,8 @@ export function EnvCard({
           </p>
         ) : null}
 
-        {result && result.items.length > 0 ? (
+        {/* 明细默认收起；错误提示不受折叠影响，出问题必须立刻看得见 */}
+        {expanded && result && result.items.length > 0 ? (
           <ul className="env-card__list">
             {result.items.map((item) => (
               <EnvRow key={item.id} item={item} />
@@ -83,7 +105,7 @@ export function EnvCard({
           </ul>
         ) : null}
 
-        {result && result.warnings.length > 0 ? (
+        {expanded && result && result.warnings.length > 0 ? (
           <ul className="env-card__warnings" role="status" aria-live="polite">
             {result.warnings.map((warning) => (
               <li key={warning}>{warning}</li>
