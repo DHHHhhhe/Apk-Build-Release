@@ -33,12 +33,6 @@ body {
   min-width: 0;
 }
 
-.app-topbar__logo {
-  flex: 0 0 auto;
-  border-radius: 5px;
-  margin-right: -8px;
-}
-
 .app-topbar__title {
   flex: 0 0 auto;
   font-size: 14px;

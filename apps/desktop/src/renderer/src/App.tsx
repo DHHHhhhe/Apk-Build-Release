@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from './components/ui/button'
 import { Settings } from 'lucide-react'
-import logoUrl from './assets/logo.png'
 import { BuildPanel } from './components/BuildPanel'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { EnvCard } from './components/EnvCard'
@@ -345,7 +344,11 @@ export default function App(): React.JSX.Element {
       onDrop={drag.onDrop}
     >
       <header className="app-topbar">
-        <img className="app-topbar__logo" src={logoUrl} alt="" width={20} height={20} />
+        {/*
+         * 顶栏不放 logo：任务栏、Alt+Tab、系统标题栏里都已经有这个图标，
+         * 顶栏再来一个 20px 的小图标只是重复，还白占一格横向空间。
+         * 应用名文字留着 —— 它说明「这一列是哪个应用的界面」，而窗口标题栏有时会被折起或截断。
+         */}
         <span className="app-topbar__title">APK批量打包</span>
         <span className="app-topbar__status">
           {loading ? '读取项目…' : `${projects.length} 个项目`}

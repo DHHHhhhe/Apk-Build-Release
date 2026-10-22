@@ -131,6 +131,8 @@
 }
 
 .build-picker__label--single .summary__group-name {
+  /* 必须能被压缩：基类给的是 flex: 0 0 auto，不改就会顶出去把归档徽章挤出卡片 */
+  flex: 0 1 auto;
   font-weight: 600;
   min-width: 0;
   overflow: hidden;
