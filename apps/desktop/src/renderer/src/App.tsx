@@ -349,9 +349,13 @@ export default function App(): React.JSX.Element {
          * 左侧直接从「添加项目」和状态开始 —— 侧栏原来的「项目 + 添加」那一行因此可以整行去掉，
          * 列表能往上提 8px，且「添加」变成了全局动作、不用先找侧栏。
          */}
+        {/*
+         * 用实心主色按钮（不是描边/浅底）：顶栏左侧只有它一个控件，
+         * 轻样式会读成「一块装饰」，实心才有「这里能点」的重量。
+         * 右侧的「构建勾选项」保持描边 —— 那是高频动作，但顶栏里两个实心会互抢。
+         */}
         <Button
-          variant="outline"
-          className="app-topbar__add"
+          variant="default"
           disabled={busyKind === 'add'}
           onClick={handleAdd}
           title="选择一个 Android 项目目录加进来"
