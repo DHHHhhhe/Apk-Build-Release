@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Project } from '@shared/types/project'
 
 /** 正在进行的项目操作类型：界面据此显示对应按钮的「进行中」文案 */
@@ -32,6 +32,8 @@ export function useProjects(): UseProjectsResult {
   const [busyProjectId, setBusyProjectId] = useState<string | null>(null)
   const [busyKind, setBusyKind] = useState<ProjectBusyKind | null>(null)
   const [reloadToken, setReloadToken] = useState(0)
+  /** 首次读取还没完成（此后 refresh 不再退回加载态，见下面 effect 的注释） */
+  const loadingRef = useRef(true)
 
   const refresh = useCallback(() => {
     setReloadToken((token) => token + 1)
@@ -60,7 +62,16 @@ export function useProjects(): UseProjectsResult {
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
+    /*
+     * 只有**首次**读取才置 loading。
+     *
+     * refresh() 每次都会把 reloadToken 加一再走这里，而 loading 会直接换掉顶栏左上角的文案
+     * （「6 个项目」→「读取项目…」）—— 勾一下变体就会闪一下，就是这么来的。
+     * 后续刷新时列表还是旧数据、也照样能读，没必要退回加载态。
+     */
+    if (loadingRef.current) {
+      setLoading(true)
+    }
 
     void window.api.project
       .list()
@@ -82,6 +93,7 @@ export function useProjects(): UseProjectsResult {
       })
       .finally(() => {
         if (!cancelled) {
+          loadingRef.current = false
           setLoading(false)
         }
       })
