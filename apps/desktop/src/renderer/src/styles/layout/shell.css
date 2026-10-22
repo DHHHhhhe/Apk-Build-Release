@@ -33,6 +33,44 @@ body {
   min-width: 0;
 }
 
+/*
+ * 顶栏左侧的「项目工具条」：容器自己撑重量（浅底 + 细边框 + 竖分隔线），
+ * 里面的按钮与计数都不带底色。这样它有存在感，却不跟右侧的构建按钮抢主次。
+ */
+.app-topbar__project-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  /* 顶栏右侧的动作区靠这个 auto 被推到最右 */
+  margin-right: auto;
+  padding: 3px;
+  min-width: 0;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-md);
+  background: var(--secondary);
+}
+
+.app-topbar__project-group .app-topbar__status {
+  margin-right: 0;
+  padding: 0 10px 0 8px;
+}
+
+/*
+ * 里面的按钮用实心主色：工具条给了它「一块区域」的身份，
+ * 所以即使它是实心，也不会被读成「顶栏的主按钮」跟右侧构建按钮抢。
+ */
+.app-topbar__divider {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 18px;
+  background: var(--input);
+}
+
+/* 悬停给 --muted：与静态的实心主色拉开一档 */
+.app-topbar__project-group button:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
 /* 项目数：顶栏里唯一的主信息，给正文色与 600 字重 */
 .app-topbar__count {
   font-size: 13px;
@@ -49,7 +87,6 @@ body {
 .app-topbar__status {
   font-size: 12px;
   color: var(--muted-foreground);
-  margin-right: auto;
   /* 可收缩 + 省略号：状态文字再长也只挤压自己这一格 */
   min-width: 0;
   overflow: hidden;

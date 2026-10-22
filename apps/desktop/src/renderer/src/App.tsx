@@ -345,34 +345,32 @@ export default function App(): React.JSX.Element {
     >
       <header className="app-topbar">
         {/*
-         * 顶栏不放 logo 也不放应用名：任务栏、Alt+Tab、系统标题栏里都有，顶栏重复一遍没有信息量。
-         * 左侧直接从「添加项目」和状态开始 —— 侧栏原来的「项目 + 添加」那一行因此可以整行去掉，
-         * 列表能往上提 8px，且「添加」变成了全局动作、不用先找侧栏。
+         * 顶栏左侧是一条「项目工具条」：容器本身（浅底 + 细边框 + 分隔线）撑起重量，
+         * 里面的按钮不再自带底色 —— 这样它有结构性的存在感，却不会和右侧的构建按钮抢主次。
+         * 顶栏也不放 logo 与应用名：任务栏、Alt+Tab、系统标题栏里都有。
          */}
-        {/*
-         * 用实心主色按钮（不是描边/浅底）：顶栏左侧只有它一个控件，
-         * 轻样式会读成「一块装饰」，实心才有「这里能点」的重量。
-         * 右侧的「构建勾选项」保持描边 —— 那是高频动作，但顶栏里两个实心会互抢。
-         */}
-        <Button
-          variant="default"
-          disabled={busyKind === 'add'}
-          onClick={handleAdd}
-          title="选择一个 Android 项目目录加进来"
-        >
-          <FolderPlus size={14} aria-hidden="true" />
-          {busyKind === 'add' ? '添加中…' : '添加项目'}
-        </Button>
-        <span className="app-topbar__status">
-          <span className="app-topbar__count">
-            {loading ? '读取项目…' : `${projects.length} 个项目`}
-          </span>
-          {selectedProject && buildableVariants.length > 0 ? (
-            <span className="app-topbar__selected">
-              {` · 当前项目已选 ${buildableVariants.length} 个变体`}
+        <div className="app-topbar__project-group">
+          <Button
+            variant="default"
+            disabled={busyKind === 'add'}
+            onClick={handleAdd}
+            title="选择一个 Android 项目目录加进来"
+          >
+            <FolderPlus size={14} aria-hidden="true" />
+            {busyKind === 'add' ? '添加中…' : '添加项目'}
+          </Button>
+          <span className="app-topbar__divider" aria-hidden="true" />
+          <span className="app-topbar__status">
+            <span className="app-topbar__count">
+              {loading ? '读取项目…' : `${projects.length} 个项目`}
             </span>
-          ) : null}
-        </span>
+            {selectedProject && buildableVariants.length > 0 ? (
+              <span className="app-topbar__selected">
+                {` · 当前项目已选 ${buildableVariants.length} 个变体`}
+              </span>
+            ) : null}
+          </span>
+        </div>
         {/* 原因摆在按钮旁边，而不是只在 title 里：禁用时 hover 才能看到原因等于没解释 */}
         {selectedProject && enqueueBlocked ? (
           <span className="app-topbar__hint">{enqueueBlocked}</span>
