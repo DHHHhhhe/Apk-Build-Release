@@ -116,6 +116,13 @@
   align-items: baseline;
   gap: 12px;
   min-width: 0;
+  /*
+   * 窄主列（抽屉打开时约 326px）装不下「项目名 + 路径 + 归档徽章 + 快捷按钮」，
+   * 不换行就会把徽章裁掉（实测 clientWidth 183 / scrollWidth 443）。
+   * 宽档不会触发换行，视觉无变化。
+   */
+  flex-wrap: wrap;
+  row-gap: 4px;
 }
 
 .summary__group-name {
