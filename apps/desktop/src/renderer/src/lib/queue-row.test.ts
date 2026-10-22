@@ -90,7 +90,10 @@ describe('pickerCountText', () => {
 
   it('不等时把差额说出来', () => {
     expect(pickerCountText(8, 6)).toBe('已选 8 · 待入队 6')
-    expect(pickerCountText(8, 0)).toBe('已选 8 · 待入队 0')
+  })
+
+  it('一个都入不了队时不说「待入队 0」这种负向噪声', () => {
+    expect(pickerCountText(8, 0)).toBe('已选 8')
   })
 })
 
@@ -121,6 +124,13 @@ describe('projectStatusBadge', () => {
     expect(projectStatusBadge({ variantCount: 4, selectedCount: 0, inQueue: false })).toEqual({
       label: '已选 0/4',
       tone: 'muted'
+    })
+  })
+
+  it('勾选里留有已改名/删除的历史名字时夹紧，不出现「已选 5/3」', () => {
+    expect(projectStatusBadge({ variantCount: 3, selectedCount: 5, inQueue: false })).toEqual({
+      label: '已选 3/3',
+      tone: 'success'
     })
   })
 })

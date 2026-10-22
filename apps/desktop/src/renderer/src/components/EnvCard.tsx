@@ -96,7 +96,7 @@ export function EnvCard({
           </p>
         ) : null}
 
-        {/* 明细默认收起；错误提示不受折叠影响，出问题必须立刻看得见 */}
+        {/* 明细默认收起；错误与警告不受折叠影响 —— 出问题必须立刻看得见 */}
         {expanded && result && result.items.length > 0 ? (
           <ul className="env-card__list">
             {result.items.map((item) => (
@@ -105,7 +105,11 @@ export function EnvCard({
           </ul>
         ) : null}
 
-        {expanded && result && result.warnings.length > 0 ? (
+        {/*
+         * warnings 必须在折叠之外：它是「明明三项都 ok，但 sdk.dir 与 ANDROID_HOME 不一致」
+         * 这类冲突的解释，收起来就等于徽章写「可用」却把唯一的告警藏掉。
+         */}
+        {result && result.warnings.length > 0 ? (
           <ul className="env-card__warnings" role="status" aria-live="polite">
             {result.warnings.map((warning) => (
               <li key={warning}>{warning}</li>

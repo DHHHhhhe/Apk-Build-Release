@@ -12,7 +12,7 @@ import { computeBatchProgress } from '../lib/queue-progress'
 import { groupAttempts, type AttemptGroupSummary } from '../lib/queue-attempts'
 import { formatDateTime, formatDurationMs } from '../lib/duration'
 import { variantProgressPercent } from '../lib/variant-progress'
-import { isSingleVariantItem, variantTimingText } from '../lib/queue-row'
+import { isSingleVariantItem, NOT_STARTED_TEXT, variantTimingText } from '../lib/queue-row'
 import { dirnameOf } from '../lib/path-display'
 import { openPathOrToast } from '../lib/open-path'
 import { buildStateBadgeClass } from '../lib/state-badge'
@@ -124,14 +124,22 @@ export function QueuePanel({
   /** 「清空…」小菜单：两个破坏性动作收进去，头部就少两个常驻按钮 */
   const [clearMenuOpen, setClearMenuOpen] = useState(false)
   const clearMenuRef = useRef<HTMLSpanElement>(null)
-  const clearMenuFirstItemRef = useRef<HTMLButtonElement>(null)
+  const clearMenuPanelRef = useRef<HTMLDivElement>(null)
+  const clearMenuTriggerRef = useRef<HTMLButtonElement>(null)
+  /** 通过菜单项关闭时不抢回焦点：紧接着会弹确认框，焦点该归它 */
+  const closedByChoosingRef = useRef(false)
 
   useEffect(() => {
     if (!clearMenuOpen) {
       return
     }
-    // 打开后焦点进第一项：键盘用户不必再 Tab 一次
-    clearMenuFirstItemRef.current?.focus()
+    const panel = clearMenuPanelRef.current
+    const items = panel
+      ? Array.from(panel.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)'))
+      : []
+    // 焦点进第一个「可用」项：首项可能因为「没有已结束的项」而被禁用
+    items[0]?.focus()
+
     const handlePointerDown = (event: PointerEvent): void => {
       if (clearMenuRef.current !== null && !clearMenuRef.current.contains(event.target as Node)) {
         setClearMenuOpen(false)
@@ -140,13 +148,37 @@ export function QueuePanel({
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {
         setClearMenuOpen(false)
+        return
       }
+      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') {
+        return
+      }
+      if (items.length === 0) {
+        return
+      }
+      // 菜单里方向键要能走：否则读屏念叨「菜单」，用户按方向键却没反应
+      event.preventDefault()
+      const current = items.indexOf(document.activeElement as HTMLButtonElement)
+      const step = event.key === 'ArrowDown' ? 1 : -1
+      const next = (current + step + items.length) % items.length
+      items[next]?.focus()
     }
     document.addEventListener('pointerdown', handlePointerDown)
     document.addEventListener('keydown', handleKeyDown)
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown)
       document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [clearMenuOpen])
+
+  // 关闭后把焦点还给触发按钮（选了菜单项的情况除外，那时焦点归确认框）
+  useEffect(() => {
+    if (!clearMenuOpen) {
+      if (closedByChoosingRef.current) {
+        closedByChoosingRef.current = false
+        return
+      }
+      clearMenuTriggerRef.current?.focus()
     }
   }, [clearMenuOpen])
 
@@ -199,7 +231,7 @@ export function QueuePanel({
    * 按批次切一刀：当前这一批留在主列表，更早的默认折叠。
    *
    * 只折叠不删除 —— 构建记录是队列项的子表（外键级联），删队列项会把历史记录一起删掉。
-   * 想让它们彻底消失仍然走「清空队列记录」，那一步会明确说明连带删除构建记录。
+   * 想让它们彻底消失仍然走「清空…」菜单（菜单项为「清空已结束的 / 清空全部」），那一步会明确说明连带删除构建记录。
    */
   const batches = splitByCurrentBatch(items)
   /**
@@ -301,10 +333,12 @@ export function QueuePanel({
             {single
               ? singleRun
                 ? timingOf(singleRun)
-                : '待开始'
+                : `等待 ${formatItemDuration(item, now)}`
               : item.state === 'running'
                 ? `已用 ${formatItemDuration(item, now)}`
-                : formatItemDuration(item, now)}
+                : item.state === 'pending'
+                  ? `等待 ${formatItemDuration(item, now)}`
+                  : `耗时 ${formatItemDuration(item, now)}`}
           </span>
 
           {item.state === 'running' || item.state === 'pending' ? (
@@ -459,8 +493,8 @@ export function QueuePanel({
                   <span className="run-detail__variant tabular" title={variant}>
                     {variant}
                   </span>
-                  <Badge variant="muted">未开始</Badge>
-                  <span className="run-detail__time tabular">未开始</span>
+                  <Badge variant="muted">{NOT_STARTED_TEXT}</Badge>
+                  <span className="run-detail__time tabular">{NOT_STARTED_TEXT}</span>
                 </div>
               </li>
             ))}
@@ -607,8 +641,10 @@ export function QueuePanel({
             <span className="queue-menu" ref={clearMenuRef}>
               <Button
                 variant="ghost"
+                ref={clearMenuTriggerRef}
                 aria-haspopup="menu"
                 aria-expanded={clearMenuOpen}
+                aria-controls={clearMenuOpen ? 'queue-clear-menu' : undefined}
                 disabled={finished.length === 0 && items.length === 0}
                 onClick={() => {
                   setClearMenuOpen(!clearMenuOpen)
@@ -619,14 +655,20 @@ export function QueuePanel({
                 <ChevronDown size={14} aria-hidden="true" />
               </Button>
               {clearMenuOpen ? (
-                <div className="queue-menu__panel" role="menu" aria-label="清空队列记录">
+                <div
+                  id="queue-clear-menu"
+                  ref={clearMenuPanelRef}
+                  className="queue-menu__panel"
+                  role="menu"
+                  aria-label="清空队列记录"
+                >
                   <button
                     type="button"
                     role="menuitem"
-                    ref={clearMenuFirstItemRef}
                     className="queue-menu__item"
                     disabled={finished.length === 0}
                     onClick={() => {
+                      closedByChoosingRef.current = true
                       setClearMenuOpen(false)
                       onRequestClear('finished')
                     }}
@@ -639,6 +681,7 @@ export function QueuePanel({
                     className="queue-menu__item"
                     disabled={items.length === 0}
                     onClick={() => {
+                      closedByChoosingRef.current = true
                       setClearMenuOpen(false)
                       onRequestClear('all')
                     }}
@@ -653,13 +696,13 @@ export function QueuePanel({
         </header>
 
         {/*
-         * 本批进度条：分母是「这次还要打的变体总数」，可靠；Gradle 内部不掺百分比，
+         * 本批进度：分母是「这次还要打的变体总数」，可靠；Gradle 内部不掺百分比，
          * 具体到哪一步看下面每个变体行里的阶段。
          *
-         * 收工即隐藏：批次统计现在跑完后仍留着（为了「本批用时」），所以这里要自己
-         * 判断还有没有排队/构建中的项，不能只看分母是否大于 0。
+         * 统计行（n/N 完成 · 用时 x）整批跑完后仍留着 —— 收工那一刻才是最想看总时长的时候；
+         * 只有进度条本身在有活可干时才画。两者分开控制。
          */}
-        {totalVariants > 0 && hasActiveItems ? (
+        {totalVariants > 0 ? (
           <div className="queue-progress">
             <p
               className="queue-progress__text tabular"
@@ -676,16 +719,18 @@ export function QueuePanel({
                   )}`
                 : ''}
             </p>
-            <div
-              className="queue-progress__track"
-              role="progressbar"
-              aria-label="本批变体构建进度"
-              aria-valuemin={0}
-              aria-valuemax={totalVariants}
-              aria-valuenow={doneVariants}
-            >
-              <div className="queue-progress__fill" style={{ width: percent + '%' }} />
-            </div>
+            {hasActiveItems ? (
+              <div
+                className="queue-progress__track"
+                role="progressbar"
+                aria-label="本批变体构建进度"
+                aria-valuemin={0}
+                aria-valuemax={totalVariants}
+                aria-valuenow={doneVariants}
+              >
+                <div className="queue-progress__fill" style={{ width: percent + '%' }} />
+              </div>
+            ) : null}
           </div>
         ) : null}
 
@@ -705,7 +750,9 @@ export function QueuePanel({
         ) : null}
 
         {items.length === 0 ? (
-          <p className="queue-panel__empty">队列是空的。选好变体后点「构建勾选项」或「构建当前项目」。</p>
+          <p className="queue-panel__empty">
+            队列是空的。选好变体后点右上角的「构建勾选项」，或抽屉里的「构建 &lt;项目名&gt;」。
+          </p>
         ) : visibleCurrent.length === 0 ? (
           <p className="queue-panel__empty">
             当前没有{stateFilter === 'running' ? '正在构建' : '排队中'}的项。
@@ -774,7 +821,7 @@ export function QueuePanel({
 
         {items.length >= QUEUE_LIST_LIMIT ? (
           <p className="queue-list__more tabular">
-            只显示最近 {QUEUE_LIST_LIMIT} 条，更早的可以「清空队列记录」后重新入队
+            只显示最近 {QUEUE_LIST_LIMIT} 条，更早的可以「清空…」→「清空已结束的」后再入队
           </p>
         ) : null}
       </div>

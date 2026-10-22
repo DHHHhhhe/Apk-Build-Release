@@ -387,8 +387,12 @@ export default function App(): React.JSX.Element {
         {selectedProject ? (
           <Button
             variant="default"
+            className="app-topbar__build-current"
             disabled={enqueueBlocked !== null}
-            title={enqueueBlocked ?? undefined}
+            title={
+              enqueueBlocked ??
+              `构建「${selectedProject.name}」里已勾选的变体（${freshVariants.length} 个）`
+            }
             onClick={() => {
               if (selectedProject) {
                 // 只带这次真正要入队的变体：已在队列里的那些会被主进程再筛一次

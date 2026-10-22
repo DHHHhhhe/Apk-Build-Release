@@ -71,6 +71,17 @@ body {
   flex: 0 0 auto;
 }
 
+/*
+ * 「构建 <项目名>」带上了项目名，长度不再可控：项目名可以很长，
+ * 不夹住就会按 max-content 撑开、把整个顶栏顶出横向溢出。完整名放在 title 里。
+ */
+.app-topbar__build-current {
+  max-width: 16em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .app-body {
   flex: 1 1 auto;
   display: flex;

@@ -12,6 +12,9 @@ import { formatDurationMs } from './duration'
 /** 等待时长小于这个值就不提「等待」：`等待 0s` 是纯噪音，而且几乎每个变体都会出现 */
 export const WAIT_DISPLAY_MIN_MS = 1000
 
+/** 「这个变体还没开始」的唯一写法：徽章、子行文字、纯函数兜底都用它，避免同屏出现两种说法 */
+export const NOT_STARTED_TEXT = '未开始'
+
 /**
  * 这个队列项是不是「单变体项」——决定渲染成一行还是「头行 + 子行」。
  *
@@ -70,7 +73,7 @@ export function variantTimingText(input: VariantTimingInput): string {
   if (durationMs !== null) {
     return `耗时 ${formatDurationMs(durationMs)}`
   }
-  return '未开始'
+  return NOT_STARTED_TEXT
 }
 
 /**
@@ -81,6 +84,10 @@ export function variantTimingText(input: VariantTimingInput): string {
  */
 export function pickerCountText(selectedCount: number, buildableVariantCount: number): string {
   if (selectedCount === buildableVariantCount) {
+    return `已选 ${selectedCount}`
+  }
+  // 一个都入不了队时「待入队 0」只是噪声（勾选的都在队列里了），别把负向数字摆在最显眼处
+  if (buildableVariantCount === 0) {
     return `已选 ${selectedCount}`
   }
   return `已选 ${selectedCount} · 待入队 ${buildableVariantCount}`
@@ -104,13 +111,13 @@ export function projectStatusBadge(input: {
   if (input.inQueue) {
     return { label: '队列中', tone: 'info' }
   }
+  // 勾选里可能还留着改名/删除后的历史名字，会比可见变体数还大 —— 夹紧，别出现「已选 5/3」
+  const selected = Math.max(0, Math.min(input.selectedCount, input.variantCount))
   if (input.variantCount > 1) {
     return {
-      label: `已选 ${input.selectedCount}/${input.variantCount}`,
-      tone: input.selectedCount > 0 ? 'success' : 'muted'
+      label: `已选 ${selected}/${input.variantCount}`,
+      tone: selected > 0 ? 'success' : 'muted'
     }
   }
-  return input.selectedCount > 0
-    ? { label: '已选', tone: 'success' }
-    : { label: '未选', tone: 'muted' }
+  return selected > 0 ? { label: '已选', tone: 'success' } : { label: '未选', tone: 'muted' }
 }

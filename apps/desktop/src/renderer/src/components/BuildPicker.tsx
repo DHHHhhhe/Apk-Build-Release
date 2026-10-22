@@ -242,6 +242,7 @@ export function BuildPicker({
               <li
                 key={project.id}
                 className="summary__group build-picker__group build-picker__group--single"
+                title={project.path}
               >
                 <label className="build-picker__label build-picker__label--single">
                   <input
@@ -273,15 +274,6 @@ export function BuildPicker({
                       队列中
                     </Badge>
                   ) : null}
-                  {!isReleaseBuildType(onlyVariant.buildType) ? (
-                    <Badge variant="warning" title="非 release 变体通常用调试密钥签名，不能上架">
-                      不能上架
-                    </Badge>
-                  ) : null}
-                  {/* 路径只在这一行里露出来：它区分同名项目，但不该占掉一整行 */}
-                  <span className="build-picker__single-path tabular" title={project.path}>
-                    {project.path}
-                  </span>
                 </label>
               </li>
             )

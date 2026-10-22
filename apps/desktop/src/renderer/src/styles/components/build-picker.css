@@ -120,36 +120,28 @@
  */
 .build-picker__group--single {
   padding-block: 10px;
-  /* 给容器查询当锚点：窄档要藏掉路径，否则会换行把卡片撑到 80px 以上 */
-  container-type: inline-size;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .build-picker__label--single {
-  flex-wrap: wrap;
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
   row-gap: 4px;
+  min-width: 0;
 }
 
 .build-picker__label--single .summary__group-name {
   font-weight: 600;
-}
-
-@container (max-width: 520px) {
-  .build-picker__single-path {
-    display: none;
-  }
-}
-
-/* 路径只在单变体这一行露出来：它用来区分同名项目，但必须让位给名字 */
-.build-picker__single-path {
-  margin-left: auto;
   min-width: 0;
-  max-width: 42%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 11px;
-  color: var(--muted-foreground);
 }
+
+/* 路径在单变体这一行右侧：用来区分同名项目，但必须让位给名字 */
+/* 单变体卡不再渲染可见路径：它会把卡片撑成两行。完整路径在卡片 title 上（悬停可看） */
 
 .build-picker__variant {
   font-weight: 500;
