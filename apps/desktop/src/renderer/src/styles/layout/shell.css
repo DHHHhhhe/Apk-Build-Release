@@ -90,6 +90,16 @@ body {
   color: var(--primary-foreground);
 }
 
+/*
+ * 当前段绝不能自己带底色：.btn-ghost:hover 会铺一层 --muted，
+ * 那层不透明底会把背后的色块整块盖掉，于是反相文字直接落在浅底/深底上变得看不见
+ * （浅色主题下表现为「指针放过去变白、字没了」）。这里连同 hover 一起钉成透明。
+ */
+.app-topbar .app-topbar__seg--active,
+.app-topbar .app-topbar__seg--active:hover:not(:disabled) {
+  background: transparent;
+}
+
 /* 禁用中的那段（比如正在构建）别整体压到 0.5：白字压在实心块上会糊成一片 */
 .app-topbar .app-topbar__seg--active:disabled {
   opacity: 0.72;
