@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button } from './components/ui/button'
 import { FolderPlus, Settings } from 'lucide-react'
 import { BuildPanel } from './components/BuildPanel'
@@ -44,9 +44,8 @@ import { trackInputMode } from './lib/input-mode'
 import { resolveDrawerLayout } from './lib/layout'
 
 /**
- * 顶栏两个构建按钮之间「实心流动」的时长（毫秒）。
- * 与 shell.css 里 .app-topbar__build-all / __build-current 的 transition 时长保持一致：
- * JS 这边决定淡出的按钮留多久，CSS 那边决定底色多久变完，两边不等就会看到硬切。
+ * 关抽屉后，那个「构建 <项目名>」按钮还要留这么久让文字淡出（毫秒）。
+ * 它已经不再是实心（实心是背后那块色块），留一会儿只是别让文字瞬间消失。
  */
 const BUILD_BUTTON_FADE_MS = 200
 
@@ -239,6 +238,21 @@ export default function App(): React.JSX.Element {
     selectedProject !== null ? freshVariants.length : (leavingBuild?.count ?? 0)
   const buildCurrentLeaving = selectedProject === null && leavingBuild !== null
 
+  /*
+   * 液态实心：两个构建按钮做成一个分段控件，实心是背后一块自己会跑的色块。
+   *
+   * 之前是「两个按钮各自淡入淡出」，看着还是闪 —— 按钮一挂载/卸载，旁边那个被顶动 87px，
+   * 位置跳了一下。现在按钮位置固定（全局那个永远贴着窗口右边），只有色块在两点之间移动，
+   * 宽度一起变、中途盖住两者之间的间隙，才像液体流过去。
+   */
+  const buildsRef = useRef<HTMLDivElement>(null)
+  const allSegRef = useRef<HTMLButtonElement>(null)
+  const currentSegRef = useRef<HTMLButtonElement>(null)
+  // 色块对位：以**容器右边缘**为基准，而不是左边缘 —— 加进一段时容器是往左长出来的，
+  // 靠左定位会跟着一起跳；靠右定位时「全局那段」永远在原位，只有色块自己滑。
+  const [pill, setPill] = useState<{ right: number; width: number } | null>(null)
+  const activeSeg: 'all' | 'current' = selectedProject !== null ? 'current' : 'all'
+
   // 环境缺失（比如 SDK 没找到）时不该让用户白等一次构建
   const envBlocking = env.result?.items.find((item) => item.state === 'error') ?? null
   // 单项目按钮的原因与勾选表那条共用同一份实现（build-guard），措辞不会走散
@@ -339,6 +353,18 @@ export default function App(): React.JSX.Element {
   const crossBlocked = buildBlockedReason(buildGuard)
   const crossHint = queuedExclusionHint(buildGuard)
 
+  // 色块对位：按钮挂载/卸载与内容变长都会挪位置，每次布局后重新量一次
+  useLayoutEffect(() => {
+    const container = buildsRef.current
+    const target = activeSeg === 'current' ? currentSegRef.current : allSegRef.current
+    if (container === null || target === null) {
+      return
+    }
+    const base = container.getBoundingClientRect()
+    const rect = target.getBoundingClientRect()
+    setPill({ right: Math.max(0, base.right - rect.right), width: rect.width })
+  }, [activeSeg, buildCurrentCount, crossProject.buildableVariantCount, windowWidth])
+
   /** 入队勾选的项目：只带上还没排上的变体，已占用的由主进程再筛一次 */
   const buildCheckedProjects = (): void => {
     const targets = enqueueTargets(projects, projectResolutions, occupiedVariants)
@@ -417,58 +443,69 @@ export default function App(): React.JSX.Element {
         {selectedProject && enqueueBlocked ? (
           <span className="app-topbar__hint">{enqueueBlocked}</span>
         ) : null}
-        {projects.length > 0 ? (
-          <Button
-            variant={selectedProject ? 'outline' : 'default'}
-            className="app-topbar__build-all"
-            disabled={crossBlocked !== null}
-            title={crossBlocked ?? '把勾选的变体加入队列并构建'}
-            onClick={buildCheckedProjects}
-          >
-            构建勾选项（{crossProject.buildableVariantCount}）
-          </Button>
-        ) : null}
         {/*
-         * 顶栏不放「有新版本」：更新提示归两处（侧栏左下的「检查更新」、右下角的提示条），
-         * 原来这里第三个入口点了只是打开设置，而设置里并没有更新区块 —— 一条死路，已删。
-         *
-         * 单项目入口只在抽屉打开时出现：它是「打抽屉里这个项目」，没打开就没有对象。
-         * 以前它灰着并配一句「先在左侧选一个项目」—— 首屏最显眼的那个按钮点不动，
-         * 还要用户自己去找原因。
+         * 两个构建动作做成一个分段控件：背后一块实心色块在两者之间滑。
+         * 顺序是「单项目（局部）」在前、「勾选项（全局）」在后 —— 全局那个永远贴着窗口右边，
+         * 于是单项目按钮挂载/卸载时它不会跟着挪，位置不跳，色块才是唯一在动的东西。
          */}
-        {buildCurrentName !== null ? (
-          <Button
-            variant={buildCurrentLeaving ? 'outline' : 'default'}
-            className={
-              buildCurrentLeaving
-                ? 'app-topbar__build-current app-topbar__build-current--leaving'
-                : 'app-topbar__build-current'
-            }
-            disabled={buildCurrentLeaving || enqueueBlocked !== null}
-            aria-hidden={buildCurrentLeaving ? true : undefined}
-            tabIndex={buildCurrentLeaving ? -1 : undefined}
-            title={
-              buildCurrentLeaving
-                ? undefined
-                : (enqueueBlocked ??
-                  `构建「${buildCurrentName}」里已勾选的变体（${buildCurrentCount} 个）`)
-            }
-            onClick={() => {
-              if (selectedProject) {
-                // 只带这次真正要入队的变体：已在队列里的那些会被主进程再筛一次
-                void queue.enqueue([{ projectId: selectedProject.id, variants: freshVariants }])
+        {projects.length > 0 ? (
+          <div className="app-topbar__builds" ref={buildsRef}>
+            <span
+              className="app-topbar__builds-pill"
+              aria-hidden="true"
+              style={
+                pill === null
+                  ? { opacity: 0 }
+                  : { right: `${pill.right}px`, width: `${pill.width}px` }
               }
-            }}
-          >
-            {projectBuilding && buildCurrentCount === 0 ? (
-              '构建中…'
-            ) : (
-              // 文本包一层 span：按钮本身是 flex 容器，text-overflow 对匿名的文本子项不生效
-              <span className="app-topbar__build-current-text">
-                {`构建 ${buildCurrentName}（${buildCurrentCount}）`}
+            />
+            {buildCurrentName !== null ? (
+              <Button
+                ref={currentSegRef}
+                variant="ghost"
+                className={
+                  buildCurrentLeaving
+                    ? 'app-topbar__seg app-topbar__seg--leaving'
+                    : 'app-topbar__seg app-topbar__seg--active'
+                }
+                disabled={buildCurrentLeaving || enqueueBlocked !== null}
+                aria-hidden={buildCurrentLeaving ? true : undefined}
+                tabIndex={buildCurrentLeaving ? -1 : undefined}
+                title={
+                  buildCurrentLeaving
+                    ? undefined
+                    : (enqueueBlocked ??
+                      `构建「${buildCurrentName}」里已勾选的变体（${buildCurrentCount} 个）`)
+                }
+                onClick={() => {
+                  if (selectedProject) {
+                    // 只带这次真正要入队的变体：已在队列里的那些会被主进程再筛一次
+                    void queue.enqueue([{ projectId: selectedProject.id, variants: freshVariants }])
+                  }
+                }}
+              >
+                <span className="app-topbar__seg-text">
+                  {projectBuilding && buildCurrentCount === 0
+                    ? '构建中…'
+                    : `构建 ${buildCurrentName}（${buildCurrentCount}）`}
+                </span>
+              </Button>
+            ) : null}
+            <Button
+              ref={allSegRef}
+              variant="ghost"
+              className={
+                selectedProject !== null ? 'app-topbar__seg' : 'app-topbar__seg app-topbar__seg--active'
+              }
+              disabled={crossBlocked !== null}
+              title={crossBlocked ?? '把勾选的变体加入队列并构建'}
+              onClick={buildCheckedProjects}
+            >
+              <span className="app-topbar__seg-text">
+                构建勾选项（{crossProject.buildableVariantCount}）
               </span>
-            )}
-          </Button>
+            </Button>
+          </div>
         ) : null}
       </header>
 

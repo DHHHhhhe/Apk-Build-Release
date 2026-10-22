@@ -50,34 +50,62 @@ body {
 }
 
 /*
- * 两个构建按钮之间的实心「流动」：底色/文字/边框一起走 200ms。
- * 抽屉一开一关，实心从「构建勾选项」换到「构建 <项目名>」——
- * 两块同步淡入淡出，眼睛看到的是实心挪过去了，而不是闪一下。
- * 时长与 App.tsx 的 BUILD_BUTTON_FADE_MS 必须一致。
+ * 两个构建动作 = 一个分段控件：按钮本身透明，实心是背后那块会跑的色块。
+ * 色块用 420ms 的轻微回弹曲线，中途把两者之间的间隙也盖住 —— 看起来是液体流过去，
+ * 而不是两块底色各自淡入淡出（后者在 200ms 里会出现「两边都半透明」的塌陷感）。
  */
-/* 两段选择器：.btn-* 基类里已有 background 150ms 的 transition，同权重下不保证谁赢 */
-.app-topbar .app-topbar__build-all,
-.app-topbar .app-topbar__build-current {
+.app-topbar__builds {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.app-topbar__builds-pill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  /* 靠右定位：容器往左长的时候右边缘不动，色块不会跟着跳 */
+  right: 0;
+  z-index: 0;
+  border-radius: var(--radius);
+  background: var(--primary);
   transition:
-    background-color 200ms ease,
-    color 200ms ease,
-    border-color 200ms ease;
+    right 420ms cubic-bezier(0.34, 1.25, 0.64, 1),
+    width 420ms cubic-bezier(0.34, 1.25, 0.64, 1),
+    opacity 200ms ease;
 }
 
-/* 正在淡出的那个：底色与边框退干净，只剩文字 */
-.app-topbar .app-topbar__build-current--leaving {
-  background-color: transparent;
+.app-topbar .app-topbar__seg {
+  position: relative;
+  z-index: 1;
+  background: transparent;
   border-color: transparent;
-  color: var(--muted-foreground);
+  color: var(--foreground);
+  transition: color 200ms ease;
 }
 
-/* 新出现的实心从「透明」起步：否则它一挂载就已经是实心，看不出流动 */
-@starting-style {
-  .app-topbar .btn-primary {
-    background-color: transparent;
-    border-color: transparent;
-    color: var(--muted-foreground);
-  }
+/* 压在色块上的那一段用反相文字色：与色块一起过渡，中途混色就是「交融」 */
+.app-topbar .app-topbar__seg--active {
+  color: var(--primary-foreground);
+}
+
+.app-topbar .app-topbar__seg--leaving {
+  color: var(--muted-foreground);
+  pointer-events: none;
+}
+
+.app-topbar .app-topbar__seg:hover:not(:disabled):not(.app-topbar__seg--active) {
+  background: var(--muted);
+}
+
+.app-topbar__seg-text {
+  display: block;
+  max-width: 16em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* 项目数：顶栏里唯一的主信息，给正文色与 600 字重 */
@@ -109,21 +137,6 @@ body {
   flex: 0 0 auto;
 }
 
-/*
- * 「构建 <项目名>」带上了项目名，长度不再可控。省略号必须加在**按钮里的 span** 上：
- * 按钮是 flex 容器，`text-overflow` 对匿名的文本子项不生效（实测只会硬裁，不画「…」）。
- */
-.app-topbar__build-current {
-  max-width: 18em;
-}
-
-.app-topbar__build-current-text {
-  display: block;
-  max-width: 16em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 .app-body {
   flex: 1 1 auto;
