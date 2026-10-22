@@ -246,7 +246,7 @@ export function QueuePanel({
    * 按批次切一刀：当前这一批留在主列表，更早的默认折叠。
    *
    * 只折叠不删除 —— 构建记录是队列项的子表（外键级联），删队列项会把历史记录一起删掉。
-   * 想让它们彻底消失仍然走「清空…」菜单（菜单项为「清空已结束的 / 清空全部」），那一步会明确说明连带删除构建记录。
+   * 想让它们彻底消失仍然走「清空记录」菜单（菜单项为「清空已结束的 / 清空全部」），那一步会明确说明连带删除构建记录。
    */
   const batches = splitByCurrentBatch(items)
   /**
@@ -664,13 +664,14 @@ export function QueuePanel({
                 aria-haspopup="menu"
                 aria-expanded={clearMenuOpen}
                 aria-controls={clearMenuOpen ? 'queue-clear-menu' : undefined}
+                title="清空队列记录（已结束的 / 全部）"
                 disabled={finished.length === 0 && items.length === 0}
                 onClick={() => {
                   setClearMenuOpen(!clearMenuOpen)
                 }}
               >
                 <Trash2 size={14} aria-hidden="true" />
-                清空…
+                清空记录
                 <ChevronDown size={14} aria-hidden="true" />
               </Button>
               {clearMenuOpen ? (
@@ -845,7 +846,7 @@ export function QueuePanel({
 
         {items.length >= QUEUE_LIST_LIMIT ? (
           <p className="queue-list__more tabular">
-            只显示最近 {QUEUE_LIST_LIMIT} 条，更早的可以「清空…」→「清空已结束的」后再入队
+            只显示最近 {QUEUE_LIST_LIMIT} 条，更早的可以「清空记录」→「清空已结束的」后再入队
           </p>
         ) : null}
       </div>
