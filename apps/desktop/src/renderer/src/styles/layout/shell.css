@@ -73,8 +73,7 @@ body {
   background: var(--primary);
   transition:
     right 420ms cubic-bezier(0.34, 1.25, 0.64, 1),
-    width 420ms cubic-bezier(0.34, 1.25, 0.64, 1),
-    opacity 200ms ease;
+    width 420ms cubic-bezier(0.34, 1.25, 0.64, 1);
 }
 
 .app-topbar .app-topbar__seg {
@@ -89,6 +88,11 @@ body {
 /* 压在色块上的那一段用反相文字色：与色块一起过渡，中途混色就是「交融」 */
 .app-topbar .app-topbar__seg--active {
   color: var(--primary-foreground);
+}
+
+/* 禁用中的那段（比如正在构建）别整体压到 0.5：白字压在实心块上会糊成一片 */
+.app-topbar .app-topbar__seg--active:disabled {
+  opacity: 0.72;
 }
 
 .app-topbar .app-topbar__seg--leaving {

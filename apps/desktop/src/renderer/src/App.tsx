@@ -353,16 +353,28 @@ export default function App(): React.JSX.Element {
   const crossBlocked = buildBlockedReason(buildGuard)
   const crossHint = queuedExclusionHint(buildGuard)
 
-  // 色块对位：按钮挂载/卸载与内容变长都会挪位置，每次布局后重新量一次
+  // 色块对位：按钮挂载/卸载、文案变长、字体晚到、侧栏被拖动，都会挪按钮位置 ——
+  // 只在依赖变化时量会留下一次错位（用户看到的就是一个没填满的空框），所以挂 ResizeObserver。
   useLayoutEffect(() => {
     const container = buildsRef.current
-    const target = activeSeg === 'current' ? currentSegRef.current : allSegRef.current
-    if (container === null || target === null) {
+    if (container === null) {
       return
     }
-    const base = container.getBoundingClientRect()
-    const rect = target.getBoundingClientRect()
-    setPill({ right: Math.max(0, base.right - rect.right), width: rect.width })
+    const sync = (): void => {
+      const target = activeSeg === 'current' ? currentSegRef.current : allSegRef.current
+      if (target === null) {
+        return
+      }
+      const base = container.getBoundingClientRect()
+      const rect = target.getBoundingClientRect()
+      setPill({ right: Math.max(0, base.right - rect.right), width: rect.width })
+    }
+    sync()
+    const observer = new ResizeObserver(sync)
+    observer.observe(container)
+    return () => {
+      observer.disconnect()
+    }
   }, [activeSeg, buildCurrentCount, crossProject.buildableVariantCount, windowWidth])
 
   /** 入队勾选的项目：只带上还没排上的变体，已占用的由主进程再筛一次 */
@@ -453,9 +465,14 @@ export default function App(): React.JSX.Element {
             <span
               className="app-topbar__builds-pill"
               aria-hidden="true"
+              /*
+               * 没量到位置之前给 0 宽，而不是 opacity: 0 ——
+               * 淡入会在「色块还没到位、文字已经反相」的那一帧里出现白字白底（实测过）。
+               * 0 宽是彻底看不见，而且不参与过渡。
+               */
               style={
                 pill === null
-                  ? { opacity: 0 }
+                  ? { right: 0, width: 0 }
                   : { right: `${pill.right}px`, width: `${pill.width}px` }
               }
             />
@@ -466,7 +483,9 @@ export default function App(): React.JSX.Element {
                 className={
                   buildCurrentLeaving
                     ? 'app-topbar__seg app-topbar__seg--leaving'
-                    : 'app-topbar__seg app-topbar__seg--active'
+                    : pill === null
+                      ? 'app-topbar__seg'
+                      : 'app-topbar__seg app-topbar__seg--active'
                 }
                 disabled={buildCurrentLeaving || enqueueBlocked !== null}
                 aria-hidden={buildCurrentLeaving ? true : undefined}
@@ -495,7 +514,9 @@ export default function App(): React.JSX.Element {
               ref={allSegRef}
               variant="ghost"
               className={
-                selectedProject !== null ? 'app-topbar__seg' : 'app-topbar__seg app-topbar__seg--active'
+                selectedProject === null && pill !== null
+                  ? 'app-topbar__seg app-topbar__seg--active'
+                  : 'app-topbar__seg'
               }
               disabled={crossBlocked !== null}
               title={crossBlocked ?? '把勾选的变体加入队列并构建'}
