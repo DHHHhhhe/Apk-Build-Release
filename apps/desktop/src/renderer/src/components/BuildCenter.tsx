@@ -41,7 +41,6 @@ interface BuildCenterProps {
   preflightIssues: Record<string, string[]>
   onSetVariants: (projectId: string, names: string[]) => void
   onRefreshVariants: (projectId: string) => void
-  onBuild: () => void
 }
 
 /**
@@ -64,7 +63,6 @@ export function BuildCenter({
   preflightIssues,
   onSetVariants,
   onRefreshVariants,
-  onBuild
 }: BuildCenterProps): React.JSX.Element {
   const [view, setView] = useState<CenterView>(readStoredView)
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set())
@@ -133,7 +131,6 @@ export function BuildCenter({
             onToggleCollapsed={toggleCollapsed}
             onSetVariants={onSetVariants}
             onRefreshVariants={onRefreshVariants}
-            onBuild={onBuild}
           />
         ) : (
           <SummaryPanel />

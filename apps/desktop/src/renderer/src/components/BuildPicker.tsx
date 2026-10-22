@@ -33,7 +33,6 @@ interface BuildPickerProps {
   onToggleCollapsed: (projectId: string) => void
   onSetVariants: (projectId: string, names: string[]) => void
   onRefreshVariants: (projectId: string) => void
-  onBuild: () => void
 }
 
 /**
@@ -77,7 +76,6 @@ export function BuildPicker({
   onToggleCollapsed,
   onSetVariants,
   onRefreshVariants,
-  onBuild
 }: BuildPickerProps): React.JSX.Element {
 
   /*
@@ -471,18 +469,21 @@ export function BuildPicker({
         })}
       </ul>
 
-      <div className="build-picker__foot">
-        {/* 降为 ghost：顶栏那个才是主按钮，这里只是长列表滚到底时的顺手入口 */}
-        <Button variant="ghost" disabled={blockedReason !== null} onClick={onBuild}>
-          构建勾选项（{buildableVariantCount}）
-        </Button>
-        {blockedReason ? (
-          <span className="build-picker__reason" role="status" aria-live="polite">
-            {blockedReason}
-          </span>
-        ) : null}
-        {queuedHint ? <span className="build-picker__reason">{queuedHint}</span> : null}
-      </div>
+      {/*
+       * 底部不再放构建按钮：它和顶栏那个是同一个动作、同一个标签，看起来像两个平行入口。
+       * 动作只留顶栏一处（常驻，滚到哪都在）；这里只留说明文字——
+       * 「为什么现在不能构建」和「有几个变体已在队列里」是列表本身的上下文，顶栏放不下。
+       */}
+      {blockedReason !== null || queuedHint !== null ? (
+        <div className="build-picker__foot">
+          {blockedReason ? (
+            <span className="build-picker__reason" role="status" aria-live="polite">
+              {blockedReason}
+            </span>
+          ) : null}
+          {queuedHint ? <span className="build-picker__reason">{queuedHint}</span> : null}
+        </div>
+      ) : null}
     </div>
   )
 }

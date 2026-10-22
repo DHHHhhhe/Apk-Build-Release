@@ -576,7 +576,6 @@ export default function App(): React.JSX.Element {
                 onRefreshVariants={(projectId) => {
                   void refreshVariants(projectId, true)
                 }}
-                onBuild={buildCheckedProjects}
               />
 
               <QueuePanel
