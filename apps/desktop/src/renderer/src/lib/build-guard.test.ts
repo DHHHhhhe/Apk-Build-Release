@@ -148,7 +148,7 @@ describe('currentProjectBlockedReason', () => {
 
   it('没勾变体时给出原因', () => {
     expect(currentProjectBlockedReason(current({ variantCount: 0 }))).toBe(
-      '先在发布变体里勾选至少一个'
+      '先勾选至少一个发布变体'
     )
   })
 

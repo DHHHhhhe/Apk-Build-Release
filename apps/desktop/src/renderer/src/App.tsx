@@ -413,10 +413,11 @@ export default function App(): React.JSX.Element {
         <span className="app-topbar__status">
           {loading ? '读取项目…' : `${projects.length} 个项目`}
         </span>
-        {/* 原因摆在按钮旁边，而不是只在 title 里：禁用时 hover 才能看到原因等于没解释 */}
-        {selectedProject && enqueueBlocked ? (
-          <span className="app-topbar__hint">{enqueueBlocked}</span>
-        ) : null}
+        {/*
+         * 顶栏不再展示「为什么不能构建」的长句：构建中心底部就在勾选列表正下方，
+         * 那里已经说了一遍（同一个原因两处并列，只是措辞略不同，看着像两个说法）。
+         * 顶栏这两个按钮的原因放进 title，需要时 hover 可得。
+         */}
         {/*
          * 两个构建动作做成一个分段控件：背后一块实心色块在两者之间滑。
          * 顺序是「单项目（局部）」在前、「勾选项（全局）」在后 —— 全局那个永远贴着窗口右边，

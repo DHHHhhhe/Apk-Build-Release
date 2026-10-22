@@ -132,15 +132,6 @@ body {
   white-space: nowrap;
 }
 
-/* 主按钮禁用时把原因摆在旁边 */
-.app-topbar__hint {
-  font-size: 12px;
-  color: var(--muted-foreground);
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 /* 顶栏按钮不参与收缩：否则窗口一窄，最右边的按钮会被挤出可视区 */
 .app-topbar > button {

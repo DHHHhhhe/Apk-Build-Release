@@ -39,7 +39,7 @@ export function buildBlockedReason(input: BuildGuardInput): string | null {
     if (input.unknownSelectedCount > 0) {
       return '勾选的变体已不在项目里，先刷新变体'
     }
-    return '先勾选至少一个发布变体'
+    return SELECT_VARIANT_REASON
   }
   if (input.pendingProjectCount === 0) {
     return '勾选的变体都已经在队列里了，等它们跑完再试'
@@ -109,6 +109,13 @@ export const EMPTY_VARIANTS: ReadonlySet<string> = new Set<string>()
 /** 主进程正在忙时的统一措辞：两条链路说的是同一件事，不该有两种说法 */
 export const BUSY_REASON = '正在处理上一个操作…'
 
+/**
+ * 「一个变体都没勾」的唯一措辞。
+ * 顶栏那个按钮与构建中心底部共用同一句 —— 两处曾各写一版
+ * （「先勾选至少一个发布变体」/「先在发布变体里勾选至少一个」），同屏出现像两个说法。
+ */
+export const SELECT_VARIANT_REASON = '先勾选至少一个发布变体'
+
 export interface CurrentProjectGuardInput {
   /** 这个项目这次会真正入队的变体数（按钮上的 N） */
   variantCount: number
@@ -141,7 +148,7 @@ export function currentProjectBlockedReason(input: CurrentProjectGuardInput): st
     if (input.queuedVariantCount > 0) {
       return '勾选的变体都已经在队列里了，等它们跑完再试'
     }
-    return '先在发布变体里勾选至少一个'
+    return SELECT_VARIANT_REASON
   }
   return null
 }
