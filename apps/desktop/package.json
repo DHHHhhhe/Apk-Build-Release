@@ -1,6 +1,6 @@
 {
   "name": "@abr/desktop",
-  "version": "0.7.2",
+  "version": "0.8.0",
   "private": true,
   "description": "Electron 桌面端：主进程负责构建调度与 IO，渲染进程只做界面",
   "author": "dhhheee",
