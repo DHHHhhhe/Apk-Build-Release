@@ -14,8 +14,6 @@ import type { EnqueueTarget } from '@shared/types/queue'
  * 所以「这个项目在队列里」不再等于「这次没有可入队的东西」。
  */
 export interface BuildGuardInput {
-  /** 尚未落盘的勾选写入数量 */
-  pendingWrites: number
   /** 这次会真正入队的变体数（已剔除队列里占用的） */
   buildableVariantCount: number
   /** 勾选里因已在队列中被剔除的变体数 */
@@ -28,9 +26,12 @@ export interface BuildGuardInput {
 
 /** 不能构建时返回原因，可以构建时返回 null */
 export function buildBlockedReason(input: BuildGuardInput): string | null {
-  if (input.pendingWrites > 0) {
-    return '正在保存勾选…'
-  }
+  /*
+   * 不再因为「勾选还没写进数据库」而拦住构建。
+   *
+   * 勾选现在是乐观更新的，入队时带的是界面此刻的选择（主进程按它冻结目标），
+   * 所以这个等待没有实际保护作用；反而让它成了「每勾一下按钮和提示都闪一下」的来源。
+   */
   if (input.buildableVariantCount === 0) {
     if (input.queuedVariantCount > 0) {
       return '勾选的变体都已经在队列里了，等它们跑完再试'

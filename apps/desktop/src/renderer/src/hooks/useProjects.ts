@@ -11,12 +11,6 @@ export interface UseProjectsResult {
   /** 正在执行操作的 project id，用于禁用该行按钮 */
   busyProjectId: string | null
   busyKind: ProjectBusyKind | null
-  /**
-   * 还没落盘的勾选写入数量。
-   * busyProjectId 只能表达「某一个项目在忙」，多个项目的勾选并发写入时会互相覆盖；
-   * 构建入口要判断的是「有没有**任何**写入没落盘」，所以单独计数。
-   */
-  pendingWrites: number
   refresh: () => void
   /**
    * 按给定 id 顺序就地重排本地列表（乐观更新）。
@@ -37,7 +31,6 @@ export function useProjects(): UseProjectsResult {
   const [error, setError] = useState<string | null>(null)
   const [busyProjectId, setBusyProjectId] = useState<string | null>(null)
   const [busyKind, setBusyKind] = useState<ProjectBusyKind | null>(null)
-  const [pendingWrites, setPendingWrites] = useState(0)
   const [reloadToken, setReloadToken] = useState(0)
 
   const refresh = useCallback(() => {
@@ -178,7 +171,6 @@ export function useProjects(): UseProjectsResult {
       )
       setBusyProjectId(projectId)
       setBusyKind('variants')
-      setPendingWrites((count) => count + 1)
       try {
         const result = await window.api.project.setVariants(projectId, variants)
         if (!result.success) {
@@ -188,8 +180,6 @@ export function useProjects(): UseProjectsResult {
         }
         refresh()
       } finally {
-        // 放在 finally：写入失败也必须归还计数，否则构建入口会永久卡在「保存中」
-        setPendingWrites((count) => count - 1)
         setBusyProjectId(null)
         setBusyKind(null)
       }
@@ -204,7 +194,6 @@ export function useProjects(): UseProjectsResult {
     error,
     busyProjectId,
     busyKind,
-    pendingWrites,
     refresh,
     addProject,
     removeProject,

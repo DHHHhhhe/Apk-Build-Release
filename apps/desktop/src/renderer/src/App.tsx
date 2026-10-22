@@ -63,7 +63,6 @@ export default function App(): React.JSX.Element {
     error,
     busyProjectId,
     busyKind,
-    pendingWrites,
     addProject,
     removeProject,
     refreshVariants,
@@ -289,7 +288,7 @@ export default function App(): React.JSX.Element {
     }
   }
   // 顶栏按钮与表内按钮共用同一份判断：同一个动作的两个位置，禁用条件必须字字相同
-  const buildGuard = { pendingWrites, ...crossProject }
+  const buildGuard = { ...crossProject }
   const crossBlocked = buildBlockedReason(buildGuard)
   const crossHint = queuedExclusionHint(buildGuard)
 
@@ -431,6 +430,7 @@ export default function App(): React.JSX.Element {
             projects={projects}
             selectedId={selectedProject?.id ?? null}
             busyProjectId={busyProjectId}
+            busyKind={busyKind}
             queuedProjectIds={Array.from(queuedProjectIds)}
             onSelect={setSelectedProjectId}
             onAdd={handleAdd}

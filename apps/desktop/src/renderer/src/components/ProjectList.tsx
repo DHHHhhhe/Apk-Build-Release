@@ -6,6 +6,7 @@ import { Button } from './ui/button'
 import { filterVariantsForPackaging } from '@shared/lib/variants'
 import { projectStatusBadge } from '../lib/queue-row'
 import type { Project } from '@shared/types/project'
+import type { ProjectBusyKind } from '../hooks/useProjects'
 
 /** 长按多久算「拾起」——太短会与点击选中打架，太长会觉得拖不动 */
 const LONG_PRESS_MS = 250
@@ -59,6 +60,7 @@ export function ProjectList({
   projects,
   selectedId,
   busyProjectId,
+  busyKind,
   queuedProjectIds,
   onSelect,
   onAdd,
@@ -68,6 +70,7 @@ export function ProjectList({
   projects: Project[]
   selectedId: string | null
   busyProjectId: string | null
+  busyKind: ProjectBusyKind | null
   /** 队列里还没结束的项目：这些项目不允许移除（正在跑或即将跑） */
   queuedProjectIds: string[]
   onSelect: (projectId: string) => void
@@ -386,7 +389,12 @@ export function ProjectList({
         <ul className="project-list__items" ref={listRef}>
           {ordered.map((project, index) => {
             const active = project.id === selectedId
-            const busy = project.id === busyProjectId
+            /*
+             * 只有「真正在动这个项目」才算忙（移除 / 解析变体）。
+             * 保存勾选也算忙的话，勾一下变体、旁边那个删除按钮就会在可点/不可点之间闪一下 ——
+             * 而保存勾选根本不影响能不能移除，所以把它排除掉。
+             */
+            const busy = project.id === busyProjectId && busyKind !== 'variants'
             const inQueue = queued.has(project.id)
             const dragging = drag !== null && drag.id === project.id
             const placeholder = dragging && !drag.settled

@@ -10,7 +10,6 @@ import type { BuildGuardInput, CurrentProjectGuardInput } from './build-guard'
 
 function input(patch: Partial<BuildGuardInput> = {}): BuildGuardInput {
   return {
-    pendingWrites: 0,
     buildableVariantCount: 0,
     queuedVariantCount: 0,
     pendingProjectCount: 0,
@@ -20,10 +19,11 @@ function input(patch: Partial<BuildGuardInput> = {}): BuildGuardInput {
 }
 
 describe('buildBlockedReason', () => {
-  it('写入没落盘时先拦住 —— 这是「所见即所建」的关键', () => {
+  it('不再因为「正在写库」拦住构建：勾选是乐观更新的，入队带的就是界面此刻的选择', () => {
+    // 以前这里会返回「正在保存勾选…」，导致每次勾一下按钮和提示都闪一下
     expect(
-      buildBlockedReason(input({ pendingWrites: 1, buildableVariantCount: 3, pendingProjectCount: 2 }))
-    ).toBe('正在保存勾选…')
+      buildBlockedReason(input({ buildableVariantCount: 3, pendingProjectCount: 2 }))
+    ).toBeNull()
   })
 
   it('没勾任何变体时给出原因，不是静默无效', () => {
@@ -50,9 +50,9 @@ describe('buildBlockedReason', () => {
     ).toBeNull()
   })
 
-  it('保存中优先于其他原因：避免用户以为是自己没勾', () => {
-    expect(buildBlockedReason(input({ pendingWrites: 2, unknownSelectedCount: 1 }))).toBe(
-      '正在保存勾选…'
+  it('勾的变体已被改名或删掉时，优先说这件事（不因它在队列里而误导）', () => {
+    expect(buildBlockedReason(input({ unknownSelectedCount: 1 }))).toBe(
+      '勾选的变体已不在项目里，先刷新变体'
     )
   })
 })
