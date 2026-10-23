@@ -1,26 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
-import { Info, Sparkles, TrendingUp, Wrench, X } from 'lucide-react'
+import { Sparkles, X } from 'lucide-react'
 import { PROJECT_REPO_URL } from '@shared/constants/links'
 import { Dialog } from './ui/dialog'
 import { CHANGELOG_MARKDOWN } from '../lib/changelog-source'
 import { parseChangelog } from '../lib/changelog'
-
-/**
- * 每种改动类型的标记。
- *
- * 分类标题原来是一行灰色小字，一屏里「新增」「修复」长得一模一样，扫读时分不出哪几类是重点。
- * 改成带色的小标签 —— 颜色只用语义色（见 DESIGN.md：状态色一律浅底 + 同色深字），不引入装饰色。
- *
- * 认不出的分类退回中性样式，仍然显示原文，不丢内容。
- */
-const SECTION_STYLE: Record<string, { variant: string; Icon: typeof Sparkles }> = {
-  新增: { variant: 'success', Icon: Sparkles },
-  优化: { variant: 'info', Icon: TrendingUp },
-  修复: { variant: 'warning', Icon: Wrench },
-  说明: { variant: 'muted', Icon: Info }
-}
+// 分类 → 标签样式的对照表放在 lib 里，测试会拿 CHANGELOG 里真实出现的分类去核对它
+import { SECTION_TAGS } from '../lib/changelog-tags'
 
 /**
  * 每页几个版本。
@@ -155,7 +142,7 @@ export function ChangelogDialog({
                   </header>
 
                   {entry.sections.map((section, sectionIndex) => {
-                    const style = SECTION_STYLE[section.title]
+                    const style = SECTION_TAGS[section.title]
                     return (
                       <div key={`${section.title}-${sectionIndex}`} className="changelog__section">
                         {section.title ? (
