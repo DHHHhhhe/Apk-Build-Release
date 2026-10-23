@@ -444,16 +444,22 @@ export function QueuePanel({
 
         {/* 单变体项的进度条：与多变体子行里那条同一套语义（耗时比例，不是 Gradle 进度） */}
         {single && singlePercent !== null ? (
-          <div
-            className="run-detail__progress"
-            role="progressbar"
-            aria-label={singleVariantName + ' 构建进度'}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={singlePercent}
-            title="按该变体最近几次成功构建的耗时中位数估算，不是 Gradle 的真实进度"
-          >
-            <div className="run-detail__progress-fill" style={{ width: singlePercent + '%' }} />
+          <div className="run-detail__progress-row">
+            <div
+              className="run-detail__progress"
+              role="progressbar"
+              aria-label={singleVariantName + ' 构建进度'}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={singlePercent}
+              title="按该变体最近几次成功构建的耗时中位数估算，不是 Gradle 的真实进度"
+            >
+              <div className="run-detail__progress-fill" style={{ width: singlePercent + '%' }} />
+            </div>
+            {/* 数字放在条的右端而不是压在条上：100% 时压在填充上读不清 */}
+            <span className="run-detail__percent tabular" aria-hidden="true">
+              {singlePercent}%
+            </span>
           </div>
         ) : null}
 
@@ -491,16 +497,21 @@ export function QueuePanel({
                    * 所以 title 与无障碍文案都要写明依据；没有历史样本时整条不渲染，不画 0% 空条。
                    */}
                   {percent !== null ? (
-                    <div
-                      className="run-detail__progress"
-                      role="progressbar"
-                      aria-label={`${run.variant} 构建进度`}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-valuenow={percent}
-                      title="按该变体最近几次成功构建的耗时中位数估算，不是 Gradle 的真实进度"
-                    >
-                      <div className="run-detail__progress-fill" style={{ width: percent + '%' }} />
+                    <div className="run-detail__progress-row">
+                      <div
+                        className="run-detail__progress"
+                        role="progressbar"
+                        aria-label={`${run.variant} 构建进度`}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={percent}
+                        title="按该变体最近几次成功构建的耗时中位数估算，不是 Gradle 的真实进度"
+                      >
+                        <div className="run-detail__progress-fill" style={{ width: percent + '%' }} />
+                      </div>
+                      <span className="run-detail__percent tabular" aria-hidden="true">
+                        {percent}%
+                      </span>
                     </div>
                   ) : null}
                 </li>
