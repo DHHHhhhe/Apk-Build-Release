@@ -77,6 +77,8 @@
   max-height: 12rem;
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* 有的版本条目多、有的少：不让滚动条的出现改变这一块宽度 */
+  scrollbar-gutter: stable;
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);

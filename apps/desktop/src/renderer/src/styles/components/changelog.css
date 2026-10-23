@@ -11,6 +11,8 @@
   max-height: 52vh;
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* 换页时条目多寡不同，滚动条一出现正文就横向跳一下 —— 把槽固定住 */
+  scrollbar-gutter: stable;
   /* 给滚动条留位置，免得它贴着卡片边缘 */
   margin: 0 -4px;
   padding: 0 4px;

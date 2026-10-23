@@ -167,6 +167,8 @@ body {
   flex: 1 1 auto;
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* 滚动条出现/消失都不改内容宽度：否则项目一多，卡片会整体窄 10px（被滚动条挤的） */
+  scrollbar-gutter: stable;
 }
 
 /* 拖动条贴在侧栏内右缘（overflow 会裁掉负偏移，所以不能放到外面） */

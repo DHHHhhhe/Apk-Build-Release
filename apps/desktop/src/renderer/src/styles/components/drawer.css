@@ -128,6 +128,8 @@
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* 抽屉里的卡片不该因为滚动条出现而整体变窄 */
+  scrollbar-gutter: stable;
   padding: 16px;
   display: flex;
   flex-direction: column;
