@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { GripVertical, Trash2 } from 'lucide-react'
-import { indexForPointer, moveItemTo } from '../lib/reorder'
+import { dragMargin, edgeScrollStep, indexForPointer, moveItemTo } from '../lib/reorder'
+import { scrollTopToReveal } from '../lib/reveal'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { filterVariantsForPackaging } from '@shared/lib/variants'
@@ -12,10 +13,10 @@ import type { ProjectBusyKind } from '../hooks/useProjects'
 const LONG_PRESS_MS = 250
 /** 其余项让位、被拖项落位的缓动时长 */
 const FLIP_MS = 140
-/** 指针离列表上下边缘多近开始自动滚动 */
-const EDGE_PX = 40
-/** 自动滚动每帧的步长 */
-const EDGE_STEP_PX = 2
+/** 指针离列表可视区上下边缘多近开始自动滚动 */
+const EDGE_PX = 48
+/** 自动滚动每帧的最大步长（贴到边上时的全速，越靠边越快） */
+const EDGE_STEP_PX = 14
 /** 拾起时的放大倍数 */
 const LIFT_SCALE = 1.05
 
@@ -84,6 +85,8 @@ export function ProjectList({
   const itemRefs = useRef(new Map<string, HTMLLIElement>())
   const longPressTimer = useRef<number | null>(null)
   const pending = useRef<{ id: string; startY: number; fromIndex: number } | null>(null)
+  /** 上一次渲染见过的项目 id：用来认出「这次新加进来的是哪一个」 */
+  const knownIdsRef = useRef<Set<string> | null>(null)
   /** FLIP 的 First：上一次渲染后各行的位置 */
   const lastRects = useRef(new Map<string, DOMRect>())
   const edgeTimer = useRef<number | null>(null)
@@ -99,6 +102,14 @@ export function ProjectList({
 
   // 拖动中的顺序：被拖的项已经站到落点上，其余项据此让位
   const ordered = drag === null ? projects : moveItemTo(projects, drag.fromIndex, drag.toIndex)
+  /**
+   * 项目 id 串：新增/删除的唯一判据。
+   *
+   * 不能拿 `projects` 数组本身当依赖 —— 数组引用可以不变而内容变了（列表接口返回同一个
+   * 数组实例、或者外部就地 push），这时 React 认为状态没变、effect 不重跑，新加的那一项
+   * 就永远不会被滚进可视区（实测：新项排在末尾且确实渲染了，但滚动位置仍是 0）。
+   */
+  const projectIdsKey = projects.map((project) => project.id).join(',')
 
   /**
    * 列表所在的滚动容器：边缘自动滚动与滚动补偿都用它。
@@ -110,6 +121,13 @@ export function ProjectList({
    * 找不到就返回 null，调用方什么都不做 —— 绝不回退去滚文档。
    */
   const scrollerOf = (): HTMLElement | null => {
+    // 拖动期间容器被锁成 overflow: hidden，而下面的判据要求 overflow-y 是 auto/scroll ——
+    // 于是拖动一开始就找不到容器，边缘自动滚动与滚动补偿全部静默失效
+    // （实测：指针停在可视底 10px 处，滚动增量恒为 0）。锁的时候已经记下了元素，直接用它。
+    const locked = scrollLockRef.current
+    if (locked !== null) {
+      return locked.el
+    }
     let el = listRef.current?.parentElement ?? null
     while (el !== null) {
       const style = window.getComputedStyle(el)
@@ -239,10 +257,12 @@ export function ProjectList({
         const mids = current.slots
           .filter((slot) => slot.id !== current.id)
           .map((slot) => slot.top - scrolled + slot.height / 2)
-        // 迟滞取行高的 35%：固定 8px 对快速拖动太小（指针一帧就能走过 8px 以上，
-        // 等于没有死区，落点会在分界线上来回蹭、整列反复换位）。
+        // 迟滞只需要吸收手抖。原来取行高的 50%，90px 的行要拖 132px 才换一位
+        // （行距才 98px，比一整行还远），于是「拖半天没反应、一松手跳两格」。
+        // 现在按 dragMargin 取行高的 10% 并夹在 4~10px：90px 的行约 9px，
+        // 实测首次换位行程 96px，约一整行。
         const rowHeight = current.slots[0]?.height ?? 40
-        const margin = Math.max(10, Math.round(rowHeight * 0.5))
+        const margin = dragMargin(rowHeight)
         const toIndex = indexForPointer(mids, event.clientY, margin)
         if (toIndex === current.toIndex) {
           // 落点没变就只更新指针位置，不触发重排
@@ -273,6 +293,57 @@ export function ProjectList({
     }
   }, [drag === null, projects])
 
+  /*
+   * 新加进来的项目要自己滚进可视区。
+   *
+   * 后端已把它排到列表末尾（main/services/project/lib/sort-order.ts），但排在末尾不等于
+   * 看得见 —— 项目多到超出一屏时，新加的那一项正好落在可视区下面，用户会觉得「添加没反应」。
+   * 这里只认出「这次新出现的那一个」，然后把它滚进可视区。
+   *
+   * 必须在**同一个** layout effect 里做「识别新增 + 滚动」：分成两个（一个 useEffect 识别、
+   * 一个 useLayoutEffect 滚动）的话，识别那次不触发重渲染，滚动就要等到下一次渲染才发生 ——
+   * 而那时用户已经看到它停在屏外了。
+   *
+   * 只在新增时滚：删除、勾选变体、拖动排序也会重渲染，那些场景下擅自滚一下等于抢走视图。
+   */
+  useLayoutEffect(() => {
+    const known = knownIdsRef.current
+    knownIdsRef.current = new Set(projects.map((project) => project.id))
+    // 首次挂载（known 为 null）与「列表从空变成有」（首次读取完成）都不算新增：
+    // 前者没有基准，后者是整批出现，滚到第一项等于把用户刚打开的画面挪一下。
+    if (known === null || known.size === 0) {
+      return
+    }
+    // 一次加多个（批量导入）时只滚到第一个，滚最后一个会把中间那些划过去
+    const added = projects.find((project) => !known.has(project.id))
+    if (added === undefined) {
+      return
+    }
+    const item = itemRefs.current.get(added.id)
+    const scroller = scrollerOf()
+    if (item === undefined || scroller === null) {
+      return
+    }
+    const itemBox = item.getBoundingClientRect()
+    const box = scroller.getBoundingClientRect()
+    const nextTop = scrollTopToReveal({
+      itemTop: itemBox.top,
+      itemBottom: itemBox.bottom,
+      boxTop: box.top,
+      boxBottom: box.bottom,
+      scrollTop: scroller.scrollTop,
+      maxScrollTop: Math.max(0, scroller.scrollHeight - scroller.clientHeight),
+      // 留一点边：贴着容器边缘看着像被切掉了一半
+      padding: 8
+    })
+    if (nextTop !== scroller.scrollTop) {
+      // 用 smooth 让「滚过去」这件事看得见。减少动效偏好要自己判：
+      // scrollTo 的 behavior 选项会盖过 CSS 的 scroll-behavior，base.css 那条兜不住这里。
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      scroller.scrollTo({ top: nextTop, behavior: reduceMotion ? 'auto' : 'smooth' })
+    }
+  }, [projectIdsKey])
+
 
   // 卸载或异常时别把页面滚动留在禁用状态
   useEffect(() => {
@@ -285,7 +356,12 @@ export function ProjectList({
     }
   }, [])
 
-  // 边缘自动滚动：指针停在列表上下边缘时，每帧把滚动容器挪一点
+  // 边缘自动滚动：指针停在列表可视区的上下边缘时，每帧把滚动容器挪一点。
+  //
+  // 判据原来用**列表内容**的 rect（listRef 是 <ul>）：内容比可视区高时，
+  // 它的上下边在可视区之外，于是「指针停在可视底」永远进不了边缘区 ——
+  // 实测在 358px 高的可视区里，指针停在距底 10px 处，滚动增量是 0。
+  // 必须用滚动容器（可视框）的 rect。
   useEffect(() => {
     if (drag === null || drag.settled) {
       if (edgeTimer.current !== null) {
@@ -295,15 +371,14 @@ export function ProjectList({
       return
     }
     const step = (): void => {
-      const list = listRef.current
+      const current = dragRef.current
       // 绝不回退到 document.scrollingElement：那会把整个应用滚起来
       const scroller = scrollerOf()
-      if (list !== null && scroller !== null) {
-        const rect = list.getBoundingClientRect()
-        if (drag.pointerY < rect.top + EDGE_PX) {
-          scroller.scrollTop -= EDGE_STEP_PX
-        } else if (drag.pointerY > rect.bottom - EDGE_PX) {
-          scroller.scrollTop += EDGE_STEP_PX
+      if (current !== null && scroller !== null) {
+        const box = scroller.getBoundingClientRect()
+        const delta = edgeScrollStep(current.pointerY, { top: box.top, bottom: box.bottom }, EDGE_PX, EDGE_STEP_PX)
+        if (delta !== 0) {
+          scroller.scrollTop += delta
         }
       }
       edgeTimer.current = window.requestAnimationFrame(step)
@@ -315,7 +390,7 @@ export function ProjectList({
         edgeTimer.current = null
       }
     }
-  }, [drag])
+  }, [drag === null])
 
   // FLIP 只在顺序真的变化时跑。
   // 以前这个 useLayoutEffect 没有依赖 —— 指针每动一下（每秒上百次）都会把所有行重新量一遍、

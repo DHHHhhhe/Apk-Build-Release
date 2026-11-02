@@ -8,6 +8,7 @@ import { addProjectInputSchema } from '../types'
 import type { ProjectResult } from '../types'
 import { persistVariants } from '../lib/persist'
 import { resolveVariants, withFailureHint } from '../lib/resolve-variants'
+import { nextSortOrder } from '../lib/sort-order'
 import { toProjectDto, findProjectRow } from '../lib/mapper'
 
 const logger = baseLogger.scope('project:add')
@@ -35,11 +36,8 @@ export async function addProject(input: unknown): Promise<ProjectResult> {
 
   // 路径先规范化再比：Windows 上 C:\projects\App 与 c:\projects\app 是同一个目录，
   // 直接拿字符串比会让同一个项目被加进来两次
-  const existing = db
-    .select()
-    .from(projects)
-    .all()
-    .find((row) => normalizeForCompare(row.path) === normalizeForCompare(projectPath))
+  const allRows = db.select().from(projects).all()
+  const existing = allRows.find((row) => normalizeForCompare(row.path) === normalizeForCompare(projectPath))
   if (existing) {
     return { success: false, error: `这个项目已经添加过了：${existing.name}`, project: toProjectDto(existing) }
   }
@@ -53,6 +51,9 @@ export async function addProject(input: unknown): Promise<ProjectResult> {
         id: projectId,
         name,
         path: projectPath,
+        // 新项目固定排在列表末尾：不写排序位的话 SQLite 把 NULL 排在最前，
+        // 新加的那个会插到列表顶端，用户找不到它（见 lib/sort-order.ts）
+        sortOrder: nextSortOrder(allRows.map((row) => row.sortOrder)),
         selectedVariants: '[]'
       })
       .run()

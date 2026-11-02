@@ -7,7 +7,7 @@ let workspace: string
 let projectPath: string
 
 let addProject: (input: unknown) => Promise<{ success: boolean; error?: string; project: unknown }>
-let listProjects: () => { success: boolean; projects: Array<{ id: string; selectedVariants: string[]; variants: Array<{ name: string }> }> }
+let listProjects: () => { success: boolean; projects: Array<{ id: string; name: string; selectedVariants: string[]; variants: Array<{ name: string }> }> }
 let setProjectVariants: (input: unknown) => { success: boolean; error?: string; project: unknown }
 let refreshProjectVariants: (input: unknown) => Promise<{ success: boolean; project: unknown }>
 let removeProject: (input: unknown) => { success: boolean; error?: string }
@@ -135,5 +135,38 @@ describe('项目登记与变体持久化', () => {
     const result = removeProject({ projectId: 'missing-id' })
     expect(result.success).toBe(false)
     expect(result.error).toContain('不在列表')
+  })
+})
+
+describe('新项目排到列表末尾', () => {
+  it('连加两个项目：后加的排在后面（不是插到最前）', async () => {
+    // writeFile 的入参是相对 workspace 的路径，这里不能传绝对路径
+    for (const dir of ['order-a', 'order-b']) {
+      writeFile(join(dir, 'settings.gradle'), "include ':app'\n")
+      writeFile(join(dir, 'app', 'build.gradle'), `plugins { id 'com.android.application' }`)
+    }
+
+    expect((await addProject({ path: join(workspace, 'order-a') })).success).toBe(true)
+    expect((await addProject({ path: join(workspace, 'order-b') })).success).toBe(true)
+
+    const names = listProjects().projects.map((project) => project.name)
+    expect(names).toEqual(['order-a', 'order-b'])
+  })
+
+  it('手工排过序之后再加，仍然落在末尾', async () => {
+    const reorderProjects = (await import('./reorder')).reorderProjects
+    const before = listProjects().projects.map((project) => project.id)
+    // 手工把顺序倒过来，再验证新项目不会被 NULL 排到最前
+    const reversed = [...before].reverse()
+    const reordered = reorderProjects({ projectIds: reversed })
+    expect(reordered.error).toBeUndefined()
+    expect(reordered.success).toBe(true)
+
+    writeFile(join('order-c', 'settings.gradle'), "include ':app'\n")
+    writeFile(join('order-c', 'app', 'build.gradle'), `plugins { id 'com.android.application' }`)
+    expect((await addProject({ path: join(workspace, 'order-c') })).success).toBe(true)
+
+    const names = listProjects().projects.map((project) => project.name)
+    expect(names).toEqual(['order-b', 'order-a', 'order-c'])
   })
 })
