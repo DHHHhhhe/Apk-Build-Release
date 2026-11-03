@@ -91,6 +91,7 @@
 }
 
 .drawer__title {
+  flex: 1 1 0;
   margin: 0;
   font-size: 16px;
   font-weight: 600;
@@ -174,6 +175,8 @@
 /* 别名字段：跟在项目路径下面 */
 .project-detail__alias {
   display: inline-flex;
+  flex-wrap: wrap;
+  max-width: 100%;
   align-items: center;
   gap: 6px;
   margin-top: 6px;
@@ -182,6 +185,8 @@
 }
 
 .project-detail__alias input {
+  min-width: 0;
+  max-width: 100%;
   width: 180px;
   height: 26px;
   padding: 0 8px;

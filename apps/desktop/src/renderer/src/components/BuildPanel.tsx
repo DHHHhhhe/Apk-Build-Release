@@ -284,7 +284,9 @@ export function BuildPanel({
         {activeRun ? (
           <div className="build-panel__log-wrap" data-drawer-section="log">
             <div className="build-panel__log-head">
-              <span className="build-panel__log-label">日志 · {activeRun.variant}</span>
+              <span className="build-panel__log-label" title={`日志 · ${activeRun.variant}`}>
+                日志 · {activeRun.variant}
+              </span>
               <label className="build-panel__log-filter">
                 <Search size={14} aria-hidden="true" />
                 <input

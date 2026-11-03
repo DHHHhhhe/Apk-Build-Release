@@ -255,7 +255,9 @@ export function ProjectDetail({
                         onSetVariants([...kept, ...namesOfBuildType(buildType)])
                       }}
                     >
-                      只选 {buildType}
+                      <span className="variant-quick__label" title={`只选 ${buildType}`}>
+                        只选 {buildType}
+                      </span>
                     </Button>
                   ))
                 : null}
@@ -287,10 +289,10 @@ export function ProjectDetail({
                         </Badge>
                       ) : null}
                       {badgeVisibility.flavor && variant.flavor ? (
-                        <Badge variant="muted">{variant.flavor}</Badge>
+                        <Badge variant="muted" title={variant.flavor}>{variant.flavor}</Badge>
                       ) : null}
                       {badgeVisibility.buildType ? (
-                        <Badge variant="muted">{variant.buildType}</Badge>
+                        <Badge variant="muted" title={variant.buildType}>{variant.buildType}</Badge>
                       ) : null}
                       {/* 非 release 变体由调试密钥签名、不能上架：这是后果，不是分类，用警告色说清 */}
                       {!isReleaseBuildType(variant.buildType) ? (

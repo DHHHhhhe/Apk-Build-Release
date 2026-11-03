@@ -8,8 +8,15 @@
 
 .build-panel__head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 8px 12px;
+}
+
+.build-panel__head > .badge,
+.build-panel__title {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .build-panel__title {
@@ -20,6 +27,7 @@
 
 /* 当前阶段：跟在状态徽章后面，长任务名靠 title 看全 */
 .build-panel__stage {
+  flex: 1 1 160px;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -116,6 +124,8 @@
 
 /* 完成时刻 + 该变体的构建耗时 */
 .run-list__time {
+  flex-shrink: 0;
+  white-space: nowrap;
   font-size: 12px;
   color: var(--muted-foreground);
 }
@@ -127,6 +137,7 @@
 
 .run-list__apk {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   margin: 0;
@@ -135,7 +146,12 @@
 }
 
 /* 产物文件名可能很长：给它省略号而不是把整行撑宽 */
+.run-list__apk > .badge {
+  flex-shrink: 0;
+}
+
 .run-list__apk-name {
+  flex: 1 1 160px;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -159,6 +175,7 @@
 }
 
 .run-list__hint {
+  overflow-wrap: anywhere;
   margin: 0;
   padding: 8px 12px;
   border-radius: var(--radius-sm);
@@ -195,6 +212,11 @@
 }
 
 .build-panel__log-label {
+  flex: 1 1 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 12px;
   color: var(--muted-foreground);
 }
@@ -215,6 +237,8 @@
 
 .build-panel__log-toggle {
   display: flex;
+  flex: 0 0 auto;
+  white-space: nowrap;
   align-items: center;
   gap: 6px;
   font-size: 12px;

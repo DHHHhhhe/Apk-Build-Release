@@ -174,15 +174,30 @@
   flex-wrap: wrap;
 }
 
-/* 徽章 + 两个按钮作为一组：整组换行，不再出现「徽章在第一行、按钮在第二行」 */
+/* 长名称先在信息区内换行，操作组空间不足时整体另起一行。 */
+.project-detail__head > div:first-child {
+  flex: 1 1 240px;
+  min-width: 0;
+  max-width: 100%;
+}
+
 .project-detail__actions {
   display: flex;
+  max-width: 100%;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 }
 
+.project-detail__actions > *,
+.variant-quick > * {
+  flex-shrink: 0;
+  max-width: 100%;
+  white-space: nowrap;
+}
+
 .project-detail__title {
+  overflow-wrap: anywhere;
   margin: 0;
   font-size: 16px;
   font-weight: 600;
@@ -197,8 +212,15 @@
 
 .project-detail__facts {
   display: flex;
-  gap: 32px;
+  flex-wrap: wrap;
+  gap: 12px 32px;
   margin: 0;
+}
+
+.project-detail__facts > div {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .project-detail__facts dt {
@@ -240,6 +262,13 @@
   gap: 8px;
 }
 
+.variant-quick__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .project-detail__notes {
   margin: 0;
   padding: 12px 16px;
@@ -264,8 +293,9 @@
 
 .variant-list__item {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 8px 12px;
   padding: 8px 12px;
   border-radius: var(--radius-md);
   background: var(--muted);
@@ -273,14 +303,24 @@
 
 .variant-list__label {
   display: flex;
+  min-width: 0;
+  max-width: 100%;
   align-items: center;
   gap: 8px;
-  flex: 1 1 auto;
+  flex: 1 1 180px;
   cursor: pointer;
   font-size: 14px;
 }
 
+.variant-list__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .variant-list__label input[type='checkbox'] {
+  flex-shrink: 0;
   accent-color: var(--primary);
   width: 16px;
   height: 16px;
@@ -288,7 +328,25 @@
 
 .variant-list__parts {
   display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
   gap: 6px;
+}
+
+/* 自定义渠道名可能比抽屉更长，徽章省略，完整名称通过悬停提示查看。 */
+.variant-list__parts > .badge {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 20px;
+}
+
+.project-detail__notes,
+.project-detail__fallback,
+.project-detail__building {
+  overflow-wrap: anywhere;
 }
 
 .app-error {

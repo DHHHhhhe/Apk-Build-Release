@@ -199,7 +199,7 @@ export function ProjectDrawer({
         onKeyDown={resizeWithKeyboard}
       />
       <header className="drawer__head">
-        <h2 className="drawer__title" id="project-drawer-title">
+        <h2 className="drawer__title" id="project-drawer-title" title={project.name}>
           {project.name}
         </h2>
         <Button

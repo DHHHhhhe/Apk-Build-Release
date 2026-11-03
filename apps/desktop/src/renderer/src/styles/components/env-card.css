@@ -1,10 +1,13 @@
 /* 环境自检卡片。状态徽章的样式在 badge.css（跨组件共用） */
 
-/* 探测范围：让用户知道这张卡在看哪个项目 */
+/* 探测范围独占下一行，长路径不参与标题与操作按钮的宽度分配 */
 .env-card__scope {
+  order: 1;
+  flex: 0 0 100%;
+  min-width: 0;
+  max-width: 100%;
   font-size: 12px;
   color: var(--muted-foreground);
-  max-width: 40%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -18,8 +21,9 @@
 
 .env-card__head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 8px 12px;
 }
 
 .env-card__title {
@@ -31,7 +35,9 @@
 /* 标题行就是展开开关：明细默认收起，结论徽章留在这一行 */
 .env-card__toggle {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
+  white-space: nowrap;
   gap: 6px;
   padding: 0;
   border: 0;
@@ -48,7 +54,10 @@
 }
 
 .env-card__refresh {
+  flex-shrink: 0;
+  min-width: 108px;
   margin-left: auto;
+  white-space: nowrap;
 }
 
 .env-card__list {
