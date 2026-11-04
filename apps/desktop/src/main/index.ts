@@ -7,6 +7,7 @@ import { countPending, countRunning } from './services/queue/lib/items'
 import { pauseQueue, recoverStale, tick } from './services/queue/lib/scheduler'
 import { initUpdater } from './services/update/updater'
 import { logger } from './services/logger'
+import { acquireSingleInstance, focusOrCreate } from './single-instance'
 import { currentBackgroundColor, initTheme } from './theme'
 
 /** 用户已经确认过「关闭并中断」，再关就别拦了 */
@@ -100,51 +101,81 @@ function createWindow(): void {
   }
 }
 
-// Windows 上系统通知需要 AppUserModelID 才能显示（打包后由安装包设置，开发期显式给一个）
-if (process.platform === 'win32') {
-  app.setAppUserModelId('com.abr.desktop')
+/**
+ * 把已有窗口叫到前面。
+ *
+ * 第二次点图标的人通常是因为「没看到窗口」—— 被最小化、被别的窗口盖住了。
+ * 具体行为（只唤醒、不新建）见 single-instance.ts 的 focusOrCreate。
+ */
+function focusExistingWindow(): void {
+  focusOrCreate(BrowserWindow.getAllWindows(), createWindow)
 }
 
-void app.whenReady().then(() => {
-  ensureSchema()
-
-  // 上次被强杀时留下的 running 项不可能再有人管，收尾成 failed 而不是一直转圈。
-  // pending 项保留：它们还能跑，但不自动开跑 —— 一开应用就自己占满 CPU 不是用户要的，
-  // 由界面上的「继续上次队列」交给用户决定。
-  const recovered = recoverStale()
-  if (recovered > 0) {
-    logger.warn('已收尾上次残留的队列项', { count: recovered })
+/**
+ * 启动。
+ *
+ * 单实例锁在 whenReady 与一切启动逻辑之前拿到。第二个进程到此为止 —— 不建窗口、
+ * 不跑 ensureSchema、不做队列收尾。这几步漏掉任何一步都出事：两个进程各写一份队列状态时，
+ * 后启动的那个会把第一个正在跑的项判成「上次残留」记成失败。
+ *
+ * 一处限制：`db/client.ts` 的 `new Database()` 在模块加载时就执行了，早于这里的判断，
+ * 所以第二个进程仍然会短暂持有库文件句柄（WAL 支持多进程，且它不做任何读写就退出）。
+ * 为这点改动去把建库改成懒加载，代价大于收益。
+ */
+function bootstrap(): void {
+  // 抢锁失败就到此为止：本次进程不再建窗口、不开库、不收尾队列
+  if (!acquireSingleInstance(app, focusExistingWindow)) {
+    return
   }
-  const leftover = countPending()
-  if (leftover > 0) {
-    pauseQueue()
-    logger.info('有上次没跑的队列项，队列先停在暂停态', { pending: leftover })
+
+  // Windows 上系统通知需要 AppUserModelID 才能显示（打包后由安装包设置，开发期显式给一个）
+  if (process.platform === 'win32') {
+    app.setAppUserModelId('com.abr.desktop')
   }
 
-  setupIpcHandlers()
-  // 主题要在建窗口之前定下来：窗口底色与渲染层的 prefers-color-scheme 都取决于它，
-  // 晚一步就会先闪一帧浅色
-  initTheme()
-  // 更新检查延迟到启动之后，别和建窗口、读配置抢主线程
-  initUpdater()
-  logger.info('主进程就绪')
-  createWindow()
-  tick()
+  void app.whenReady().then(() => {
+    ensureSchema()
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow()
+    // 上次被强杀时留下的 running 项不可能再有人管，收尾成 failed 而不是一直转圈。
+    // pending 项保留：它们还能跑，但不自动开跑 —— 一开应用就自己占满 CPU 不是用户要的，
+    // 由界面上的「继续上次队列」交给用户决定。
+    const recovered = recoverStale()
+    if (recovered > 0) {
+      logger.warn('已收尾上次残留的队列项', { count: recovered })
+    }
+    const leftover = countPending()
+    if (leftover > 0) {
+      pauseQueue()
+      logger.info('有上次没跑的队列项，队列先停在暂停态', { pending: leftover })
+    }
+
+    setupIpcHandlers()
+    // 主题要在建窗口之前定下来：窗口底色与渲染层的 prefers-color-scheme 都取决于它，
+    // 晚一步就会先闪一帧浅色
+    initTheme()
+    // 更新检查延迟到启动之后，别和建窗口、读配置抢主线程
+    initUpdater()
+    logger.info('主进程就绪')
+    createWindow()
+    tick()
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow()
+      }
+    })
+  })
+
+  // 退出时把还在跑的构建收掉，避免留下孤儿 java 进程
+  app.on('before-quit', () => {
+    killAllRunning()
+  })
+
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+      app.quit()
     }
   })
-})
+}
 
-// 退出时把还在跑的构建收掉，避免留下孤儿 java 进程
-app.on('before-quit', () => {
-  killAllRunning()
-})
-
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
-})
+bootstrap()

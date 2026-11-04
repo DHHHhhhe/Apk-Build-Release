@@ -17,6 +17,20 @@ export interface BuildNotification {
  * 而这时窗口多半还在最小化或别的窗口后面，只弹一条通知等于让他自己找。
  */
 export function notifyBuildFinished(input: BuildNotification): void {
+  showNotification(input)
+}
+
+/**
+ * 整轮队列结束的通知。
+ *
+ * 与单项通知分开命名只是为了调用处读起来清楚；行为完全一样（同一段弹窗与回窗口逻辑）。
+ * 一次勾很多项目时，单项通知有好几条，这一条负责说清「这一轮总共出了多少」。
+ */
+export function notifyQueueFinished(input: BuildNotification): void {
+  showNotification(input)
+}
+
+function showNotification(input: BuildNotification): void {
   try {
     if (!Notification.isSupported()) {
       return

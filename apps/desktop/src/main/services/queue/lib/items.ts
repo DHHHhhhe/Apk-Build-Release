@@ -78,6 +78,21 @@ export function listRunningItems(): QueueItemRow[] {
   return db.select().from(queueItems).where(eq(queueItems.state, 'running')).all()
 }
 
+/**
+ * 同一批次里的全部队列项（含已结束的）。
+ *
+ * 「整轮队列跑完」的通知按批次汇总：一次勾 5 个项目建的是 5 条队列项，共用一个 batchId。
+ * 按「队列里所有项」取会把上几轮的记录也算进来，那个总数没有意义。
+ */
+export function listItemsByBatch(batchId: string): QueueItemRow[] {
+  return db
+    .select()
+    .from(queueItems)
+    .where(eq(queueItems.batchId, batchId))
+    .orderBy(queueItems.enqueuedAt)
+    .all()
+}
+
 export function countRunning(): number {
   const row = db
     .select({ value: sql<number>`count(*)` })

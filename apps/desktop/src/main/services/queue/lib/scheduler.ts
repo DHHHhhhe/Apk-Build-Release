@@ -4,6 +4,7 @@ import { QUEUE_CONCURRENCY } from '@shared/constants/queue'
 import { getSettingNumber, setSettingNumber } from '../../build/lib/settings'
 import type { QueueItem, QueueItemState } from '@shared/types/queue'
 import { sortQueueItems } from '@shared/lib/queue-order'
+import { notifyQueueFinished } from '../../notify'
 import { requestCancel } from './cancel'
 import { executeQueueItem } from './executor'
 import {
@@ -13,8 +14,10 @@ import {
   findItemRow,
   isFinished,
   listItems,
+  listItemsByBatch,
   listPendingItems,
   listRunningItems,
+  listRunsForItem,
   parseVariants,
   recoverStaleItems,
   toQueueItemDto,
@@ -22,6 +25,7 @@ import {
 } from './items'
 import { broadcastItem, broadcastItemDto } from './executor'
 import { syncTaskbarProgress } from './progress'
+import { buildQueueSummary, queueSummaryNotification } from './queue-summary'
 
 const logger = baseLogger.scope('queue:scheduler')
 
@@ -150,6 +154,9 @@ export function tick(): void {
         .finally(() => {
           running.delete(row.id)
           runningProjects.delete(row.id)
+          // 先判断整轮收尾，再报空闲：汇总要看的是「这一批全都结束了吗」，
+          // 而不是「某一条结束了」—— 后者每条结束都会触发，弹出的总通知会重复 N 次
+          announceQueueFinishedIfIdle(row.batchId, row.id)
           maybeResolveIdle()
           tick()
         })
@@ -158,6 +165,55 @@ export function tick(): void {
     ticking = false
     syncTaskbarProgress()
   }
+}
+
+/**
+ * 队列彻底空下来时弹一条总通知。
+ *
+ * 单项通知是说「某个项目跑完了」，一次勾 5 个项目就有 5 条，用户得自己加总；
+ * 这一条按**批次**汇总，说清这一轮到底出了多少包、挂没挂。
+ *
+ * 三个条件缺一不可：
+ * 1. 队列里没有在跑的、也没有排队的（否则每次单项结束都会报一次）；
+ * 2. 这一批至少有 2 条队列项 —— 只有 1 条时总通知和单项通知内容一样，纯属打扰；
+ * 3. 老数据没有 batchId，那种情况按「只有这一条」处理，同样不报。
+ */
+function announceQueueFinishedIfIdle(batchId: string | null, lastItemId: string): void {
+  if (batchId === null || running.size > 0 || listPendingItems().length > 0) {
+    return
+  }
+
+  const batchRows = listItemsByBatch(batchId)
+  if (batchRows.length < 2) {
+    return
+  }
+
+  const summary = buildQueueSummary(
+    batchRows.map((row) => ({
+      projectId: row.projectId,
+      state: row.state,
+      runs: listRunsForItem(row.id).map((run) => ({
+        variant: run.variant,
+        state: run.state,
+        // 用开始时刻区分同一变体的多次重试：补跑那次的开始时间一定更晚
+        at: run.startedAt
+      }))
+    }))
+  )
+  if (!summary) {
+    return
+  }
+
+  const notification = queueSummaryNotification(summary)
+  logger.info('整轮队列结束，发总通知', {
+    batchId,
+    lastItemId,
+    projects: summary.projects,
+    variants: summary.variants,
+    success: summary.success,
+    failed: summary.failed
+  })
+  notifyQueueFinished(notification)
 }
 
 export function cancelItem(itemId: string): { success: boolean; error?: string } {

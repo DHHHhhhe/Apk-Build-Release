@@ -1,7 +1,25 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+
+/**
+ * 总通知要单独记账：单项通知走的是执行器（这里的假执行器根本不发通知），
+ * 所以只看 notifyQueueFinished 被调了几次、说了什么。
+ */
+const notify = vi.hoisted(() => ({
+  queue: [] as Array<{ title: string; body: string }>,
+  reset: (): void => {
+    notify.queue.length = 0
+  }
+}))
+
+vi.mock('../../notify', () => ({
+  notifyBuildFinished: (): void => undefined,
+  notifyQueueFinished: (input: { title: string; body: string }): void => {
+    notify.queue.push(input)
+  }
+}))
 
 let workspace: string
 let dbModule: typeof import('../../../db/client')
@@ -72,6 +90,7 @@ beforeEach(async () => {
   resolvers = []
   inFlight = 0
   peak = 0
+  notify.reset()
   scheduler.setExecutorForTest(fakeExecutor)
 })
 
@@ -246,6 +265,54 @@ describe('异常退出收尾', () => {
     expect(items.findItemRow(running.id)?.note).toContain('异常退出')
     // pending 还能跑：重启不该把用户排的队白排掉（以前这里会被一起标成 failed）
     expect(items.findItemRow(pending.id)?.state).toBe('pending')
+  })
+})
+
+describe('整轮队列的总通知', () => {
+  it('多项目同一批次跑完只发一条，数量按批次汇总', async () => {
+    scheduler.setConcurrency(2)
+    scheduler.enqueueItem(projectId, ['freeRelease'], 'batch-1')
+    scheduler.enqueueItem(projectId2, ['paidRelease'], 'batch-1')
+    await delay(40)
+    expect(started).toHaveLength(2)
+
+    releaseOne()
+    await delay(30)
+    // 只跑完一条时不该报「整轮结束」
+    expect(notify.queue).toHaveLength(0)
+
+    releaseOne()
+    await scheduler.waitForIdle(2000)
+
+    expect(notify.queue).toHaveLength(1)
+    expect(notify.queue[0]?.title).toBe('队列构建完成')
+    expect(notify.queue[0]?.body).toBe('2 个项目 · 2 个变体：成功 2、失败 0')
+  })
+
+  it('批次里只有一条项时不发总通知（内容与单项通知重复）', async () => {
+    scheduler.setConcurrency(1)
+    scheduler.enqueueItem(projectId, ['freeRelease'], 'batch-solo')
+    await delay(30)
+    releaseOne()
+    await scheduler.waitForIdle(2000)
+
+    expect(notify.queue).toHaveLength(0)
+  })
+
+  it('批次没跑完（还有排队的）不发总通知', async () => {
+    scheduler.setConcurrency(1)
+    scheduler.enqueueItem(projectId, ['freeRelease'], 'batch-wait')
+    scheduler.enqueueItem(projectId2, ['paidRelease'], 'batch-wait')
+    await delay(30)
+
+    releaseOne()
+    await delay(40)
+    // 第一条结束，第二条还在跑或刚开跑：整轮没结束
+    expect(notify.queue).toHaveLength(0)
+
+    releaseOne()
+    await scheduler.waitForIdle(2000)
+    expect(notify.queue).toHaveLength(1)
   })
 })
 
