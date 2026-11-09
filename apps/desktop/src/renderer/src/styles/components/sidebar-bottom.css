@@ -146,6 +146,7 @@
   padding: 2px;
   border: 1px solid var(--sidebar-border);
   border-radius: var(--radius-md);
+  background: var(--muted);
 }
 
 .theme-toggle__option {
@@ -170,13 +171,12 @@
   color: var(--sidebar-accent-foreground);
 }
 
-/*
- * 选中态用 sidebar-accent 而不是 card：深色下侧栏与卡片是同一个值（#161618），
- * 拿 card 当底会和侧栏糊在一起，看不出选中的是哪一个。
- */
-.theme-toggle__option--active {
-  background: var(--sidebar-accent);
+/* 选中项使用卡片底与内描边，深色下也能与控件底色区分。 */
+.theme-toggle__option--active,
+.theme-toggle__option--active:hover:not(:disabled) {
+  background: var(--card);
   color: var(--foreground);
+  box-shadow: inset 0 0 0 1px var(--border);
 }
 
 .theme-toggle__option:disabled {

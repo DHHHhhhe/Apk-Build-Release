@@ -75,11 +75,18 @@
 
 .project-list__item:hover {
   background: var(--muted);
-  border-color: color-mix(in oklab, var(--foreground) 14%, transparent);
+  border-color: var(--input);
 }
 
-.project-list__item--active {
+.project-list__item--active,
+.project-list__item--active:hover {
   background: var(--sidebar-accent);
+  border-color: var(--input);
+}
+
+/* 拖起时保留浮层阴影，选中强调只用于列表内的静态项目。 */
+.project-list__item--active:not(.project-list__item--lifted) {
+  box-shadow: inset 2px 0 0 var(--foreground);
 }
 
 /*
@@ -97,7 +104,7 @@
   margin-left: 2px;
   border-radius: var(--radius-sm);
   color: var(--muted-foreground);
-  opacity: 0.45;
+  opacity: 0.6;
   cursor: grab;
   touch-action: none;
   user-select: none;
@@ -159,6 +166,12 @@
 .project-list__remove {
   flex: 0 0 auto;
   margin-right: 4px;
+  color: var(--muted-foreground);
+}
+
+.project-list__remove:hover:not(:disabled) {
+  color: var(--destructive);
+  background: color-mix(in srgb, var(--destructive) 8%, transparent);
 }
 
 .project-detail {
@@ -201,6 +214,7 @@
   margin: 0;
   font-size: 16px;
   font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .project-detail__path {

@@ -5,6 +5,7 @@ html {
   font-size: 16px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 body {
@@ -19,7 +20,7 @@ body {
 /* 焦点环：键盘用户必须看得见，鼠标点击不显示 */
 :focus-visible {
   outline: 2px solid var(--ring);
-  outline-offset: 2px;
+  outline-offset: 3px;
 }
 
 /* ── 滚动条：细、无底色轨道 ──
@@ -51,19 +52,23 @@ body {
 
 /* ── 卡片：外壳 + 内芯 ── */
 .card-shell {
-  background: rgb(0 0 0 / 2.5%);
-  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--foreground) 2.5%, transparent);
+  border: 1px solid transparent;
   border-radius: var(--radius-xl);
   padding: 6px;
-  box-shadow: var(--shadow-card);
+  box-shadow: none;
 }
 
 .card-core {
   background: var(--card);
   /* 内圆角 = 外圆角 − 内边距，两条弧才同心 */
   border-radius: calc(var(--radius-xl) - 6px);
-  /* 顶部内高光：在上边缘拉出一条极细的亮线，让平面有厚度 */
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 60%);
+  /* 内描边只表达层次，不占布局尺寸。 */
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.dark .card-shell {
+  background: color-mix(in srgb, var(--foreground) 2%, transparent);
 }
 
 .card-core--pad {

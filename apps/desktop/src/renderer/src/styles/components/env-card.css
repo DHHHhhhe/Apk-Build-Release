@@ -30,6 +30,7 @@
   font-size: 16px;
   font-weight: 600;
   margin: 0;
+  letter-spacing: -0.02em;
 }
 
 /* 标题行就是展开开关：明细默认收起，结论徽章留在这一行 */

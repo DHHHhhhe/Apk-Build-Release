@@ -15,6 +15,10 @@
   color: var(--muted-foreground);
 }
 
+input[type="checkbox"] {
+  accent-color: var(--foreground);
+}
+
 /* 聚焦时边框变近黑，不加外发光 */
 .input:focus {
   outline: none;
