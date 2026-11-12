@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, relative } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -227,5 +227,99 @@ describe('copyArtifactToOutput', () => {
     const rel = relative(outputRoot, target)
     expect(rel.startsWith('..')).toBe(false)
     expect(target.startsWith(outputRoot)).toBe(true)
+  })
+
+  it('开启覆盖后同名产物被替换，只剩一份', () => {
+    const outputRoot = join(workspace, 'out')
+    const artifact = {
+      apkPath: join(workspace, 'app/build/outputs/apk/free/release/app-release.apk'),
+      apkName: 'app-release.apk',
+      applicationId: null,
+      variantName: null,
+      versionCode: null,
+      versionName: null,
+      signed: null,
+      matchedBy: 'filename' as const
+    }
+
+    writeFile('app/build/outputs/apk/free/release/app-release.apk', 'old')
+    const first = copyArtifactToOutput(artifact, outputRoot, 'demo app', { overwrite: true })
+    expect(readFileSync(first, 'utf8')).toBe('old')
+
+    writeFile('app/build/outputs/apk/free/release/app-release.apk', 'new')
+    const second = copyArtifactToOutput(artifact, outputRoot, 'demo app', { overwrite: true })
+
+    expect(second).toBe(first)
+    expect(readFileSync(second, 'utf8')).toBe('new')
+    // 覆盖模式下不该再堆出带时间戳的副本
+    expect(readdirSync(join(outputRoot, 'demo app'))).toEqual(['app-release.apk'])
+  })
+
+  it('默认不覆盖：不传 overwrite 时仍然加时间戳后缀', () => {
+    writeFile('app/build/outputs/apk/free/release/app-release.apk', 'bytes')
+    const outputRoot = join(workspace, 'out')
+    const artifact = {
+      apkPath: join(workspace, 'app/build/outputs/apk/free/release/app-release.apk'),
+      apkName: 'app-release.apk',
+      applicationId: null,
+      variantName: null,
+      versionCode: null,
+      versionName: null,
+      signed: null,
+      matchedBy: 'filename' as const
+    }
+
+    copyArtifactToOutput(artifact, outputRoot, 'demo app')
+    copyArtifactToOutput(artifact, outputRoot, 'demo app')
+
+    expect(readdirSync(join(outputRoot, 'demo app')).length).toBe(2)
+  })
+
+  it('覆盖时源文件读不到，旧包保持原样且不留临时文件', () => {
+    const outputRoot = join(workspace, 'out')
+    writeFile('app/build/outputs/apk/free/release/app-release.apk', 'old')
+    const artifact = {
+      apkPath: join(workspace, 'app/build/outputs/apk/free/release/app-release.apk'),
+      apkName: 'app-release.apk',
+      applicationId: null,
+      variantName: null,
+      versionCode: null,
+      versionName: null,
+      signed: null,
+      matchedBy: 'filename' as const
+    }
+
+    const target = copyArtifactToOutput(artifact, outputRoot, 'demo app', { overwrite: true })
+    expect(readFileSync(target, 'utf8')).toBe('old')
+
+    // 源文件消失（模拟复制中途拿不到源），覆盖不能把已经落在输出目录的完整旧包弄坏
+    rmSync(artifact.apkPath, { force: true })
+    expect(() => copyArtifactToOutput(artifact, outputRoot, 'demo app', { overwrite: true })).toThrow()
+
+    expect(readFileSync(target, 'utf8')).toBe('old')
+    expect(readdirSync(join(outputRoot, 'demo app'))).toEqual(['app-release.apk'])
+  })
+
+  it('输出目录就是项目的产物目录时不复制，避免把源文件清空', () => {
+    writeFile('app/build/outputs/apk/free/release/app-release.apk', 'bytes')
+    const apkPath = join(workspace, 'app/build/outputs/apk/free/release/app-release.apk')
+    const artifact = {
+      apkPath,
+      apkName: 'app-release.apk',
+      applicationId: null,
+      variantName: null,
+      versionCode: null,
+      versionName: null,
+      signed: null,
+      matchedBy: 'filename' as const
+    }
+
+    // 目标目录与源目录重合（projectName 取 'release'，outputRoot 指到它上面两级）
+    const target = copyArtifactToOutput(artifact, join(workspace, 'app/build/outputs/apk/free'), 'release', {
+      overwrite: true
+    })
+
+    expect(target).toBe(apkPath)
+    expect(readFileSync(apkPath, 'utf8')).toBe('bytes')
   })
 })

@@ -16,7 +16,7 @@ import {
   toBuildRunDto,
   updateBuildRun
 } from '../../build/lib/runs'
-import { getOutputRoot } from '../../build/lib/settings'
+import { getOutputRoot, getOverwriteArtifact } from '../../build/lib/settings'
 import { verifyApkSignature } from '../../build/lib/signing'
 import { runGradleTask, variantTaskPath } from '../../build/lib/spawn-gradle'
 import { locateAndroidSdk } from '../../env/lib/probe'
@@ -159,7 +159,11 @@ export async function executeQueueItem(itemId: string): Promise<QueueItemState> 
       const artifact = succeeded
         ? (findApkArtifacts({ projectPath: project.path, moduleDirs, expectedVariant: variant })[0] ?? null)
         : null
-      const copiedPath = artifact ? copyArtifactToOutput(artifact, outputRoot, resolveOutputFolderName(project)) : null
+      const copiedPath = artifact
+        ? copyArtifactToOutput(artifact, outputRoot, resolveOutputFolderName(project), {
+            overwrite: getOverwriteArtifact()
+          })
+        : null
 
       if (succeeded && artifact) {
         emitProgress(parser.markPhase('verifying'), true)

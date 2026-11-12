@@ -80,6 +80,8 @@ export interface AppApi {
     setAutoCheckUpdate: (enabled: boolean) => Promise<SettingsResult>
     /** 队列面板是否显示变体构建进度条（按历史耗时中位数预估） */
     setShowVariantProgress: (enabled: boolean) => Promise<SettingsResult>
+    /** 归档同类产物时是否覆盖输出目录里的同名旧包；关掉则重名加时间戳后缀 */
+    setOverwriteArtifact: (enabled: boolean) => Promise<SettingsResult>
     pickOutputDir: () => Promise<SettingsResult>
     openPath: (path: string) => Promise<BasicResult>
     clearLogs: () => Promise<BasicResult & { removed?: number; freedBytes?: number }>

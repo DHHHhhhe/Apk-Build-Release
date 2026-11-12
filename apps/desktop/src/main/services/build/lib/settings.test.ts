@@ -42,3 +42,24 @@ describe('显示变体构建进度条的偏好', () => {
     expect(settings.getShowVariantProgress()).toBe(true)
   })
 })
+
+describe('覆盖同名产物的偏好', () => {
+  it('从没写过时按开启处理（新版默认行为就是覆盖）', () => {
+    expect(settings.getOverwriteArtifact()).toBe(true)
+  })
+
+  it('关掉后读回 false，再打开读回 true', () => {
+    settings.setOverwriteArtifact(false)
+    expect(settings.getOverwriteArtifact()).toBe(false)
+
+    settings.setOverwriteArtifact(true)
+    expect(settings.getOverwriteArtifact()).toBe(true)
+  })
+
+  it('存进去的值非法时按默认值（开启）处理', () => {
+    dbModule.sqlite
+      .prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = ?')
+      .run(settings.OVERWRITE_ARTIFACT_KEY, 'not-a-boolean', 'not-a-boolean')
+    expect(settings.getOverwriteArtifact()).toBe(true)
+  })
+})

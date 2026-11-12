@@ -76,6 +76,8 @@ const api: AppApi = {
       ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.SET_AUTO_CHECK_UPDATE, { enabled }),
     setShowVariantProgress: (enabled: boolean) =>
       ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.SET_SHOW_VARIANT_PROGRESS, { enabled }),
+    setOverwriteArtifact: (enabled: boolean) =>
+      ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.SET_OVERWRITE_ARTIFACT, { enabled }),
     pickOutputDir: () => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.PICK_OUTPUT_DIR),
     openPath: (path: string) => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.OPEN_PATH, { path }),
     clearLogs: () => ipcRenderer.invoke(IPC_CHANNELS.SETTINGS.CLEAR_LOGS)

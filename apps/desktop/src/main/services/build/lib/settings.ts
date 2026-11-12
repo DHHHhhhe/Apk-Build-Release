@@ -47,6 +47,21 @@ export function setShowVariantProgress(enabled: boolean): void {
   upsertSetting(SHOW_VARIANT_PROGRESS_KEY, String(enabled))
 }
 
+export const OVERWRITE_ARTIFACT_KEY = 'output.overwriteArtifact'
+
+/**
+ * 归档时是否覆盖同名产物。默认开 —— 同一个变体重新构建，输出目录里留一份最新的包
+ * 比堆一串带时间戳的副本更符合直觉。关掉后回到「重名加时间戳、绝不覆盖」的老行为。
+ */
+export function getOverwriteArtifact(): boolean {
+  const row = db.select().from(settings).where(eq(settings.key, OVERWRITE_ARTIFACT_KEY)).get()
+  return row?.value !== 'false'
+}
+
+export function setOverwriteArtifact(enabled: boolean): void {
+  upsertSetting(OVERWRITE_ARTIFACT_KEY, String(enabled))
+}
+
 export const LAST_RUN_VERSION_KEY = 'app.lastRunVersion'
 
 /** 上次运行的版本号；从没写过就返回 null（首次安装，或从还不认识这个字段的旧版升上来） */

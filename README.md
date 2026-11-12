@@ -110,6 +110,7 @@
 | 内容 | 位置 |
 | --- | --- |
 | 统一输出目录（APK 复制到这里） | 「文档/APK批量打包」，可在**设置**里改 |
+| 同名产物 | 默认覆盖输出目录里的旧包；在**设置 → 产物归档**里关掉后，改为重名加时间戳、新旧都留着 |
 | SQLite 库（项目、队列、构建记录） | 安装版：`%APPDATA%\@abr\desktop\app.db`；开发模式：`apps/desktop/app-dev.db` |
 | 运行日志 | `%APPDATA%\@abr\desktop\logs\main.log` |
 | 每个变体的构建日志 | `%APPDATA%\@abr\desktop\logs\<runId>.log` |

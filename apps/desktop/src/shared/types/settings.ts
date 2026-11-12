@@ -22,7 +22,12 @@ export const settingsSchema = z.object({
    * 队列面板是否显示每个变体的构建进度条。
    * 进度条是按「历史耗时中位数」估的，不是 Gradle 的真实进度，所以给一个关掉的出口。
    */
-  showVariantProgress: z.boolean()
+  showVariantProgress: z.boolean(),
+  /**
+   * 归档同类产物时是否覆盖输出目录里的旧包。
+   * 开（默认）：同名文件直接覆盖；关：重名加时间戳后缀，两个都留着。
+   */
+  overwriteArtifact: z.boolean()
 })
 
 export const settingsResultSchema = z.object({
@@ -47,6 +52,10 @@ export const setShowVariantProgressInputSchema = z.object({
   enabled: z.boolean()
 })
 
+export const setOverwriteArtifactInputSchema = z.object({
+  enabled: z.boolean()
+})
+
 export const openPathInputSchema = z.object({
   path: z.string().min(1, '缺少路径')
 })
@@ -63,5 +72,6 @@ export type SetOutputRootInput = z.infer<typeof setOutputRootInputSchema>
 export type SetThemeInput = z.infer<typeof setThemeInputSchema>
 export type SetAutoCheckUpdateInput = z.infer<typeof setAutoCheckUpdateInputSchema>
 export type SetShowVariantProgressInput = z.infer<typeof setShowVariantProgressInputSchema>
+export type SetOverwriteArtifactInput = z.infer<typeof setOverwriteArtifactInputSchema>
 export type OpenPathInput = z.infer<typeof openPathInputSchema>
 export type BasicResult = z.infer<typeof basicResultSchema>

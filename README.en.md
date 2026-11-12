@@ -108,6 +108,7 @@ The list and the queue use the **same rule**, so a variant you cannot see is nev
 | Item | Location |
 | --- | --- |
 | Output folder (APKs are copied here) | `Documents\APK批量打包`, changeable in **Settings** |
+| Same-named APK | The old copy in the output folder is replaced by default; turn it off under **Settings → Artifact archiving** to keep both, with the new one timestamped |
 | SQLite database (projects, queue, build history) | Installed app: `%APPDATA%\@abr\desktop\app.db`; dev mode: `apps/desktop/app-dev.db` |
 | Application log | `%APPDATA%\@abr\desktop\logs\main.log` |
 | Per-variant build log | `%APPDATA%\@abr\desktop\logs\<runId>.log` |

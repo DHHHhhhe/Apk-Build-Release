@@ -20,6 +20,8 @@ export function SettingsDialog({
   const [draft, setDraft] = useState('')
   /** 进度条开关：null = 还没读到，按钮先禁用（别先把「关」显示出来再跳成「开」） */
   const [showProgress, setShowProgress] = useState<boolean | null>(null)
+  /** 覆盖产物开关：同上，null 表示还没读到 */
+  const [overwriteArtifact, setOverwriteArtifact] = useState<boolean | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pendingClose, setPendingClose] = useState(false)
@@ -33,6 +35,7 @@ export function SettingsDialog({
         setSettings(result.settings)
         setDraft(result.settings.outputRoot)
         setShowProgress(result.settings.showVariantProgress)
+        setOverwriteArtifact(result.settings.overwriteArtifact)
       }
     })
   }, [open])
@@ -103,6 +106,27 @@ export function SettingsDialog({
     if (result.settings) {
       setSettings(result.settings)
       setShowProgress(result.settings.showVariantProgress)
+    }
+    onSaved?.()
+  }
+
+  /**
+   * 覆盖产物开关：与进度条开关同一套写法 —— 布尔开关拨动即写，不设「保存」。
+   * 写的是本地数据库，几乎不会失败，所以先动界面再落盘。
+   */
+  const toggleOverwriteArtifact = async (next: boolean): Promise<void> => {
+    setError(null)
+    setMessage(null)
+    setOverwriteArtifact(next)
+    const result = await window.api.settings.setOverwriteArtifact(next)
+    if (!result.success) {
+      setOverwriteArtifact(!next)
+      setError(result.error ?? '保存失败')
+      return
+    }
+    if (result.settings) {
+      setSettings(result.settings)
+      setOverwriteArtifact(result.settings.overwriteArtifact)
     }
     onSaved?.()
   }
@@ -208,6 +232,28 @@ export function SettingsDialog({
               <span className="dialog__hint">
                 队列里正在构建的变体显示进度条，按该变体历史成功构建的耗时中位数预估 ——
                 不是 Gradle 的真实进度
+              </span>
+            </div>
+          </div>
+
+          <div className="dialog__field">
+            <span className="dialog__label">产物归档</span>
+            <div className="dialog__row">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={overwriteArtifact === true}
+                aria-label="新增 APK 覆盖原有包体"
+                className={overwriteArtifact === true ? 'switch switch--on' : 'switch'}
+                disabled={overwriteArtifact === null}
+                onClick={() => {
+                  void toggleOverwriteArtifact(overwriteArtifact !== true)
+                }}
+              >
+                <span className="switch__thumb" aria-hidden="true" />
+              </button>
+              <span className="dialog__hint">
+                {'新增 APK 覆盖原有包体：同名产物直接替换输出目录里的旧包；关掉则保留旧包，新包名后加时间戳'}
               </span>
             </div>
           </div>

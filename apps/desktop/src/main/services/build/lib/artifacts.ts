@@ -1,5 +1,5 @@
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { basename, join, relative } from 'node:path'
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs'
+import { basename, join, relative, resolve } from 'node:path'
 import { resolveOutputFolderName, sanitizeSegment } from '@shared/lib/output-folder'
 import { logger as baseLogger } from '../../logger'
 
@@ -109,16 +109,50 @@ export function findApkArtifacts(options: FindArtifactsOptions): ApkArtifact[] {
   return fallback
 }
 
-/** 复制到统一输出目录：按项目分子目录、保留原名，重名时加时间戳后缀，绝不静默覆盖 */
+export interface CopyArtifactOptions {
+  /**
+   * 覆盖同名产物（设置里的「新增 APK 覆盖原有包体」）。
+   * 默认 false：重名加时间戳后缀，绝不静默覆盖 —— 这条是缺省行为，不能因为开关存在就变。
+   */
+  overwrite?: boolean
+}
+
+/** 复制到统一输出目录：按项目分子目录、保留原名 */
 export function copyArtifactToOutput(
   artifact: ApkArtifact,
   outputRoot: string,
-  projectName: string
+  projectName: string,
+  options: CopyArtifactOptions = {}
 ): string {
   const targetDir = join(outputRoot, sanitizeSegment(projectName))
   mkdirSync(targetDir, { recursive: true })
 
-  const target = uniquePath(targetDir, artifact.apkName)
+  const overwritten = options.overwrite === true
+  const target = overwritten ? join(targetDir, artifact.apkName) : uniquePath(targetDir, artifact.apkName)
+
+  // 输出目录被设成项目自己的 build/outputs 时，源和目标会是同一个文件：
+  // 此时 copyFileSync 会先截断目标（也就是源），把刚打出来的包清成 0 字节。
+  if (resolve(artifact.apkPath) === resolve(target)) {
+    logger.info('产物已在输出目录内，跳过复制', { path: target })
+    return target
+  }
+
+  if (overwritten && existsSync(target)) {
+    // 覆盖走「同目录临时文件 + 改名」：直接 copy 到目标会先截断旧包，
+    // 复制中途失败（磁盘满、源文件被占用）就只剩一个残缺的 APK，比不覆盖更糟。
+    // rename 在同一个目录内是原子的，要么是旧包、要么是完整新包。
+    const temp = `${target}.tmp-${process.pid}`
+    try {
+      copyFileSync(artifact.apkPath, temp)
+      renameSync(temp, target)
+    } catch (error) {
+      rmSync(temp, { force: true })
+      throw error
+    }
+    logger.info('产物已覆盖', { from: artifact.apkPath, to: target })
+    return target
+  }
+
   copyFileSync(artifact.apkPath, target)
   logger.info('产物已复制', { from: artifact.apkPath, to: target })
   return target

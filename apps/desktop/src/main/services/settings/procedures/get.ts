@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { app } from 'electron'
 import { logger as baseLogger } from '../../logger'
-import { getAutoCheckUpdate, getOutputRoot, getShowVariantProgress, getThemeChoice } from '../../build/lib/settings'
+import { getAutoCheckUpdate, getOutputRoot, getOverwriteArtifact, getShowVariantProgress, getThemeChoice } from '../../build/lib/settings'
 import type { SettingsResult } from '../types'
 
 const logger = baseLogger.scope('settings:get')
@@ -20,7 +20,8 @@ export function readSettings(): SettingsResult {
         logDir: getLogDir(),
         theme: getThemeChoice(),
         autoCheckUpdate: getAutoCheckUpdate(),
-        showVariantProgress: getShowVariantProgress()
+        showVariantProgress: getShowVariantProgress(),
+        overwriteArtifact: getOverwriteArtifact()
       }
     }
   } catch (error) {
