@@ -50,8 +50,9 @@ export function setShowVariantProgress(enabled: boolean): void {
 export const OVERWRITE_ARTIFACT_KEY = 'output.overwriteArtifact'
 
 /**
- * 归档时是否覆盖同名产物。默认开 —— 同一个变体重新构建，输出目录里留一份最新的包
- * 比堆一串带时间戳的副本更符合直觉。关掉后回到「重名加时间戳、绝不覆盖」的老行为。
+ * 归档时是否只留本次构建的产物。默认开 —— 同一个变体重新构建后，
+ * 输出目录里留最新这一个包，比堆一串带构建时间戳的副本更符合直觉。
+ * 关掉后回到「历史包都留着、重名加时间戳」的老行为。
  */
 export function getOverwriteArtifact(): boolean {
   const row = db.select().from(settings).where(eq(settings.key, OVERWRITE_ARTIFACT_KEY)).get()

@@ -111,8 +111,13 @@ export function findApkArtifacts(options: FindArtifactsOptions): ApkArtifact[] {
 
 export interface CopyArtifactOptions {
   /**
-   * 覆盖同名产物（设置里的「新增 APK 覆盖原有包体」）。
-   * 默认 false：重名加时间戳后缀，绝不静默覆盖 —— 这条是缺省行为，不能因为开关存在就变。
+   * 覆盖统一输出目录里「同一变体」的历史产物（设置里的「新增 APK 覆盖原有包体」）。
+   *
+   * 不能只判同名：很多工程在 Gradle 里把构建时间戳拼进了 outputFileName
+   * （例如 `appName_V1.5.0_20261112_1746.apk`），每次构建文件名都不同，
+   * 只按同名判断就永远不会命中，输出目录里会越堆越多。
+   *
+   * 默认 false：重名加时间戳后缀、历史包都留着。
    */
   overwrite?: boolean
 }
@@ -150,12 +155,98 @@ export function copyArtifactToOutput(
       throw error
     }
     logger.info('产物已覆盖', { from: artifact.apkPath, to: target })
+    pruneAfterCopy(targetDir, artifact.apkName)
     return target
   }
 
   copyFileSync(artifact.apkPath, target)
   logger.info('产物已复制', { from: artifact.apkPath, to: target })
+
+  // 新包已经完整落盘，再清理同一变体的历史产物 —— 顺序不能反：
+  // 先删后复制的话，复制失败就会连旧包一起没了。
+  if (overwritten) {
+    pruneAfterCopy(targetDir, artifact.apkName)
+  }
   return target
+}
+
+/** 清理同变体历史产物并记日志；失败不影响本次构建（新包已经落地） */
+function pruneAfterCopy(dir: string, keepFileName: string): void {
+  const removed = pruneVariantHistory(dir, keepFileName)
+  if (removed.length > 0) {
+    logger.info('已清理同变体的历史产物', { count: removed.length, files: removed })
+  }
+}
+
+/**
+ * 文件名里的构建时间戳片段，例如 `_20261112_1746`、`_20261022-103600`、`_2026_11_12_17_46`。
+ *
+ * 只认「看起来像日期时间」的尾部：年月日与时分都要在合法范围，避免把
+ * `报告_20261399_0000.apk` 这种真正的名字当成时间戳。
+ */
+const BUILD_STAMP_PATTERN = /[_-](\d{4})(\d{2})(\d{2})[_-](\d{2})(\d{2})(?:\d{2})?$/
+
+/**
+ * 从文件名里剥掉末尾的构建时间戳，得到「同一变体的产物族」标识。
+ *
+ * 同一个变体反复构建时，只有时间戳在变，前缀是稳定的；
+ * 而 debug 与 release 的前缀不同（Gradle 里常给 debug 追加 `_debug包`），
+ * 所以按前缀归族既能清掉历史包，又不会把另一个变体的包一起删掉。
+ */
+export function artifactFamilyKey(fileName: string): string {
+  const withoutExt = fileName.replace(/\.apk$/i, '')
+  const match = BUILD_STAMP_PATTERN.exec(withoutExt)
+  if (!match) {
+    return withoutExt
+  }
+  const [, year, month, day, hour, minute] = match
+  const inRange =
+    Number(month) >= 1 && Number(month) <= 12 &&
+    Number(day) >= 1 && Number(day) <= 31 &&
+    Number(hour) <= 23 && Number(minute) <= 59
+  if (!inRange) {
+    return withoutExt
+  }
+  // year 只用于占位，剥掉的是整个时间戳片段
+  void year
+  return withoutExt.slice(0, match.index)
+}
+
+/**
+ * 删掉目录里与 keepFileName 属于同一变体、但不是本次产物的 APK。
+ *
+ * 只删 `.apk`，也绝不删本次写进去的那个；返回被删掉的文件名，供日志与测试核对。
+ */
+export function pruneVariantHistory(dir: string, keepFileName: string): string[] {
+  const keepKey = artifactFamilyKey(keepFileName)
+  let entries: string[]
+  try {
+    entries = readdirSync(dir)
+  } catch {
+    return []
+  }
+
+  const removed: string[] = []
+  for (const entry of entries) {
+    if (entry === keepFileName) {
+      continue
+    }
+    if (!entry.toLowerCase().endsWith('.apk')) {
+      continue
+    }
+    if (artifactFamilyKey(entry) !== keepKey) {
+      continue
+    }
+    try {
+      rmSync(join(dir, entry), { force: true })
+      removed.push(entry)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '未知错误'
+      // 删不掉（被占用 / 只读）不该让本次构建失败：新包已经写好了
+      logger.warn('清理历史产物失败，已跳过', { file: entry, error: message })
+    }
+  }
+  return removed
 }
 
 /** 重名用时间戳后缀，比「(2)」更能说明哪个是新的；极端情况下再补序号 */

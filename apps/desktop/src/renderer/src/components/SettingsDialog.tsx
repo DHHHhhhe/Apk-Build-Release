@@ -253,7 +253,7 @@ export function SettingsDialog({
                 <span className="switch__thumb" aria-hidden="true" />
               </button>
               <span className="dialog__hint">
-                {'新增 APK 覆盖原有包体：同名产物直接替换输出目录里的旧包；关掉则保留旧包，新包名后加时间戳'}
+                {'新增 APK 覆盖原有包体：同一变体重新构建后，输出目录里只留最新这一个包；关掉则历史包都留着'}
               </span>
             </div>
           </div>

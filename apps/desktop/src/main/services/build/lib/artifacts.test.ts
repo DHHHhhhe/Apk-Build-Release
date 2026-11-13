@@ -2,7 +2,14 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os'
 import { dirname, join, relative } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { copyArtifactToOutput, findApkArtifacts, readOutputMetadata, resolveOutputFolderName } from './artifacts'
+import {
+  artifactFamilyKey,
+  copyArtifactToOutput,
+  findApkArtifacts,
+  pruneVariantHistory,
+  readOutputMetadata,
+  resolveOutputFolderName
+} from './artifacts'
 
 let workspace: string
 
@@ -321,5 +328,141 @@ describe('copyArtifactToOutput', () => {
 
     expect(target).toBe(apkPath)
     expect(readFileSync(apkPath, 'utf8')).toBe('bytes')
+  })
+})
+
+describe('artifactFamilyKey（同一变体的产物族）', () => {
+  it('剥掉 Gradle 拼进文件名的构建时间戳', () => {
+    // 真实工程里 outputFileName 是 appName + _V版本 + buildType + _yyyyMMdd_HHmm.apk
+    expect(artifactFamilyKey('示例_V1.5.0_20261022_1024.apk')).toBe('示例_V1.5.0')
+    expect(artifactFamilyKey('示例_V1.5.0_20261112_1746.apk')).toBe('示例_V1.5.0')
+  })
+
+  it('同一次构建的不同时间戳属于同一个族，debug 与 release 不属于', () => {
+    expect(artifactFamilyKey('示例_V1.5.0_20261022_1024.apk')).toBe(
+      artifactFamilyKey('示例_V1.5.0_20261023_1044.apk')
+    )
+    expect(artifactFamilyKey('示例_V1.5.0_debug包_20261022_1024.apk')).not.toBe(
+      artifactFamilyKey('示例_V1.5.0_20261022_1024.apk')
+    )
+  })
+
+  it('带秒与带短横线的时间戳也能剥掉', () => {
+    expect(artifactFamilyKey('app_20261022_103600.apk')).toBe('app')
+    expect(artifactFamilyKey('app_20261022-103600.apk')).toBe('app')
+  })
+
+  it('不像日期时间的数字不当成时间戳，避免误归族', () => {
+    // 13 月不合法：整段保留，不会被当成时间戳剥掉
+    expect(artifactFamilyKey('报告_20261399_0000.apk')).toBe('报告_20261399_0000')
+    expect(artifactFamilyKey('app-release.apk')).toBe('app-release')
+  })
+})
+
+describe('pruneVariantHistory', () => {
+  it('只留本次产物，清掉同变体的历史包', () => {
+    const dir = join(workspace, 'out', '示例')
+    mkdirSync(dir, { recursive: true })
+    for (const name of [
+      '示例_V1.5.0_20261022_1024.apk',
+      '示例_V1.5.0_20261022_1036.apk',
+      '示例_V1.5.0_20261023_1044.apk',
+      '示例_V1.5.0_20261112_1746.apk'
+    ]) {
+      writeFileSync(join(dir, name), 'apk', 'utf8')
+    }
+
+    const removed = pruneVariantHistory(dir, '示例_V1.5.0_20261112_1746.apk')
+
+    expect(readdirSync(dir)).toEqual(['示例_V1.5.0_20261112_1746.apk'])
+    expect(removed.sort()).toEqual([
+      '示例_V1.5.0_20261022_1024.apk',
+      '示例_V1.5.0_20261022_1036.apk',
+      '示例_V1.5.0_20261023_1044.apk'
+    ])
+  })
+
+  it('不碰另一个变体的包，也不碰非 APK 文件', () => {
+    const dir = join(workspace, 'out', '示例')
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, '示例_V1.5.0_20261112_1746.apk'), 'apk', 'utf8')
+    writeFileSync(join(dir, '示例_V1.5.0_20261022_1024.apk'), 'apk', 'utf8')
+    // 另一个变体：debug 包的前缀不同
+    writeFileSync(join(dir, '示例_V1.5.0_debug包_20261022_1024.apk'), 'apk', 'utf8')
+    writeFileSync(join(dir, '说明.txt'), 'text', 'utf8')
+
+    pruneVariantHistory(dir, '示例_V1.5.0_20261112_1746.apk')
+
+    expect(readdirSync(dir).sort()).toEqual([
+      '示例_V1.5.0_debug包_20261022_1024.apk',
+      '示例_V1.5.0_20261112_1746.apk',
+      '说明.txt'
+    ].sort())
+  })
+
+  it('目录不存在时返回空，不抛错', () => {
+    expect(pruneVariantHistory(join(workspace, 'nope'), 'a.apk')).toEqual([])
+  })
+})
+
+describe('copyArtifactToOutput + 覆盖（端到端串起来）', () => {
+  it('构建时间戳每次不同，开启覆盖后目录里只剩本次的包', () => {
+    const outputRoot = join(workspace, 'out')
+
+    const build = (name: string, bytes: string): string => {
+      const relativePath = `app/build/outputs/apk/free/release/${name}`
+      writeFile(relativePath, bytes)
+      return copyArtifactToOutput(
+        {
+          apkPath: join(workspace, relativePath),
+          apkName: name,
+          applicationId: null,
+          variantName: null,
+          versionCode: null,
+          versionName: null,
+          signed: null,
+          matchedBy: 'filename'
+        },
+        outputRoot,
+        '示例',
+        { overwrite: true }
+      )
+    }
+
+    build('示例_V1.5.0_20261022_1024.apk', 'first')
+    build('示例_V1.5.0_20261022_1036.apk', 'second')
+    build('示例_V1.5.0_20261023_1044.apk', 'third')
+    const last = build('示例_V1.5.0_20261112_1746.apk', 'latest')
+
+    expect(readdirSync(join(outputRoot, '示例'))).toEqual(['示例_V1.5.0_20261112_1746.apk'])
+    expect(readFileSync(last, 'utf8')).toBe('latest')
+  })
+
+  it('不开覆盖时历史包照旧都留着', () => {
+    const outputRoot = join(workspace, 'out')
+
+    const build = (name: string): void => {
+      const relativePath = `app/build/outputs/apk/free/release/${name}`
+      writeFile(relativePath, 'apk')
+      copyArtifactToOutput(
+        {
+          apkPath: join(workspace, relativePath),
+          apkName: name,
+          applicationId: null,
+          variantName: null,
+          versionCode: null,
+          versionName: null,
+          signed: null,
+          matchedBy: 'filename'
+        },
+        outputRoot,
+        '示例'
+      )
+    }
+
+    build('示例_V1.5.0_20261022_1024.apk')
+    build('示例_V1.5.0_20261112_1746.apk')
+
+    expect(readdirSync(join(outputRoot, '示例')).length).toBe(2)
   })
 })
