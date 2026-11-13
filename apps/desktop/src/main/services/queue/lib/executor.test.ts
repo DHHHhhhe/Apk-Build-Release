@@ -17,7 +17,18 @@ const hoisted = vi.hoisted(() => ({
    * 伪造的 Gradle 执行：默认成功且不产生产物。
    * 单独给 chunks 时，会按顺序喂给 onChunk —— 用来验证「输出 → 进度解析 → 推送」这条链路。
    */
-  gradle: { chunks: [] as string[], exitCode: 0 }
+  gradle: { chunks: [] as string[], exitCode: 0, inspect: null as (() => void) | null },
+  taskbarEnabled: false,
+  taskbarValues: [] as number[]
+}))
+
+vi.mock('electron', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  BrowserWindow: {
+    getAllWindows: () => hoisted.taskbarEnabled
+      ? [{ setProgressBar: (value: number) => { hoisted.taskbarValues.push(value) } }]
+      : []
+  }
 }))
 
 vi.mock('../../../lib/broadcast', () => ({
@@ -43,6 +54,7 @@ vi.mock('../../build/lib/spawn-gradle', () => ({
     logPath: string
     outputTail: string
   }> => {
+    hoisted.gradle.inspect?.()
     // 进度有 200ms 节流：喂 chunk 之前先让出窗口，否则解析结果会被吞掉
     if (hoisted.gradle.chunks.length > 0) {
       await new Promise((resolve) => setTimeout(resolve, 260))
@@ -116,9 +128,28 @@ beforeEach(() => {
   // 每条用例自己决定要不要喂 Gradle 输出，避免上一条的 chunk 漏到下一条
   hoisted.gradle.chunks = []
   hoisted.gradle.exitCode = 0
+  hoisted.gradle.inspect = null
+  hoisted.taskbarEnabled = false
+  hoisted.taskbarValues.length = 0
 })
 
 describe('executeQueueItem 的状态广播', () => {
+  it('真实执行器在变体开始时更新任务栏，结束后立即清除', async () => {
+    const dir = join(workspace, 'taskbar-state')
+    mkdirSync(dir, { recursive: true })
+    seedProject('proj-taskbar', '任务栏示例', dir, 'android {}\n')
+    const queued = items.createItem('proj-taskbar', ['demoDebug'])
+    hoisted.taskbarEnabled = true
+    let observedRunning = false
+    hoisted.gradle.inspect = () => {
+      observedRunning = true
+      // 没有历史样本时是不定进度，证明变体开始的快照已到任务栏。
+      expect(hoisted.taskbarValues.at(-1)).toBe(2)
+    }
+    await executor.executeQueueItem(queued.id)
+    expect(observedRunning).toBe(true)
+    expect(hoisted.taskbarValues.at(-1)).toBe(-1)
+  })
   it('队列项不存在时不广播，直接判失败', async () => {
     const state = await executor.executeQueueItem('不存在的队列项')
     expect(state).toBe('failed')

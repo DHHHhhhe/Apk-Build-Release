@@ -26,6 +26,7 @@ import { notifyBuildFinished } from '../../notify'
 import { isCancelRequested, registerRunning, releaseRunning, setRunningPid } from './cancel'
 import { findItemRow, listRunsForItem, parseVariants, toQueueItemDto, updateItem } from './items'
 import { recordVariantDuration } from './estimate'
+import { syncTaskbarProgress } from './progress'
 
 const logger = baseLogger.scope('queue:executor')
 
@@ -347,6 +348,7 @@ export function broadcastItem(itemId: string): void {
  */
 export function broadcastItemDto(item: QueueItem): void {
   broadcast(IPC_CHANNELS.QUEUE.STATE, { item })
+  syncTaskbarProgress()
 }
 
 function broadcastRunState(

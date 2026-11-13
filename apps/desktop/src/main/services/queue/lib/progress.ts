@@ -1,30 +1,66 @@
 import { BrowserWindow } from 'electron'
+import { QUEUE_LIST_LIMIT } from '@shared/constants/queue'
+import { currentBatchItems, isQueueItemActive } from '@shared/lib/queue-batch'
+import { variantProgressPercent } from '@shared/lib/variant-progress'
+import type { QueueItem } from '@shared/types/queue'
 import { listItems } from './items'
 
-/**
- * 任务栏进度条。
- *
- * 口径：分母是队列里的全部项，分子是已结束的项 —— 用户看到的是「这批还剩多少」。
- * 只有队列里还有排队或正在跑的项时才显示；跑完或清空后立刻清掉，
- * 免得进度条挂在那里让人以为还没结束。
- *
- * 拿不到窗口（比如测试环境）时什么也不做。
- */
-export function syncTaskbarProgress(): void {
+let snapshot: QueueItem[] = []
+let heartbeat: ReturnType<typeof setInterval> | null = null
+
+function stopHeartbeat(): void {
+  if (heartbeat !== null) {
+    clearInterval(heartbeat)
+    heartbeat = null
+  }
+}
+
+/** 当前批次按变体等权汇总；正在构建的变体使用队列行的同一份耗时估算。 */
+function progressValue(items: QueueItem[], now: number): number {
+  const { current } = currentBatchItems(items)
+  let total = 0
+  let completed = 0
+  for (const item of current) {
+    const runs = new Map(item.runs.map((run) => [run.variant, run]))
+    for (const variant of item.variants) {
+      total += 1
+      const run = runs.get(variant)
+      if (!isQueueItemActive(item) || (run && run.state !== 'running')) {
+        completed += 1
+      } else if (run?.state === 'running') {
+        const percent = variantProgressPercent(run, now, true)
+        if (percent === null) {
+          // Electron 约定大于 1 为不定进度：没有样本时不伪造百分比。
+          return 2
+        }
+        completed += percent / 100
+      }
+    }
+  }
+  return total === 0 ? 0 : Math.min(1, completed / total)
+}
+
+function renderProgress(): void {
   const win = BrowserWindow.getAllWindows()[0]
   if (!win) {
+    stopHeartbeat()
     return
   }
-
-  const items = listItems(200)
-  const active = items.filter((item) => item.state === 'pending' || item.state === 'running').length
-  if (active === 0) {
+  if (!snapshot.some(isQueueItemActive)) {
     win.setProgressBar(-1)
+    stopHeartbeat()
     return
   }
+  win.setProgressBar(progressValue(snapshot, Date.now()))
+  if (heartbeat === null) {
+    // 估算随时间变化，即使 Gradle 没有新输出也要刷新；心跳复用快照，不轮询数据库。
+    heartbeat = setInterval(renderProgress, 1000)
+    heartbeat.unref()
+  }
+}
 
-  const finished = items.filter(
-    (item) => item.state !== 'pending' && item.state !== 'running'
-  ).length
-  win.setProgressBar(finished / items.length)
+/** 状态变更时更新快照，全部结束或清空后立即移除任务栏进度并停止心跳。 */
+export function syncTaskbarProgress(): void {
+  snapshot = listItems(QUEUE_LIST_LIMIT)
+  renderProgress()
 }
