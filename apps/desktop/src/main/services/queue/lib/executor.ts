@@ -73,6 +73,14 @@ export async function executeQueueItem(itemId: string): Promise<QueueItemState> 
 
     const moduleDirs = parseProjectStatics(project.path).modules.map((module) => module.dir)
     const outputRoot = getOutputRoot()
+    const overwriteArtifact = getOverwriteArtifact()
+    /**
+     * 这条队列项已经产出并落在输出目录里的文件名。
+     *
+     * 清空目录是「按变体目录做镜像」，而 debug 与 release 共用同一个项目目录：
+     * 不记这份清单的话，同一批里后构建的变体会把先构建的产物删掉。
+     */
+    const producedNames = new Set<string>()
     let anyFailed = false
     let anyCanceled = false
 
@@ -161,9 +169,16 @@ export async function executeQueueItem(itemId: string): Promise<QueueItemState> 
         : null
       const copiedPath = artifact
         ? copyArtifactToOutput(artifact, outputRoot, resolveOutputFolderName(project), {
-            overwrite: getOverwriteArtifact()
+            overwrite: overwriteArtifact,
+            keep: producedNames
           })
         : null
+
+      // 记进清单要在清理之后：清理只保留清单里已有的 + 当前这一个，
+      // 当前这个已经写进磁盘，下一轮构建它就成了「要保住的历史产物」
+      if (copiedPath && overwriteArtifact) {
+        producedNames.add(basename(copiedPath))
+      }
 
       if (succeeded && artifact) {
         emitProgress(parser.markPhase('verifying'), true)

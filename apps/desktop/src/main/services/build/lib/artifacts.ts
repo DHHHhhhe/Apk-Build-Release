@@ -1,4 +1,5 @@
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs'
+import type { Dirent } from 'node:fs'
 import { basename, join, relative, resolve } from 'node:path'
 import { resolveOutputFolderName, sanitizeSegment } from '@shared/lib/output-folder'
 import { logger as baseLogger } from '../../logger'
@@ -111,7 +112,7 @@ export function findApkArtifacts(options: FindArtifactsOptions): ApkArtifact[] {
 
 export interface CopyArtifactOptions {
   /**
-   * 覆盖统一输出目录里「同一变体」的历史产物（设置里的「新增 APK 覆盖原有包体」）。
+   * 清空输出目录里除本次产物以外的一切（设置里的「新增 APK 覆盖原有包体」）。
    *
    * 不能只判同名：很多工程在 Gradle 里把构建时间戳拼进了 outputFileName
    * （例如 `appName_V1.5.0_20261112_1746.apk`），每次构建文件名都不同，
@@ -120,6 +121,13 @@ export interface CopyArtifactOptions {
    * 默认 false：重名加时间戳后缀、历史包都留着。
    */
   overwrite?: boolean
+  /**
+   * 本次构建（同一条队列项）已经产出的文件名，清理时要一并保留。
+   *
+   * 目录是按项目别名分的，debug 与 release 共用同一个目录：没有这份清单的话，
+   * 同一批里先构建的 debug 包会被后构建的 release 包顺手删掉。
+   */
+  keep?: ReadonlySet<string>
 }
 
 /** 复制到统一输出目录：按项目分子目录、保留原名 */
@@ -142,6 +150,10 @@ export function copyArtifactToOutput(
     return target
   }
 
+  // 清理清单 = 本次构建已产出的文件 + 正在写的这一个
+  const keep = new Set<string>(options.keep ?? [])
+  keep.add(basename(target))
+
   if (overwritten && existsSync(target)) {
     // 覆盖走「同目录临时文件 + 改名」：直接 copy 到目标会先截断旧包，
     // 复制中途失败（磁盘满、源文件被占用）就只剩一个残缺的 APK，比不覆盖更糟。
@@ -155,26 +167,26 @@ export function copyArtifactToOutput(
       throw error
     }
     logger.info('产物已覆盖', { from: artifact.apkPath, to: target })
-    pruneAfterCopy(targetDir, artifact.apkName)
+    pruneAfterCopy(targetDir, keep)
     return target
   }
 
   copyFileSync(artifact.apkPath, target)
   logger.info('产物已复制', { from: artifact.apkPath, to: target })
 
-  // 新包已经完整落盘，再清理同一变体的历史产物 —— 顺序不能反：
+  // 新包已经完整落盘，再清理目录里其余的东西 —— 顺序不能反：
   // 先删后复制的话，复制失败就会连旧包一起没了。
   if (overwritten) {
-    pruneAfterCopy(targetDir, artifact.apkName)
+    pruneAfterCopy(targetDir, keep)
   }
   return target
 }
 
-/** 清理同变体历史产物并记日志；失败不影响本次构建（新包已经落地） */
-function pruneAfterCopy(dir: string, keepFileName: string): void {
-  const removed = pruneVariantHistory(dir, keepFileName)
+/** 清空目录里不在保留清单内的东西并记日志；失败不影响本次构建（新包已经落地） */
+function pruneAfterCopy(dir: string, keep: ReadonlySet<string>): void {
+  const removed = pruneVariantDir(dir, keep)
   if (removed.length > 0) {
-    logger.info('已清理同变体的历史产物', { count: removed.length, files: removed })
+    logger.info('已清空输出目录里的其余内容', { count: removed.length, items: removed })
   }
 }
 
@@ -213,37 +225,104 @@ export function artifactFamilyKey(fileName: string): string {
 }
 
 /**
- * 删掉目录里与 keepFileName 属于同一变体、但不是本次产物的 APK。
+ * 清空变体目录里除了保留清单以外的一切。
  *
- * 只删 `.apk`，也绝不删本次写进去的那个；返回被删掉的文件名，供日志与测试核对。
+ * 目录当成本次构建的镜像，而不是越堆越多的仓库 —— 用户的诉求就是
+ * 「先清空变体目录，再写入新产物」，所以这里不做人工挑选：
+ * - 历史 APK：删
+ * - 子文件夹（例如多渠道打包的 `渠道包/官方.apk`、`渠道包/快手.apk`）：整体递归删
+ * - 非 APK 普通文件（说明文档、日志等）：删
+ *
+ * 保留清单由调用方给出：本次构建（同一条队列项）已经产出的文件名 + 正在写的这一个。
+ * 同一批里 debug 与 release 共用同一个项目目录，没有这份清单就会互相删。
+ *
+ * 删不掉（被占用 / 只读）只记警告、跳过，不影响本次构建 —— 新包已经写好了。
+ * 返回被删掉的名字（文件夹带 `/` 后缀），供日志与测试核对。
  */
-export function pruneVariantHistory(dir: string, keepFileName: string): string[] {
-  const keepKey = artifactFamilyKey(keepFileName)
-  let entries: string[]
+export function pruneVariantDir(dir: string, keep: ReadonlySet<string>): string[] {
+  let entries: Dirent[]
   try {
-    entries = readdirSync(dir)
+    entries = readdirSync(dir, { withFileTypes: true })
   } catch {
     return []
   }
 
   const removed: string[] = []
   for (const entry of entries) {
-    if (entry === keepFileName) {
+    if (keep.has(entry.name)) {
       continue
     }
-    if (!entry.toLowerCase().endsWith('.apk')) {
+
+    // 复制过程中的临时文件属于自己，清掉不算用户内容
+    if (entry.isDirectory()) {
+      try {
+        rmSync(join(dir, entry.name), { recursive: true, force: true })
+        removed.push(`${entry.name}/`)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '未知错误'
+        logger.warn('清理子文件夹失败，已跳过', { dir: entry.name, error: message })
+      }
       continue
     }
-    if (artifactFamilyKey(entry) !== keepKey) {
+
+    try {
+      rmSync(join(dir, entry.name), { force: true })
+      removed.push(entry.name)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '未知错误'
+      logger.warn('清理文件失败，已跳过', { file: entry.name, error: message })
+    }
+  }
+  return removed
+}
+
+/**
+ * 只删掉与 keepFileName 属于同一变体的历史 APK，保留其他文件。
+ *
+ * 用于「不清空目录、只想清同族历史包」的调用方与既有测试；
+ * 覆盖模式走的是 pruneVariantDir（清空目录）。
+ *
+ * @deprecated 覆盖模式已改为清空整个目录，见 pruneVariantDir
+ */
+export function pruneVariantHistory(dir: string, keepFileName: string): string[] {
+  const keepKey = artifactFamilyKey(keepFileName)
+  let entries: Dirent[]
+  try {
+    entries = readdirSync(dir, { withFileTypes: true })
+  } catch {
+    return []
+  }
+
+  const removed: string[] = []
+  for (const entry of entries) {
+    if (entry.name === keepFileName) {
+      continue
+    }
+
+    // 子文件夹整体删：多渠道打包的输出目录每次都是全量重出的，旧的没有保留价值
+    if (entry.isDirectory()) {
+      try {
+        rmSync(join(dir, entry.name), { recursive: true, force: true })
+        removed.push(`${entry.name}/`)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '未知错误'
+        logger.warn('清理子文件夹失败，已跳过', { dir: entry.name, error: message })
+      }
+      continue
+    }
+
+    if (!entry.name.toLowerCase().endsWith('.apk')) {
+      continue
+    }
+    if (artifactFamilyKey(entry.name) !== keepKey) {
       continue
     }
     try {
-      rmSync(join(dir, entry), { force: true })
-      removed.push(entry)
+      rmSync(join(dir, entry.name), { force: true })
+      removed.push(entry.name)
     } catch (error) {
       const message = error instanceof Error ? error.message : '未知错误'
-      // 删不掉（被占用 / 只读）不该让本次构建失败：新包已经写好了
-      logger.warn('清理历史产物失败，已跳过', { file: entry, error: message })
+      logger.warn('清理历史产物失败，已跳过', { file: entry.name, error: message })
     }
   }
   return removed

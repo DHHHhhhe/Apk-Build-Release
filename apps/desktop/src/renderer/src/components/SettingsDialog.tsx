@@ -253,7 +253,7 @@ export function SettingsDialog({
                 <span className="switch__thumb" aria-hidden="true" />
               </button>
               <span className="dialog__hint">
-                {'新增 APK 覆盖原有包体：同一变体重新构建后，输出目录里只留最新这一个包；关掉则历史包都留着'}
+                {'新增 APK 覆盖原有包体：每次构建后清空该项目的输出目录，只留本次产出的包（含文件夹与其他文件）'}
               </span>
             </div>
           </div>

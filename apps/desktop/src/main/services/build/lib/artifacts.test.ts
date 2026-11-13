@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, relative } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -6,6 +6,7 @@ import {
   artifactFamilyKey,
   copyArtifactToOutput,
   findApkArtifacts,
+  pruneVariantDir,
   pruneVariantHistory,
   readOutputMetadata,
   resolveOutputFolderName
@@ -359,8 +360,8 @@ describe('artifactFamilyKey（同一变体的产物族）', () => {
   })
 })
 
-describe('pruneVariantHistory', () => {
-  it('只留本次产物，清掉同变体的历史包', () => {
+describe('pruneVariantDir（清空目录，只留保留清单）', () => {
+  it('只留本次产物，清掉所有历史包', () => {
     const dir = join(workspace, 'out', '示例')
     mkdirSync(dir, { recursive: true })
     for (const name of [
@@ -372,7 +373,7 @@ describe('pruneVariantHistory', () => {
       writeFileSync(join(dir, name), 'apk', 'utf8')
     }
 
-    const removed = pruneVariantHistory(dir, '示例_V1.5.0_20261112_1746.apk')
+    const removed = pruneVariantDir(dir, new Set(['示例_V1.5.0_20261112_1746.apk']))
 
     expect(readdirSync(dir)).toEqual(['示例_V1.5.0_20261112_1746.apk'])
     expect(removed.sort()).toEqual([
@@ -382,26 +383,84 @@ describe('pruneVariantHistory', () => {
     ])
   })
 
-  it('不碰另一个变体的包，也不碰非 APK 文件', () => {
+  it('非 APK 普通文件也一起清掉', () => {
     const dir = join(workspace, 'out', '示例')
     mkdirSync(dir, { recursive: true })
     writeFileSync(join(dir, '示例_V1.5.0_20261112_1746.apk'), 'apk', 'utf8')
-    writeFileSync(join(dir, '示例_V1.5.0_20261022_1024.apk'), 'apk', 'utf8')
-    // 另一个变体：debug 包的前缀不同
-    writeFileSync(join(dir, '示例_V1.5.0_debug包_20261022_1024.apk'), 'apk', 'utf8')
     writeFileSync(join(dir, '说明.txt'), 'text', 'utf8')
+    writeFileSync(join(dir, 'build.log'), 'log', 'utf8')
+    writeFileSync(join(dir, '旧包.apk'), 'apk', 'utf8')
 
-    pruneVariantHistory(dir, '示例_V1.5.0_20261112_1746.apk')
+    const removed = pruneVariantDir(dir, new Set(['示例_V1.5.0_20261112_1746.apk']))
 
-    expect(readdirSync(dir).sort()).toEqual([
-      '示例_V1.5.0_debug包_20261022_1024.apk',
-      '示例_V1.5.0_20261112_1746.apk',
-      '说明.txt'
-    ].sort())
+    expect(readdirSync(dir)).toEqual(['示例_V1.5.0_20261112_1746.apk'])
+    expect(removed.sort()).toEqual(['build.log', '旧包.apk', '说明.txt'].sort())
+  })
+
+  it('保留清单里的东西一个都不动（同一批 debug 与 release 共存）', () => {
+    const dir = join(workspace, 'out', '示例')
+    mkdirSync(dir, { recursive: true })
+    const keep = ['示例_V1.5.0_debug包_20261113_1020.apk', '示例_V1.5.0_20261113_1030.apk']
+    for (const name of [...keep, '示例_V1.5.0_20261022_1024.apk']) {
+      writeFileSync(join(dir, name), 'apk', 'utf8')
+    }
+
+    pruneVariantDir(dir, new Set(keep))
+
+    expect(readdirSync(dir).sort()).toEqual([...keep].sort())
   })
 
   it('目录不存在时返回空，不抛错', () => {
-    expect(pruneVariantHistory(join(workspace, 'nope'), 'a.apk')).toEqual([])
+    expect(pruneVariantDir(join(workspace, 'nope'), new Set())).toEqual([])
+  })
+
+  it('子文件夹整体清除（多渠道打包输出），本次产物保留', () => {
+    const dir = join(workspace, 'out', '示例')
+    const channels = join(dir, '渠道包')
+    mkdirSync(channels, { recursive: true })
+    writeFileSync(join(dir, '示例_V1.5.0_20261113_1028.apk'), 'apk', 'utf8')
+    writeFileSync(join(dir, '示例_V1.5.0_20261113_1032.apk'), 'apk', 'utf8')
+    // 上一次构建留下的渠道包：里面是两个渠道的包
+    writeFileSync(join(channels, '示例_V1.5.0_20261113_1028_官方.apk'), 'apk', 'utf8')
+    writeFileSync(join(channels, '示例_V1.5.0_20261113_1028_快手.apk'), 'apk', 'utf8')
+
+    const removed = pruneVariantDir(dir, new Set(['示例_V1.5.0_20261113_1032.apk']))
+
+    // 渠道包整个目录都没了，只留本次的 apk
+    expect(existsSync(channels)).toBe(false)
+    expect(readdirSync(dir)).toEqual(['示例_V1.5.0_20261113_1032.apk'])
+    expect(removed.sort()).toEqual(['示例_V1.5.0_20261113_1028.apk', '渠道包/'].sort())
+  })
+
+  it('子文件夹里的东西再多也一起清掉，不只清一层', () => {
+    const dir = join(workspace, 'out', '示例')
+    const nested = join(dir, '渠道包', 'inner', 'deeper')
+    mkdirSync(nested, { recursive: true })
+    writeFileSync(join(dir, '示例_V1.5.0_20261113_1032.apk'), 'apk', 'utf8')
+    writeFileSync(join(nested, 'x.apk'), 'apk', 'utf8')
+    writeFileSync(join(dir, '渠道包', 'inner', 'y.apk'), 'apk', 'utf8')
+
+    pruneVariantHistory(dir, '示例_V1.5.0_20261113_1032.apk')
+
+    expect(existsSync(join(dir, '渠道包'))).toBe(false)
+    expect(readdirSync(dir)).toEqual(['示例_V1.5.0_20261113_1032.apk'])
+  })
+
+  it('子文件夹与另一个变体的包同时存在时，只清子文件夹与同族旧包', () => {
+    const dir = join(workspace, 'out', '示例')
+    const channels = join(dir, '渠道包')
+    mkdirSync(channels, { recursive: true })
+    writeFileSync(join(dir, '示例_V1.5.0_20261113_1032.apk'), 'apk', 'utf8')
+    writeFileSync(join(dir, '示例_V1.5.0_20261113_1028.apk'), 'apk', 'utf8')
+    writeFileSync(join(dir, '示例_V1.5.0_debug包_20261113_1028.apk'), 'apk', 'utf8')
+    writeFileSync(join(dir, '说明.txt'), 'text', 'utf8')
+    writeFileSync(join(channels, '官方.apk'), 'apk', 'utf8')
+
+    pruneVariantDir(dir, new Set(['示例_V1.5.0_20261113_1032.apk']))
+
+    // 清空语义：除了保留清单里的，debug 包与说明文件也一起没了
+    expect(existsSync(channels)).toBe(false)
+    expect(readdirSync(dir)).toEqual(['示例_V1.5.0_20261113_1032.apk'])
   })
 })
 
@@ -464,5 +523,53 @@ describe('copyArtifactToOutput + 覆盖（端到端串起来）', () => {
     build('示例_V1.5.0_20261112_1746.apk')
 
     expect(readdirSync(join(outputRoot, '示例')).length).toBe(2)
+  })
+
+  it('同一批两个变体共用目录时，后构建的不会删掉先构建的', () => {
+    const outputRoot = join(workspace, 'out')
+    const produced = new Set<string>()
+
+    // 同一条队列项：先 debug，再 release，keep 一直累积
+    const build = (name: string, bytes: string): string => {
+      const relativePath = `app/build/outputs/apk/free/${name}`
+      writeFile(relativePath, bytes)
+      const target = copyArtifactToOutput(
+        {
+          apkPath: join(workspace, relativePath),
+          apkName: name,
+          applicationId: null,
+          variantName: null,
+          versionCode: null,
+          versionName: null,
+          signed: null,
+          matchedBy: 'filename'
+        },
+        outputRoot,
+        '示例',
+        { overwrite: true, keep: produced }
+      )
+      produced.add(name)
+      return target
+    }
+
+    // 目录里先放一批历史垃圾：旧包、子文件夹、说明文件
+    const dir = join(outputRoot, '示例')
+    mkdirSync(join(dir, '渠道包'), { recursive: true })
+    writeFileSync(join(dir, '历史包_20260101_0000.apk'), 'old', 'utf8')
+    writeFileSync(join(dir, '说明.txt'), 'text', 'utf8')
+    writeFileSync(join(dir, '渠道包', '官方.apk'), 'apk', 'utf8')
+
+    build('示例_V1.5.0_debug包_20261113_1020.apk', 'debug')
+    build('示例_V1.5.0_20261113_1021.apk', 'release')
+
+    const after = readdirSync(dir).sort()
+    console.log('AFTER=' + JSON.stringify(after))
+
+    // 两个本次产物都在；历史垃圾与子文件夹都没了
+    expect(after).toEqual([
+      '示例_V1.5.0_20261113_1021.apk',
+      '示例_V1.5.0_debug包_20261113_1020.apk'
+    ].sort())
+    expect(existsSync(join(dir, '渠道包'))).toBe(false)
   })
 })
